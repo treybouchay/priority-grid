@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Priority Grid</title>
+    <script>
+      try {
+        const theme = localStorage.getItem("priority-grid-theme");
+        const font = localStorage.getItem("priority-grid-font");
+        if (theme) document.documentElement.dataset.theme = theme;
+        if (font) document.documentElement.dataset.font = font;
+      } catch {}
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Serif+Display&family=Inter:wght@400;500;600&family=Lato:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Noto+Serif:wght@500;600&family=Nunito+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <nav class="context-bar" role="tablist" aria-label="List context">
+        <button type="button" class="context-tab active" data-context="work" role="tab" aria-selected="true">
+          Work
+        </button>
+        <button type="button" class="context-tab" data-context="home" role="tab" aria-selected="false">
+          Home
+        </button>
+      </nav>
+
+      <nav class="view-bar" role="tablist" aria-label="Page">
+        <button type="button" class="view-tab active" data-view="grid" role="tab" aria-selected="true">
+          Priority Grid
+        </button>
+        <button type="button" class="view-tab" data-view="brain-dump" role="tab" aria-selected="false">
+          Brain Dump
+        </button>
+      </nav>
+
+      <header class="header">
+        <div class="date-display">
+          <span class="date-label" id="date-label"></span>
+          <div class="weekdays" id="weekdays"></div>
+        </div>
+        <p class="subtitle" id="subtitle">Drag tasks between tiers as priorities shift</p>
+
+        <details class="appearance-panel">
+          <summary>Appearance</summary>
+          <div class="appearance-content">
+            <p class="appearance-label">Font pairing</p>
+            <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
+            <p class="appearance-label">Color theme</p>
+            <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color theme"></div>
+          </div>
+        </details>
+      </header>
+
+      <main class="grid view-panel" id="grid-view" data-view="grid">
+        <section class="quadrant" data-tier="1">
+          <h2 class="tier-label">1st</h2>
+          <ul class="task-list" data-tier="1"></ul>
+          <form class="add-form" data-tier="1">
+            <input type="text" placeholder="Add task…" autocomplete="off" />
+            <button type="submit" aria-label="Add task">+</button>
+          </form>
+        </section>
+
+        <section class="quadrant" data-tier="2">
+          <h2 class="tier-label">2nd</h2>
+          <ul class="task-list" data-tier="2"></ul>
+          <form class="add-form" data-tier="2">
+            <input type="text" placeholder="Add task…" autocomplete="off" />
+            <button type="submit" aria-label="Add task">+</button>
+          </form>
+        </section>
+
+        <section class="quadrant" data-tier="3">
+          <h2 class="tier-label">3rd</h2>
+          <ul class="task-list" data-tier="3"></ul>
+          <form class="add-form" data-tier="3">
+            <input type="text" placeholder="Add task…" autocomplete="off" />
+            <button type="submit" aria-label="Add task">+</button>
+          </form>
+        </section>
+
+        <section class="quadrant" data-tier="4">
+          <h2 class="tier-label">4th</h2>
+          <ul class="task-list" data-tier="4"></ul>
+          <form class="add-form" data-tier="4">
+            <input type="text" placeholder="Add task…" autocomplete="off" />
+            <button type="submit" aria-label="Add task">+</button>
+          </form>
+        </section>
+      </main>
+
+      <section class="brain-dump view-panel hidden" id="brain-dump-view" data-view="brain-dump">
+        <div class="brain-dump-inner">
+          <p class="brain-dump-hint">
+            Get everything out of your head first. When you're ready, send each item to a priority tier.
+          </p>
+          <form class="brain-dump-form" id="brain-dump-form">
+            <textarea
+              id="brain-dump-input"
+              rows="3"
+              placeholder="What's on your mind? Press Enter to add, Shift+Enter for a new line…"
+              autocomplete="off"
+            ></textarea>
+            <button type="submit" class="brain-dump-add-btn">Add to list</button>
+          </form>
+          <ul class="brain-dump-list" id="brain-dump-list"></ul>
+          <p class="brain-dump-empty hidden" id="brain-dump-empty">Nothing here yet — start jotting above.</p>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
