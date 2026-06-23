@@ -3,119 +3,502 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Priority Grid</title>
+    <title>My Day</title>
     <script>
       try {
         const theme = localStorage.getItem("priority-grid-theme");
         const font = localStorage.getItem("priority-grid-font");
         if (theme) document.documentElement.dataset.theme = theme;
+        else document.documentElement.dataset.theme = "dusty-rose";
         if (font) document.documentElement.dataset.font = font;
+        else document.documentElement.dataset.font = "playfair-inter";
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=7" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Serif+Display&family=Inter:wght@400;500;600&family=Lato:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Noto+Serif:wght@500;600&family=Nunito+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=Lato:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Lora:wght@500;600&family=Noto+Serif:wght@500;600&family=Nunito+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <div class="app">
-      <nav class="context-bar" role="tablist" aria-label="List context">
-        <button type="button" class="context-tab active" data-context="work" role="tab" aria-selected="true">
-          Work
-        </button>
-        <button type="button" class="context-tab" data-context="home" role="tab" aria-selected="false">
-          Home
-        </button>
-      </nav>
-
-      <nav class="view-bar" role="tablist" aria-label="Page">
-        <button type="button" class="view-tab active" data-view="grid" role="tab" aria-selected="true">
-          Priority Grid
-        </button>
-        <button type="button" class="view-tab" data-view="brain-dump" role="tab" aria-selected="false">
-          Brain Dump
-        </button>
-      </nav>
-
-      <header class="header">
-        <div class="date-display">
-          <span class="date-label" id="date-label"></span>
-          <div class="weekdays" id="weekdays"></div>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+      <symbol id="icon-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 21c-4-3.5-7-7.5-7-12a7 7 0 0 1 14 0c0 4.5-3 8.5-7 12Z"/>
+        <path d="M12 21V9"/>
+        <path d="M9.5 11.5C11 9 14 7.5 16.5 8"/>
+      </symbol>
+      <symbol id="icon-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/>
+      </symbol>
+      <symbol id="icon-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6-1.5A4 4 0 0 0 7 18Z"/>
+      </symbol>
+      <symbol id="icon-tasks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="3"/>
+        <path d="M8 10h8M8 14h5"/>
+      </symbol>
+      <symbol id="icon-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="8" width="18" height="12" rx="2"/>
+        <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        <path d="M3 13h18"/>
+      </symbol>
+      <symbol id="icon-house" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 12 5l8 6"/>
+        <path d="M6 10.5V19a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-8.5"/>
+      </symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </symbol>
+      <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m12 3 2.2 4.8L19 8.5l-3.8 3.3 1.2 5.2L12 14.8 7.6 17l1.2-5.2L5 8.5l4.8-.7L12 3Z"/>
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="M20 20l-3-3"/>
+      </symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16l-2-2Z"/>
+        <path d="M10 20a2 2 0 0 0 4 0"/>
+      </symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="6" r="1.5"/>
+        <circle cx="12" cy="12" r="1.5"/>
+        <circle cx="12" cy="18" r="1.5"/>
+      </symbol>
+      <symbol id="icon-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="2" width="8" height="4" rx="1"/>
+        <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/>
+      </symbol>
+      <symbol id="icon-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 4 6v12l8 4 8-4V6l-8-4Z"/>
+        <path d="M4 6l8 4 8-4M12 22V10"/>
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m6 9 6 6 6-6"/>
+      </symbol>
+      <symbol id="icon-forget-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 8h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"/>
+        <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        <path d="M9 12h6"/>
+      </symbol>
+      <symbol id="illus-blob" viewBox="0 0 64 64" fill="none">
+        <ellipse cx="32" cy="36" rx="22" ry="20" fill="#FDE8E8"/>
+        <circle cx="32" cy="28" r="18" fill="#FDE8E8" stroke="#B46B61" stroke-width="1.5"/>
+        <circle cx="26" cy="26" r="2" fill="#B46B61"/>
+        <circle cx="38" cy="26" r="2" fill="#B46B61"/>
+        <path d="M28 32c2 2 6 2 8 0" stroke="#B46B61" stroke-width="1.5" stroke-linecap="round"/>
+        <ellipse cx="32" cy="54" rx="14" ry="4" fill="#B46B61" opacity="0.15"/>
+      </symbol>
+      <symbol id="illus-focus" viewBox="0 0 160 120" fill="none">
+        <rect width="160" height="120" rx="16" fill="#FDE8E8"/>
+        <ellipse cx="80" cy="98" rx="28" ry="6" fill="#EBD5D2" opacity="0.6"/>
+        <path d="M68 98V72c0-4 4-8 12-8s12 4 12 8v26" fill="#FFFFFF" stroke="#EBD5D2" stroke-width="1.5"/>
+        <path d="M64 98h32" stroke="#EBD5D2" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M80 38c-8 2-14 8-16 16M80 38c8 2 14 8 16 16M80 38V28" stroke="#B46B61" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="68" cy="52" r="5" fill="#B46B61" opacity="0.55"/>
+        <circle cx="92" cy="48" r="6" fill="#B46B61" opacity="0.85"/>
+        <circle cx="76" cy="44" r="4" fill="#B46B61" opacity="0.45"/>
+        <circle cx="86" cy="58" r="4.5" fill="#B46B61" opacity="0.7"/>
+        <circle cx="72" cy="60" r="3.5" fill="#B46B61" opacity="0.5"/>
+        <path d="M58 56c4-6 10-10 22-12" stroke="#B46B61" stroke-width="1" stroke-linecap="round" opacity="0.35"/>
+        <path d="M102 54c-4-6-10-10-22-12" stroke="#B46B61" stroke-width="1" stroke-linecap="round" opacity="0.35"/>
+      </symbol>
+      <symbol id="illus-brain" viewBox="0 0 80 80" fill="none">
+        <path d="M52 62c8-2 14-10 14-20 0-6-2-11-6-14 1-8-4-15-12-16-3-5-9-8-16-8-10 0-18 8-18 18 0 2 .5 4 1 6-5 4-8 10-8 17 0 12 10 22 22 22 4 0 8-1 11-3" fill="#FDE8E8" stroke="#B46B61" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M40 18c-2 6-1 12 2 17M44 16c3 5 5 11 4 17" stroke="#B46B61" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+        <circle cx="36" cy="12" r="4" fill="#B46B61" opacity="0.55"/>
+        <circle cx="44" cy="8" r="3.5" fill="#B46B61" opacity="0.8"/>
+        <circle cx="48" cy="14" r="3" fill="#B46B61" opacity="0.45"/>
+        <circle cx="40" cy="6" r="2.5" fill="#B46B61" opacity="0.7"/>
+        <path d="M32 10c2-4 6-6 10-5" stroke="#B46B61" stroke-width="1" stroke-linecap="round" opacity="0.35"/>
+        <path d="M50 12c-1-4-5-7-9-6" stroke="#B46B61" stroke-width="1" stroke-linecap="round" opacity="0.35"/>
+      </symbol>
+      <symbol id="illus-focus-small" viewBox="0 0 80 64" fill="none">
+        <ellipse cx="40" cy="56" rx="18" ry="4" fill="#EBD5D2" opacity="0.5"/>
+        <path d="M34 56V40c0-3 3-5 6-5s6 2 6 5v16" fill="#FFFFFF" stroke="#EBD5D2" stroke-width="1.2"/>
+        <path d="M32 56h16" stroke="#EBD5D2" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="36" cy="32" r="3.5" fill="#B46B61" opacity="0.55"/>
+        <circle cx="44" cy="30" r="4" fill="#B46B61" opacity="0.85"/>
+        <circle cx="40" cy="24" r="2.5" fill="#B46B61" opacity="0.45"/>
+        <path d="M40 24V18" stroke="#B46B61" stroke-width="1" stroke-linecap="round"/>
+      </symbol>
+    </svg>
+    <div class="shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <svg class="icon icon-brand" aria-hidden="true"><use href="#icon-leaf"></use></svg>
+          <h1 class="brand-name">My Day</h1>
         </div>
-        <p class="subtitle" id="subtitle">Drag tasks between tiers as priorities shift</p>
 
-        <details class="appearance-panel">
-          <summary>Appearance</summary>
-          <div class="appearance-content">
-            <p class="appearance-label">Font pairing</p>
-            <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
-            <p class="appearance-label">Color theme</p>
-            <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color theme"></div>
+        <nav class="sidebar-nav" aria-label="Main">
+          <button type="button" class="nav-item" data-page="home">
+            <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-home"></use></svg>
+            Home
+          </button>
+          <button type="button" class="nav-item" data-page="tasks" data-filter="all" data-focus-brain="true">
+            <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-cloud"></use></svg>
+            Brain Dump
+          </button>
+          <button type="button" class="nav-item" data-page="tasks" data-filter="all">
+            <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-tasks"></use></svg>
+            All Tasks
+          </button>
+          <button type="button" class="nav-item" data-page="tasks" data-filter="work">
+            <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-briefcase"></use></svg>
+            Work
+          </button>
+          <button type="button" class="nav-item" data-page="tasks" data-filter="home">
+            <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-house"></use></svg>
+            Home
+          </button>
+        </nav>
+
+        <div class="sidebar-focus" aria-hidden="true">
+          <div class="focus-art focus-art-small">
+            <img class="focus-hero-shot focus-hero-shot-small" src="assets/focus-hero.jpg" alt="" decoding="async" />
           </div>
-        </details>
-      </header>
-
-      <main class="grid view-panel" id="grid-view" data-view="grid">
-        <section class="quadrant" data-tier="1">
-          <h2 class="tier-label">1st</h2>
-          <ul class="task-list" data-tier="1"></ul>
-          <form class="add-form" data-tier="1">
-            <input type="text" placeholder="Add task…" autocomplete="off" />
-            <button type="submit" aria-label="Add task">+</button>
-          </form>
-        </section>
-
-        <section class="quadrant" data-tier="2">
-          <h2 class="tier-label">2nd</h2>
-          <ul class="task-list" data-tier="2"></ul>
-          <form class="add-form" data-tier="2">
-            <input type="text" placeholder="Add task…" autocomplete="off" />
-            <button type="submit" aria-label="Add task">+</button>
-          </form>
-        </section>
-
-        <section class="quadrant" data-tier="3">
-          <h2 class="tier-label">3rd</h2>
-          <ul class="task-list" data-tier="3"></ul>
-          <form class="add-form" data-tier="3">
-            <input type="text" placeholder="Add task…" autocomplete="off" />
-            <button type="submit" aria-label="Add task">+</button>
-          </form>
-        </section>
-
-        <section class="quadrant" data-tier="4">
-          <h2 class="tier-label">4th</h2>
-          <ul class="task-list" data-tier="4"></ul>
-          <form class="add-form" data-tier="4">
-            <input type="text" placeholder="Add task…" autocomplete="off" />
-            <button type="submit" aria-label="Add task">+</button>
-          </form>
-        </section>
-      </main>
-
-      <section class="brain-dump view-panel hidden" id="brain-dump-view" data-view="brain-dump">
-        <div class="brain-dump-inner">
-          <p class="brain-dump-hint">
-            Get everything out of your head first. When you're ready, send each item to a priority tier.
-          </p>
-          <form class="brain-dump-form" id="brain-dump-form">
-            <textarea
-              id="brain-dump-input"
-              rows="3"
-              placeholder="What's on your mind? Press Enter to add, Shift+Enter for a new line…"
-              autocomplete="off"
-            ></textarea>
-            <button type="submit" class="brain-dump-add-btn">Add to list</button>
-          </form>
-          <ul class="brain-dump-list" id="brain-dump-list"></ul>
-          <p class="brain-dump-empty hidden" id="brain-dump-empty">Nothing here yet — start jotting above.</p>
+          <div class="sidebar-focus-copy">
+            <p class="sidebar-focus-label">Focus</p>
+            <p class="sidebar-focus-caption">Take care of what sparks joy.</p>
+          </div>
         </div>
-      </section>
+
+        <div class="sidebar-footer">
+          <span class="avatar" aria-hidden="true">TX</span>
+          <span class="user-name">Trey</span>
+          <svg class="icon icon-chevron" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="page-header">
+          <div class="page-header-left">
+            <p class="page-greeting hidden" id="page-greeting">
+              <span id="page-greeting-text"></span>
+              <svg class="icon icon-sun" aria-hidden="true"><use href="#icon-sun"></use></svg>
+            </p>
+            <h2 class="page-title" id="page-title">Home</h2>
+            <p class="page-date" id="page-date"></p>
+          </div>
+          <div class="page-header-right">
+            <div class="page-header-actions hidden" id="page-header-actions">
+              <button type="button" class="header-icon-btn" aria-label="Search">
+                <svg class="icon icon-header" aria-hidden="true"><use href="#icon-search"></use></svg>
+              </button>
+              <button type="button" class="header-icon-btn header-icon-btn-bell" aria-label="Notifications">
+                <svg class="icon icon-header" aria-hidden="true"><use href="#icon-bell"></use></svg>
+                <span class="header-notify-dot" aria-hidden="true"></span>
+              </button>
+            </div>
+            <button
+              type="button"
+              class="mode-135-toggle hidden"
+              id="mode-135-toggle"
+              aria-pressed="false"
+              aria-label="Toggle 1-3-5 planning mode"
+            >
+              <span class="mode-135-toggle-label">1-3-5</span>
+            </button>
+            <div class="filter-pills hidden" id="filter-pills" role="tablist" aria-label="Filter tasks">
+              <button type="button" class="filter-pill active" data-filter="all" role="tab">All</button>
+              <button type="button" class="filter-pill" data-filter="work" role="tab">Work</button>
+              <button type="button" class="filter-pill" data-filter="home" role="tab">Home</button>
+            </div>
+            <button type="button" class="btn-primary hidden" id="add-task-btn">+ Add Task</button>
+          </div>
+
+          <details class="appearance-panel">
+            <summary class="appearance-breadcrumb">&gt; Appearance</summary>
+            <div class="appearance-content">
+              <p class="appearance-label">Font pairing</p>
+              <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
+              <p class="appearance-label">Marie Kondo color themes</p>
+              <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color theme"></div>
+              <p class="appearance-label">Sync data</p>
+              <p class="sync-hint">Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.</p>
+              <div class="sync-actions">
+                <button type="button" class="btn-secondary" id="export-data-btn">Export backup</button>
+                <label class="btn-secondary import-label">
+                  Import backup
+                  <input type="file" id="import-data-input" accept="application/json,.json" hidden />
+                </label>
+              </div>
+            </div>
+          </details>
+        </header>
+
+        <div class="sync-banner hidden" id="sync-banner">
+          <p>Start <strong>./serve.sh</strong> on your Mac and open the same address on each device to sync tasks automatically.</p>
+          <button type="button" class="sync-banner-dismiss" id="sync-banner-dismiss" aria-label="Dismiss">×</button>
+        </div>
+
+        <!-- Home / Dashboard -->
+        <div class="page-panel" id="home-page">
+          <section class="focus-hero">
+            <div class="focus-hero-text">
+              <p class="focus-hero-label">Focus</p>
+              <h3 class="focus-hero-title">Take care of what sparks joy.</h3>
+              <button type="button" class="focus-hero-btn" id="focus-reflection-btn">View reflection &gt;</button>
+            </div>
+            <div class="focus-art focus-art-hero">
+              <img class="focus-hero-shot" src="assets/focus-hero.jpg" alt="" decoding="async" />
+            </div>
+          </section>
+
+          <section class="top-priorities">
+            <header class="section-header">
+              <div class="section-header-left">
+                <h3 class="section-title" id="home-priority-title">Top Priorities</h3>
+                <p class="home-priority-progress hidden" id="home-priority-progress"></p>
+              </div>
+              <button type="button" class="section-link" id="home-view-tasks">View all tasks →</button>
+            </header>
+            <div id="home-priority-content">
+              <ul class="priority-preview-list" id="home-priority-list"></ul>
+            </div>
+            <p class="priority-preview-empty hidden" id="home-priority-empty">No open priorities yet — add a task to get started.</p>
+          </section>
+
+          <section class="forget-it-home hidden" id="forget-it-home" aria-label="Forget it today">
+            <header class="section-header">
+              <h3 class="section-title">Forget It Box</h3>
+            </header>
+            <div class="forget-it-home-body" id="forget-it-home-body"></div>
+          </section>
+        </div>
+
+        <!-- Tasks page with brain dump sidebar -->
+        <div class="page-panel hidden" id="tasks-page">
+          <div class="tasks-workspace">
+            <div class="tasks-board-area">
+              <div class="board" id="board">
+                <section class="column" data-tier="1">
+                  <header class="column-header">
+                    <span class="column-badge">1</span>
+                    <div class="column-header-main">
+                      <h3 class="column-title">1st Priority</h3>
+                      <p class="column-count" data-tier-count="1">0 tasks</p>
+                    </div>
+                    <button type="button" class="column-menu-btn" data-tier="1" aria-label="Open 1st Priority">
+                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                    </button>
+                  </header>
+                  <ul class="task-list" data-tier="1"></ul>
+                  <button type="button" class="column-see-all hidden" data-tier="1">See all tasks</button>
+                  <button type="button" class="column-add" data-tier="1">+ Add task</button>
+                </section>
+                <section class="column" data-tier="2">
+                  <header class="column-header">
+                    <span class="column-badge">2</span>
+                    <div class="column-header-main">
+                      <h3 class="column-title">2nd Priority</h3>
+                      <p class="column-count" data-tier-count="2">0 tasks</p>
+                    </div>
+                    <button type="button" class="column-menu-btn" data-tier="2" aria-label="Open 2nd Priority">
+                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                    </button>
+                  </header>
+                  <ul class="task-list" data-tier="2"></ul>
+                  <button type="button" class="column-see-all hidden" data-tier="2">See all tasks</button>
+                  <button type="button" class="column-add" data-tier="2">+ Add task</button>
+                </section>
+                <section class="column" data-tier="3">
+                  <header class="column-header">
+                    <span class="column-badge">3</span>
+                    <div class="column-header-main">
+                      <h3 class="column-title">3rd Priority</h3>
+                      <p class="column-count" data-tier-count="3">0 tasks</p>
+                    </div>
+                    <button type="button" class="column-menu-btn" data-tier="3" aria-label="Open 3rd Priority">
+                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                    </button>
+                  </header>
+                  <ul class="task-list" data-tier="3"></ul>
+                  <button type="button" class="column-see-all hidden" data-tier="3">See all tasks</button>
+                  <button type="button" class="column-add" data-tier="3">+ Add task</button>
+                </section>
+                <section class="column" data-tier="4">
+                  <header class="column-header">
+                    <span class="column-badge">4</span>
+                    <div class="column-header-main">
+                      <h3 class="column-title">4th Priority</h3>
+                      <p class="column-count" data-tier-count="4">0 tasks</p>
+                    </div>
+                    <button type="button" class="column-menu-btn" data-tier="4" aria-label="Open 4th Priority">
+                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                    </button>
+                  </header>
+                  <ul class="task-list" data-tier="4"></ul>
+                  <button type="button" class="column-see-all hidden" data-tier="4">See all tasks</button>
+                  <button type="button" class="column-add" data-tier="4">+ Add task</button>
+                </section>
+              </div>
+              <p class="board-hint" id="board-hint">Drag tasks between priorities. Click a priority title to see all tasks.</p>
+            </div>
+
+            <div class="tasks-sidebar-col">
+              <div class="sidebar-tabs-panel" id="sidebar-tabs-panel">
+                <div class="sidebar-tabs" role="tablist" aria-label="Sidebar panels">
+                  <button type="button" class="sidebar-tab active" role="tab" data-tab="brain" aria-selected="true">Brain Dump</button>
+                  <button type="button" class="sidebar-tab hidden" role="tab" data-tab="135" aria-selected="false" id="sidebar-tab-135">1-3-5</button>
+                  <button type="button" class="sidebar-tab" role="tab" data-tab="forget" aria-selected="false">Forget It</button>
+                  <button type="button" class="sidebar-tab" role="tab" data-tab="archive" aria-selected="false">Archive</button>
+                </div>
+                <div class="sidebar-tab-panels">
+                  <div class="sidebar-tab-panel active" id="sidebar-tab-panel-brain" role="tabpanel" data-tab="brain">
+                    <aside class="brain-panel" id="brain-panel">
+                      <header class="brain-panel-header">
+                        <div>
+                          <h3 class="brain-panel-title">Brain Dump</h3>
+                          <p class="brain-panel-sub">Capture everything on your mind.</p>
+                        </div>
+                        <svg class="illus illus-blob" aria-hidden="true"><use href="#illus-blob"></use></svg>
+                      </header>
+                      <form class="brain-panel-form" id="brain-panel-form">
+                        <input type="text" id="brain-panel-input" placeholder="Quick note…" autocomplete="off" />
+                      </form>
+                      <ul class="brain-panel-list" id="brain-panel-list"></ul>
+                      <div class="brain-panel-empty hidden" id="brain-panel-empty">
+                        <svg class="icon icon-clipboard" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+                        <p class="brain-empty-title">Nothing here yet.</p>
+                        <p class="brain-empty-sub">Add a note to get started.</p>
+                      </div>
+                      <button type="submit" form="brain-panel-form" class="brain-panel-add">+ New Note</button>
+                    </aside>
+                  </div>
+                  <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-135" role="tabpanel" data-tab="135">
+                    <section class="plan-135" id="plan-135" aria-label="1-3-5 daily plan">
+                      <header class="plan-135-header">
+                        <div>
+                          <h3 class="plan-135-title">Today's 1-3-5</h3>
+                          <p class="plan-135-sub">Drag tasks from the grid or pick from your priorities.</p>
+                        </div>
+                        <p class="plan-135-progress" id="plan-135-progress"></p>
+                      </header>
+                      <div class="plan-135-sections" id="plan-135-sections"></div>
+                    </section>
+                  </div>
+                  <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-forget" role="tabpanel" data-tab="forget">
+                    <aside class="forget-it-panel" id="forget-it-panel" aria-label="Forget it box">
+                      <header class="forget-it-header">
+                        <div>
+                          <h3 class="forget-it-title">Forget It Box</h3>
+                          <p class="forget-it-sub">One thing to let go of today.</p>
+                        </div>
+                      </header>
+                      <div class="forget-it-body forget-it-drop-zone" id="forget-it-body"></div>
+                    </aside>
+                  </div>
+                  <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-archive" role="tabpanel" data-tab="archive">
+                    <aside class="archive-panel" id="archive-panel" aria-label="Archived tasks">
+                      <header class="archive-panel-header">
+                        <div>
+                          <h3 class="archive-panel-title">Archive</h3>
+                          <p class="archive-panel-sub">Tasks removed from your lists. Restore or delete permanently.</p>
+                        </div>
+                        <p class="archive-panel-count hidden" id="archive-panel-count"></p>
+                      </header>
+                      <ul class="archive-panel-list" id="archive-panel-list"></ul>
+                      <div class="archive-panel-empty hidden" id="archive-panel-empty">
+                        <p class="archive-empty-title">Nothing archived.</p>
+                        <p class="archive-empty-sub">Tasks you archive from the grid appear here.</p>
+                      </div>
+                    </aside>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script src="app.js"></script>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile">
+      <button type="button" class="mobile-nav-item" data-page="home" aria-label="Home">
+        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-home"></use></svg>
+      </button>
+      <button type="button" class="mobile-nav-item" data-page="tasks" data-filter="all" data-focus-brain="true" aria-label="Brain Dump">
+        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-cloud"></use></svg>
+      </button>
+      <button type="button" class="mobile-nav-item active" data-page="tasks" data-filter="all" aria-label="All Tasks">
+        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-tasks"></use></svg>
+      </button>
+      <button type="button" class="mobile-nav-item" data-page="tasks" data-filter="work" aria-label="Work">
+        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-briefcase"></use></svg>
+      </button>
+      <button type="button" class="mobile-nav-item" data-page="tasks" data-filter="home" aria-label="Home">
+        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-house"></use></svg>
+      </button>
+    </nav>
+
+    <dialog class="forget-it-picker-dialog" id="forget-it-picker-dialog">
+      <div class="plan-135-picker-inner">
+        <header class="plan-135-picker-header">
+          <div>
+            <h3 class="plan-135-picker-title">Pick something to forget</h3>
+            <p class="plan-135-picker-sub">Choose a task you're ready to toss away today.</p>
+          </div>
+          <button type="button" class="plan-135-picker-close" id="forget-it-picker-close" aria-label="Close">×</button>
+        </header>
+        <ul class="plan-135-picker-list" id="forget-it-picker-list"></ul>
+      </div>
+    </dialog>
+
+    <dialog class="task-dialog" id="task-dialog">
+      <form method="dialog" id="task-dialog-form">
+        <h3 class="dialog-title" id="dialog-title">Add Task</h3>
+        <input type="text" id="dialog-input" placeholder="What needs to be done?" autocomplete="off" required />
+        <label class="dialog-label" for="dialog-context">List</label>
+        <select id="dialog-context">
+          <option value="work">Work</option>
+          <option value="home">Home</option>
+        </select>
+        <label class="dialog-label" for="dialog-tier-select">Priority</label>
+        <select id="dialog-tier-select">
+          <option value="1">1st Priority</option>
+          <option value="2">2nd Priority</option>
+          <option value="3">3rd Priority</option>
+          <option value="4">4th Priority</option>
+        </select>
+        <input type="hidden" id="dialog-edit-id" value="" />
+        <input type="hidden" id="dialog-original-context" value="" />
+        <div class="dialog-actions">
+          <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="plan-135-picker-dialog" id="plan-135-picker-dialog">
+      <div class="plan-135-picker-inner">
+        <header class="plan-135-picker-header">
+          <div>
+            <h3 class="plan-135-picker-title" id="plan-135-picker-title">Pick a task</h3>
+            <p class="plan-135-picker-sub" id="plan-135-picker-sub"></p>
+          </div>
+          <button type="button" class="plan-135-picker-close" id="plan-135-picker-close" aria-label="Close">×</button>
+        </header>
+        <ul class="plan-135-picker-list" id="plan-135-picker-list"></ul>
+      </div>
+    </dialog>
+
+    <dialog class="tier-expand-dialog" id="tier-expand-dialog">
+      <div class="tier-expand-inner">
+        <header class="tier-expand-header">
+          <div>
+            <h3 class="tier-expand-title" id="tier-expand-title">1st Priority</h3>
+            <p class="tier-expand-count" id="tier-expand-count">0 tasks</p>
+          </div>
+          <button type="button" class="tier-expand-close" id="tier-expand-close" aria-label="Close">×</button>
+        </header>
+        <ul class="task-list tier-expand-list" id="tier-expand-list"></ul>
+        <button type="button" class="btn-primary tier-expand-add" id="tier-expand-add">+ Add task</button>
+      </div>
+    </dialog>
+
+    <script src="app.js?v=7"></script>
   </body>
 </html>
