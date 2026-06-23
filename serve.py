@@ -27,14 +27,57 @@ def write_sync(payload):
         json.dump(payload, handle)
 
 
-def pick_newer(existing, incoming):
+def merge_lists_by_id(existing_list, incoming_list):
+    existing_list = existing_list if isinstance(existing_list, list) else []
+    incoming_list = incoming_list if isinstance(incoming_list, list) else []
+    merged = {}
+    order = []
+    for item in existing_list:
+        item_id = item.get("id")
+        if not item_id:
+            continue
+        merged[item_id] = item
+        order.append(item_id)
+    for item in incoming_list:
+        item_id = item.get("id")
+        if not item_id:
+            continue
+        if item_id not in merged:
+            order.append(item_id)
+        merged[item_id] = item
+    return [merged[item_id] for item_id in order]
+
+
+def merge_dicts(existing, incoming):
+    existing = existing if isinstance(existing, dict) else {}
+    incoming = incoming if isinstance(incoming, dict) else {}
+    keys = set(existing) | set(incoming)
+    return {key: incoming.get(key, existing.get(key)) for key in keys}
+
+
+def merge_payload(existing, incoming):
     if not existing or not existing.get("updatedAt"):
         return incoming
     if not incoming or not incoming.get("updatedAt"):
         return existing
-    if incoming["updatedAt"] >= existing["updatedAt"]:
-        return incoming
-    return existing
+
+    newer = incoming if incoming["updatedAt"] >= existing["updatedAt"] else existing
+    older = existing if newer is incoming else incoming
+    merged = {
+        "version": max(existing.get("version", 1), incoming.get("version", 1)),
+        "updatedAt": max(existing["updatedAt"], incoming["updatedAt"]),
+        "work": merge_lists_by_id(older.get("work"), newer.get("work")),
+        "home": merge_lists_by_id(older.get("home"), newer.get("home")),
+        "brainDumpWork": merge_lists_by_id(older.get("brainDumpWork"), newer.get("brainDumpWork")),
+        "brainDumpHome": merge_lists_by_id(older.get("brainDumpHome"), newer.get("brainDumpHome")),
+        "plans": merge_dicts(older.get("plans"), newer.get("plans")),
+        "forgetIt": merge_dicts(older.get("forgetIt"), newer.get("forgetIt")),
+    }
+    return merged
+
+
+def pick_newer(existing, incoming):
+    return merge_payload(existing, incoming)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -89,23 +132,37 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(data)
 
 
+def get_local_ips():
+    ips = []
+    seen = set()
+    for iface in ("en0", "en1", "en2", "bridge100"):
+        try:
+            import subprocess
+
+            ip = subprocess.check_output(["ipconfig", "getifaddr", iface], text=True).strip()
+            if ip and ip not in seen:
+                seen.add(ip)
+                ips.append(ip)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    return ips
+
+
 def main():
     os.chdir(ROOT)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("")
     print(f"  On this Mac:  http://localhost:{PORT}")
-    print("  On your phone (same Wi-Fi):")
-    for iface in ("en0", "en1"):
-        try:
-            import subprocess
-
-            ip = subprocess.check_output(["ipconfig", "getifaddr", iface], text=True).strip()
-            if ip:
-                print(f"    http://{ip}:{PORT}")
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            pass
+    ips = get_local_ips()
+    if ips:
+        print("  On your phone (same network / hotspot):")
+        for ip in ips:
+            print(f"    http://{ip}:{PORT}")
+    else:
+        print("  On your phone: connect Mac + phone to the same network, then use this Mac's IP.")
     print("")
     print("  Sync API: GET/PUT /api/sync")
+    print("  iPhone hotspot: keep hotspot ON, Mac joins it, open the URL above on the iPhone.")
     print("")
     try:
         server.serve_forever()

@@ -7,12 +7,13 @@ const LEGACY_CONTEXT_KEY = "priority-grid-context";
 const LEGACY_VIEW_KEY = "priority-grid-view";
 const SYNC_BANNER_KEY = "priority-grid-sync-banner-dismissed";
 const MODE_135_KEY = "priority-grid-135-mode";
+const VISIBLE_TIERS_KEY = "priority-grid-visible-tiers";
 const SIDEBAR_TAB_KEY = "priority-grid-sidebar-tab";
 const PLAN_135_PREFIX = "priority-grid-135-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const SYNC_API = "/api/sync";
-const SYNC_POLL_MS = 30000;
+const SYNC_POLL_MS = 5000;
 
 const PLAN_135_SLOTS = [
   { group: "big", label: "1 Big Task", count: 1 },
@@ -65,6 +66,10 @@ let syncAvailable = false;
 let syncPushTimer = null;
 let syncPulling = false;
 let syncPushing = false;
+let syncDirty = false;
+let touchDragGhost = null;
+let dragGrabOffset = { x: 0, y: 0 };
+let visibleTiers = getVisibleTiers();
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
 const PREVIEW_TASK_LIMIT = 3;
@@ -111,9 +116,14 @@ function loadTasks(ctx) {
   return [];
 }
 
+function markSyncDirty() {
+  syncDirty = true;
+  scheduleSyncPush();
+}
+
 function saveTasks(ctx, list, options = {}) {
   localStorage.setItem(tasksKey(ctx), JSON.stringify(list));
-  if (!options.skipSync) scheduleSyncPush();
+  if (!options.skipSync) markSyncDirty();
 }
 
 function loadBrainDump(ctx) {
@@ -128,7 +138,7 @@ function loadBrainDump(ctx) {
 
 function saveBrainDump(ctx, list, options = {}) {
   localStorage.setItem(brainDumpKey(ctx), JSON.stringify(list));
-  if (!options.skipSync) scheduleSyncPush();
+  if (!options.skipSync) markSyncDirty();
 }
 
 function getVisibleTasks() {
@@ -174,15 +184,9 @@ function createId() {
 function updateBoardHint() {
   const hint = document.getElementById("board-hint");
   if (!hint) return;
-  if (mode135) {
-    hint.textContent = isTouchDevice()
-      ? "Hold a task, then drag to reorder or into the 1-3-5 and Forget It tabs in the sidebar."
-      : "Drag tasks between priorities, or drop them into 1-3-5 slots and the Forget It box in the sidebar.";
-    return;
-  }
   hint.textContent = isTouchDevice()
-    ? "Hold a task, then drag to reorder or move priorities. Hold a priority title to see all tasks."
-    : "Drag tasks between priorities. Click a priority title to see all tasks.";
+    ? "Hold the grip icon on a task, then drag to reorder, move priorities, or drop into 1-3-5 / Forget It."
+    : "Drag tasks between priorities, or drop them into 1-3-5 slots and the Forget It box in the sidebar.";
 }
 
 function exportAllData() {
@@ -217,7 +221,7 @@ function importAllData(file) {
       if (data.theme && THEMES.some((t) => t.id === data.theme)) setTheme(data.theme);
       if (data.font && FONTS.some((f) => f.id === data.font)) setFont(data.font);
       renderAll();
-      scheduleSyncPush();
+      markSyncDirty();
       alert("Backup imported successfully.");
     } catch {
       alert("Could not read that file. Please choose a My Day export.");
@@ -233,6 +237,7 @@ function setupDataSync() {
     if (file) importAllData(file);
     e.target.value = "";
   });
+  document.getElementById("sync-now-btn")?.addEventListener("click", forceSyncNow);
 
   document.getElementById("sync-banner-dismiss").addEventListener("click", () => {
     localStorage.setItem(SYNC_BANNER_KEY, "1");
@@ -297,33 +302,94 @@ function buildSyncPayload() {
   };
 }
 
+function mergeTaskLists(localList, remoteList, preferRemote = true) {
+  const local = Array.isArray(localList) ? localList : [];
+  const remote = Array.isArray(remoteList) ? remoteList : [];
+  const byId = new Map();
+  const order = [];
+
+  for (const task of local) {
+    if (!task?.id) continue;
+    byId.set(task.id, task);
+    order.push(task.id);
+  }
+
+  for (const task of remote) {
+    if (!task?.id) continue;
+    if (byId.has(task.id)) {
+      if (preferRemote) byId.set(task.id, task);
+    } else {
+      byId.set(task.id, task);
+      order.push(task.id);
+    }
+  }
+
+  return order.map((id) => byId.get(id));
+}
+
+function mergeBrainLists(localList, remoteList, preferRemote = true) {
+  return mergeTaskLists(localList, remoteList, preferRemote);
+}
+
+function countPayloadTasks(payload) {
+  if (!payload) return 0;
+  return (payload.work?.length || 0) + (payload.home?.length || 0);
+}
+
+function countLocalTasks() {
+  return loadTasks("work").length + loadTasks("home").length;
+}
+
 function applySyncPayload(payload, options = {}) {
   if (!payload) return false;
 
   const skipSync = { skipSync: true };
-  if (Array.isArray(payload.work)) saveTasks("work", payload.work, skipSync);
-  if (Array.isArray(payload.home)) saveTasks("home", payload.home, skipSync);
-  if (Array.isArray(payload.brainDumpWork)) saveBrainDump("work", payload.brainDumpWork, skipSync);
-  if (Array.isArray(payload.brainDumpHome)) saveBrainDump("home", payload.brainDumpHome, skipSync);
+  const preferRemote = options.preferRemote !== false;
 
-  Object.entries(payload.plans || {}).forEach(([date, plan]) => {
-    localStorage.setItem(plan135StorageKey(date), JSON.stringify(plan));
+  if (Array.isArray(payload.work) || loadTasks("work").length > 0) {
+    saveTasks("work", mergeTaskLists(loadTasks("work"), payload.work || [], preferRemote), skipSync);
+  }
+  if (Array.isArray(payload.home) || loadTasks("home").length > 0) {
+    saveTasks("home", mergeTaskLists(loadTasks("home"), payload.home || [], preferRemote), skipSync);
+  }
+  if (Array.isArray(payload.brainDumpWork) || loadBrainDump("work").length > 0) {
+    saveBrainDump(
+      "work",
+      mergeBrainLists(loadBrainDump("work"), payload.brainDumpWork || [], preferRemote),
+      skipSync
+    );
+  }
+  if (Array.isArray(payload.brainDumpHome) || loadBrainDump("home").length > 0) {
+    saveBrainDump(
+      "home",
+      mergeBrainLists(loadBrainDump("home"), payload.brainDumpHome || [], preferRemote),
+      skipSync
+    );
+  }
+
+  const localPlans = collectPlan135FromStorage();
+  const remotePlans = payload.plans || {};
+  const planDates = new Set([...Object.keys(localPlans), ...Object.keys(remotePlans)]);
+  planDates.forEach((date) => {
+    const plan = preferRemote
+      ? remotePlans[date] ?? localPlans[date]
+      : localPlans[date] ?? remotePlans[date];
+    if (plan) localStorage.setItem(plan135StorageKey(date), JSON.stringify(plan));
   });
 
-  const forgetEntries = payload.forgetIt || {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith(FORGET_IT_PREFIX)) {
-      localStorage.removeItem(key);
-    }
-  }
-  Object.entries(forgetEntries).forEach(([date, ref]) => {
+  const localForget = collectForgetItFromStorage();
+  const remoteForget = payload.forgetIt || {};
+  const forgetDates = new Set([...Object.keys(localForget), ...Object.keys(remoteForget)]);
+  forgetDates.forEach((date) => {
+    const ref = preferRemote ? remoteForget[date] ?? localForget[date] : localForget[date] ?? remoteForget[date];
     if (ref) {
       localStorage.setItem(forgetItStorageKey(date), JSON.stringify(ref));
+    } else {
+      localStorage.removeItem(forgetItStorageKey(date));
     }
   });
 
-  if (payload.updatedAt) {
+  if (payload.updatedAt && options.setMeta !== false) {
     setSyncMeta({ updatedAt: payload.updatedAt });
   }
 
@@ -340,23 +406,57 @@ function isRemoteNewer(remoteUpdatedAt) {
   return remoteUpdatedAt > localUpdatedAt;
 }
 
+function shouldApplyRemote(remote) {
+  if (!remote) return false;
+  const localCount = countLocalTasks();
+  const remoteCount = countPayloadTasks(remote);
+  if (localCount === 0 && remoteCount > 0) return true;
+  if (remoteCount > localCount) return true;
+  if (!remote.updatedAt) return false;
+  return isRemoteNewer(remote.updatedAt);
+}
+
 async function pullRemoteSync(options = {}) {
   if (!syncAvailable || syncPulling) return;
+  if (syncDirty && !options.force) return;
   syncPulling = true;
   try {
     const response = await fetch(SYNC_API, { cache: "no-store" });
     if (!response.ok) return;
     const remote = await response.json();
     if (!remote?.updatedAt) {
-      await pushRemoteSync({ force: true });
+      const hasLocal =
+        loadTasks("home").length > 0 ||
+        loadTasks("work").length > 0 ||
+        loadBrainDump("home").length > 0 ||
+        loadBrainDump("work").length > 0;
+      if (hasLocal || syncDirty) {
+        await pushRemoteSync({ force: true });
+      }
       return;
     }
-    if (isRemoteNewer(remote.updatedAt)) {
-      applySyncPayload(remote, { skipRender: true });
+    if (options.force || shouldApplyRemote(remote)) {
+      const localCount = countLocalTasks();
+      const remoteCount = countPayloadTasks(remote);
+      const remoteHasMore = remoteCount > localCount;
+
+      if (localCount > remoteCount) {
+        applySyncPayload(remote, { skipRender: true, preferRemote: false, setMeta: false });
+        markSyncDirty();
+        await pushRemoteSync({ force: true });
+      } else if (remoteCount === 0 && localCount > 0) {
+        await pushRemoteSync({ force: true });
+      } else {
+        applySyncPayload(remote, {
+          skipRender: true,
+          preferRemote: remoteHasMore || isRemoteNewer(remote.updatedAt),
+        });
+      }
       renderAll();
+      updateSyncUi();
     }
   } catch {
-    syncAvailable = false;
+    updateSyncUi();
   } finally {
     syncPulling = false;
   }
@@ -364,11 +464,7 @@ async function pullRemoteSync(options = {}) {
 
 async function pushRemoteSync(options = {}) {
   if (!syncAvailable || syncPushing) return;
-  const localMeta = getSyncMeta();
-  if (!options.force && localMeta.updatedAt) {
-    await pullRemoteSync({ silent: true });
-    if (isRemoteNewer(getSyncMeta().updatedAt)) return;
-  }
+  if (!options.force && !syncDirty) return;
 
   syncPushing = true;
   try {
@@ -382,9 +478,12 @@ async function pushRemoteSync(options = {}) {
     const saved = await response.json();
     if (saved?.updatedAt) {
       setSyncMeta({ updatedAt: saved.updatedAt });
+      syncDirty = false;
+      updateSyncUi();
     }
   } catch {
     syncAvailable = false;
+    updateSyncUi();
   } finally {
     syncPushing = false;
   }
@@ -401,15 +500,31 @@ function scheduleSyncPush() {
 
 function updateSyncUi() {
   const hint = document.querySelector(".sync-hint");
+  const status = document.getElementById("sync-status");
   const banner = document.getElementById("sync-banner");
   const dismissed = localStorage.getItem(SYNC_BANNER_KEY) === "1";
   const host = location.hostname;
   const isRemoteHost = host !== "localhost" && host !== "127.0.0.1";
+  const localCount = countLocalTasks();
+
+  if (status) {
+    if (syncAvailable) {
+      const taskNote = localCount === 1 ? "1 task" : `${localCount} tasks`;
+      status.textContent = syncDirty
+        ? `Connected — saving… (${taskNote} on this device)`
+        : `Connected — synced (${taskNote} on this device)`;
+      status.classList.remove("sync-status-offline");
+    } else {
+      status.textContent = "Not connected to sync server";
+      status.classList.add("sync-status-offline");
+    }
+  }
 
   if (syncAvailable) {
     if (hint) {
-      hint.textContent =
-        "Tasks sync automatically across devices on the same Wi-Fi while this server is running.";
+      hint.textContent = isRemoteHost
+        ? `This device is on ${location.host}. Tasks sync with other devices using the same address.`
+        : "On your phone, open the http:// address from ./serve.sh (hotspot IP), not localhost.";
     }
     if (banner) banner.classList.add("hidden");
     return;
@@ -417,12 +532,40 @@ function updateSyncUi() {
 
   if (hint) {
     hint.textContent =
-      "Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.";
+      "Run ./serve.sh on your Mac, then open the same http:// address on phone and computer.";
   }
   if (banner && isRemoteHost && !dismissed) {
     banner.classList.remove("hidden");
     banner.querySelector("p").innerHTML =
-      "Sync server not detected. Start <strong>./serve.sh</strong> on your Mac and open the same address on each device.";
+      "Sync server not detected. Run <strong>./serve.sh</strong> on your Mac and use the same URL on every device.";
+  }
+}
+
+async function forceSyncNow() {
+  try {
+    const probe = await fetch(SYNC_API, { cache: "no-store" });
+    if (!probe.ok) throw new Error("sync unavailable");
+    syncAvailable = true;
+    syncDirty = false;
+    const remote = await probe.json();
+    const localCount = countLocalTasks();
+    const remoteCount = countPayloadTasks(remote);
+
+    if (remoteCount >= localCount && remoteCount > 0) {
+      applySyncPayload(remote, { preferRemote: true });
+    } else if (localCount > 0) {
+      await pushRemoteSync({ force: true });
+    } else if (remoteCount > 0) {
+      applySyncPayload(remote, { preferRemote: true });
+    }
+
+    updateSyncUi();
+  } catch {
+    syncAvailable = false;
+    updateSyncUi();
+    alert(
+      "Could not reach the sync server. On your phone, open the exact http:// address from ./serve.sh on your Mac (hotspot IP, not localhost)."
+    );
   }
 }
 
@@ -434,13 +577,27 @@ async function initRemoteSync() {
       return;
     }
     syncAvailable = true;
-    updateSyncUi();
+    const remote = await response.json();
     await pullRemoteSync();
-    setInterval(() => pullRemoteSync({ silent: true }), SYNC_POLL_MS);
+
+    const hasLocal = countLocalTasks() > 0;
+    const hasRemote = countPayloadTasks(remote) > 0;
+
+    if (!hasLocal && !hasRemote) {
+      seedHomeFromNotebook();
+      markSyncDirty();
+    }
+
+    if (!getSyncMeta().updatedAt || syncDirty) {
+      await pushRemoteSync({ force: true });
+    }
+
+    updateSyncUi();
+    setInterval(() => pullRemoteSync(), SYNC_POLL_MS);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") pullRemoteSync({ silent: true });
+      if (document.visibilityState === "visible") pullRemoteSync();
     });
-    window.addEventListener("focus", () => pullRemoteSync({ silent: true }));
+    window.addEventListener("focus", () => pullRemoteSync());
   } catch {
     syncAvailable = false;
     updateSyncUi();
@@ -509,6 +666,61 @@ function contextIconHtml(ctx, className = "context-icon") {
   return `<span class="${className}" title="${label}" aria-label="${label}"><svg class="icon ${className}-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
 }
 
+function taskDragHandleHtml() {
+  return `<button type="button" class="task-drag-handle" aria-label="Drag to reorder"><svg class="icon icon-grip" aria-hidden="true"><use href="#icon-grip"></use></svg></button>`;
+}
+
+function getVisibleTiers() {
+  try {
+    const saved = localStorage.getItem(VISIBLE_TIERS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        2: parsed[2] !== false,
+        3: parsed[3] !== false,
+        4: parsed[4] !== false,
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { 2: true, 3: true, 4: true };
+}
+
+function setVisibleTiers(next) {
+  visibleTiers = next;
+  localStorage.setItem(VISIBLE_TIERS_KEY, JSON.stringify(next));
+  syncPriorityVisibilityTags();
+  renderGrid();
+}
+
+function isTierVisible(tier) {
+  return tier === 1 || visibleTiers[tier] !== false;
+}
+
+function syncPriorityVisibilityTags() {
+  document.querySelectorAll(".priority-visibility-tag").forEach((btn) => {
+    const tier = Number(btn.dataset.tier);
+    const visible = isTierVisible(tier);
+    btn.classList.toggle("active", visible);
+    btn.setAttribute("aria-pressed", String(visible));
+  });
+}
+
+function setupPriorityVisibilityTags() {
+  const container = document.getElementById("priority-visibility-tags");
+  if (!container || container.dataset.bound) return;
+  container.dataset.bound = "1";
+
+  container.querySelectorAll(".priority-visibility-tag").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tier = Number(btn.dataset.tier);
+      setVisibleTiers({ ...visibleTiers, [tier]: !isTierVisible(tier) });
+    });
+  });
+  syncPriorityVisibilityTags();
+}
+
 function setupDateHeader() {
   const now = new Date();
   document.getElementById("page-date").textContent = now.toLocaleDateString("en-US", {
@@ -559,21 +771,14 @@ function setSidebarTab(tab) {
 }
 
 function syncSidebarTabs() {
-  const tab135 = document.getElementById("sidebar-tab-135");
-  if (tab135) tab135.classList.toggle("hidden", !mode135);
-
-  if (!mode135 && sidebarTab === "135") {
-    sidebarTab = "brain";
-  }
-
   document.querySelectorAll(".sidebar-tab").forEach((btn) => {
-    const isActive = btn.dataset.tab === sidebarTab && !(btn.dataset.tab === "135" && !mode135);
+    const isActive = btn.dataset.tab === sidebarTab;
     btn.classList.toggle("active", isActive);
     btn.setAttribute("aria-selected", String(isActive));
   });
 
   document.querySelectorAll(".sidebar-tab-panel").forEach((panel) => {
-    const match = panel.dataset.tab === sidebarTab && !(panel.dataset.tab === "135" && !mode135);
+    const match = panel.dataset.tab === sidebarTab;
     panel.classList.toggle("active", match);
     panel.classList.toggle("hidden", !match);
   });
@@ -581,10 +786,7 @@ function syncSidebarTabs() {
 
 function setupSidebarTabs() {
   document.querySelectorAll(".sidebar-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      if (btn.dataset.tab === "135" && !mode135) return;
-      setSidebarTab(btn.dataset.tab);
-    });
+    btn.addEventListener("click", () => setSidebarTab(btn.dataset.tab));
   });
   syncSidebarTabs();
 }
@@ -633,7 +835,7 @@ function normalizePlan135(plan) {
 
 function savePlan135(plan, date = todayKey(), options = {}) {
   localStorage.setItem(plan135StorageKey(date), JSON.stringify(plan));
-  if (!options.skipSync) scheduleSyncPush();
+  if (!options.skipSync) markSyncDirty();
 }
 
 function forgetItStorageKey(date = todayKey()) {
@@ -658,7 +860,7 @@ function saveForgetIt(ref, date = todayKey(), options = {}) {
   } else {
     localStorage.removeItem(forgetItStorageKey(date));
   }
-  if (!options.skipSync) scheduleSyncPush();
+  if (!options.skipSync) markSyncDirty();
 }
 
 function setForgetIt(ref) {
@@ -757,17 +959,130 @@ function getPickerTasks() {
   return [...incomplete, ...doneVisible];
 }
 
+function buildPickerListHtml(tasks) {
+  const groups = [];
+  for (let tier = 1; tier <= 4; tier++) {
+    const tierTasks = tasks.filter((t) => t.tier === tier);
+    if (tierTasks.length) groups.push({ tier, tasks: tierTasks });
+  }
+
+  return groups
+    .map(
+      ({ tier, tasks: tierTasks }) => `
+    <li class="plan-135-picker-tier-heading">${TIER_NAMES[tier - 1]}</li>
+    ${tierTasks
+      .map(
+        (task) => `
+      <li>
+        <button type="button" class="plan-135-picker-item" data-id="${task.id}" data-context="${task.context}">
+          <span class="plan-135-picker-item-text">${escapeHtml(task.text)}</span>
+          <span class="plan-135-picker-item-meta">
+            ${filter === "all" ? contextIconHtml(task.context, "plan-135-ctx") : ""}
+          </span>
+        </button>
+      </li>`
+      )
+      .join("")}`
+    )
+    .join("");
+}
+
+function beginDragGhost(sourceCard, clientX, clientY) {
+  const rect = sourceCard.getBoundingClientRect();
+  dragGrabOffset = {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
+  };
+  createDragGhost(sourceCard, clientX, clientY);
+}
+
+function createDragGhost(sourceCard, x, y) {
+  removeDragGhost();
+  const ghost = sourceCard.cloneNode(true);
+  ghost.classList.add("touch-drag-ghost");
+  ghost.removeAttribute("draggable");
+  const listWidth = sourceCard.parentElement?.clientWidth;
+  ghost.style.width = `${listWidth || sourceCard.offsetWidth}px`;
+  const host = sourceCard.closest("dialog[open]") || document.body;
+  host.appendChild(ghost);
+  touchDragGhost = ghost;
+  moveDragGhost(x, y);
+}
+
+function createTouchDragGhost(sourceCard, x, y) {
+  beginDragGhost(sourceCard, x, y);
+}
+
+function moveDragGhost(x, y) {
+  if (!touchDragGhost) return;
+  touchDragGhost.style.transform = `translate(${x - dragGrabOffset.x}px, ${y - dragGrabOffset.y}px)`;
+}
+
+function moveTouchDragGhost(x, y) {
+  moveDragGhost(x, y);
+}
+
+function removeDragGhost() {
+  touchDragGhost?.remove();
+  touchDragGhost = null;
+  dragGrabOffset = { x: 0, y: 0 };
+}
+
+function resolveListInsert(clientY, listEl, draggedId) {
+  const cards = [...listEl.querySelectorAll(".task-card")];
+  for (const item of cards) {
+    if (item.dataset.id === draggedId) continue;
+    const rect = item.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      return { beforeId: item.dataset.id };
+    }
+  }
+  return { atEnd: true };
+}
+
+function applyListInsertMove(id, ctx, tier, listEl, clientY) {
+  const insert = resolveListInsert(clientY, listEl, id);
+  if (insert.beforeId) {
+    moveTask(id, ctx, tier, insert.beforeId);
+  } else {
+    moveTask(id, ctx, tier);
+  }
+}
+
+function removeTouchDragGhost() {
+  removeDragGhost();
+}
+
+function isDropAtListStart(listEl, clientY) {
+  const firstCard = listEl.querySelector(".task-card");
+  if (!firstCard) return true;
+  const rect = firstCard.getBoundingClientRect();
+  return clientY < rect.top + rect.height / 2;
+}
+
+function handlePlan135Drop(slot, dataTransfer) {
+  try {
+    const data = JSON.parse(dataTransfer.getData("text/plain"));
+    if (!data?.id) return;
+    const task = findTaskByRef(data);
+    if (!task || task.done) return;
+    assignTaskToPlan135Slot(slot.dataset.slotGroup, Number(slot.dataset.slotIndex), data);
+    renderAll();
+  } catch {
+    /* ignore */
+  }
+}
+
 function updateTasksLayout() {
   syncSidebarTabs();
 }
 
 function syncMode135Toggle() {
-  const btn = document.getElementById("mode-135-toggle");
+  const btn = document.getElementById("plan-135-home-toggle");
   if (!btn) return;
-  const show = page === "tasks";
-  btn.classList.toggle("hidden", !show);
   btn.classList.toggle("active", mode135);
   btn.setAttribute("aria-pressed", String(mode135));
+  btn.textContent = mode135 ? "On Home page" : "Show on Home";
 }
 
 function updatePageTitle() {
@@ -1034,7 +1349,17 @@ function assignTaskToPlan135Slot(group, index, ref) {
   }
 }
 
-function moveTask(taskId, taskContext, tier, beforeId = null) {
+function tierStartIndex(list, tier) {
+  const idx = list.findIndex((t) => t.tier === tier);
+  return idx === -1 ? list.length : idx;
+}
+
+function tierEndIndex(list, tier) {
+  const lastIdx = list.map((t) => t.tier).lastIndexOf(tier);
+  return lastIdx === -1 ? list.length : lastIdx + 1;
+}
+
+function moveTask(taskId, taskContext, tier, beforeId = null, atTierStart = false) {
   let task = null;
   const list = loadTasks(taskContext).filter((t) => {
     if (t.id === taskId) {
@@ -1045,17 +1370,19 @@ function moveTask(taskId, taskContext, tier, beforeId = null) {
   });
   if (!task) return;
 
+  let insertIdx;
   if (beforeId) {
-    const idx = list.findIndex((t) => t.id === beforeId);
-    list.splice(idx, 0, task);
-  } else {
-    const lastIdx = list.map((t) => t.tier).lastIndexOf(tier);
-    if (lastIdx === -1) {
-      list.push(task);
-    } else {
-      list.splice(lastIdx + 1, 0, task);
+    insertIdx = list.findIndex((t) => t.id === beforeId);
+    if (insertIdx === -1) {
+      insertIdx = atTierStart ? tierStartIndex(list, tier) : tierEndIndex(list, tier);
     }
+  } else if (atTierStart) {
+    insertIdx = tierStartIndex(list, tier);
+  } else {
+    insertIdx = tierEndIndex(list, tier);
   }
+
+  list.splice(insertIdx, 0, task);
   saveTasks(taskContext, list);
 }
 
@@ -1067,6 +1394,7 @@ function taskCardHtml(task) {
     <li class="task-card${task.done ? " done" : ""}" draggable="${isTouchDevice() ? "false" : "true"}"
       data-id="${task.id}" data-context="${task.context}">
       <div class="task-card-main">
+        ${taskDragHandleHtml()}
         <label class="task-check">
           <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
         </label>
@@ -1141,6 +1469,8 @@ function renderPlan135() {
   const sections = document.getElementById("plan-135-sections");
   const progress = document.getElementById("plan-135-progress");
   if (!sections) return;
+
+  syncMode135Toggle();
 
   let filled = 0;
   const total = 9;
@@ -1252,7 +1582,6 @@ function bindPlan135Slots(container) {
     });
   });
 
-  setupPlan135DropZones(container);
 }
 
 function openPlan135Picker(group, index) {
@@ -1271,20 +1600,7 @@ function openPlan135Picker(group, index) {
   if (tasks.length === 0) {
     list.innerHTML = `<li class="plan-135-picker-empty">No open tasks match this filter. Add tasks in the priority grid first.</li>`;
   } else {
-    list.innerHTML = tasks
-      .map(
-        (task) => `
-      <li>
-        <button type="button" class="plan-135-picker-item" data-id="${task.id}" data-context="${task.context}">
-          <span class="plan-135-picker-item-text">${escapeHtml(task.text)}</span>
-          <span class="plan-135-picker-item-meta">
-            <span class="plan-135-tier-badge">${TIER_LABELS[task.tier - 1]}</span>
-            ${filter === "all" ? contextIconHtml(task.context, "plan-135-ctx") : ""}
-          </span>
-        </button>
-      </li>`
-      )
-      .join("");
+    list.innerHTML = buildPickerListHtml(tasks);
 
     list.querySelectorAll(".plan-135-picker-item").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1344,34 +1660,38 @@ function renderForgetItPanel() {
     if (ref) clearForgetIt();
     body.innerHTML = forgetItEmptyHtml();
     bindForgetItActions(body);
-    setupForgetItDropZone(body);
     return;
   }
 
   body.innerHTML = forgetItTaskHtml(task);
   bindForgetItActions(body);
-  setupForgetItDropZone(body);
 }
 
-function setupForgetItDropZone(container) {
-  const zone = container.classList.contains("forget-it-drop-zone")
-    ? container
-    : container.querySelector(".forget-it-drop-zone");
-  if (!zone || zone.dataset.dropBound) return;
-  zone.dataset.dropBound = "1";
+function setupForgetItDropDelegation() {
+  const body = document.getElementById("forget-it-body");
+  if (!body || body.dataset.dropDelegation) return;
+  body.dataset.dropDelegation = "1";
 
-  zone.addEventListener("dragover", (e) => {
+  body.addEventListener("dragover", (e) => {
+    const zone = e.target.closest(".forget-it-drop-zone");
+    if (!zone) return;
     e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    body.querySelectorAll(".forget-it-drop-zone").forEach((z) => z.classList.remove("drop-target-active"));
     zone.classList.add("drop-target-active");
   });
 
-  zone.addEventListener("dragleave", (e) => {
-    if (!zone.contains(e.relatedTarget)) zone.classList.remove("drop-target-active");
+  body.addEventListener("dragleave", (e) => {
+    const zone = e.target.closest(".forget-it-drop-zone");
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove("drop-target-active");
   });
 
-  zone.addEventListener("drop", (e) => {
+  body.addEventListener("drop", (e) => {
+    const zone = e.target.closest(".forget-it-drop-zone");
+    if (!zone) return;
     e.preventDefault();
-    zone.classList.remove("drop-target-active");
+    e.stopPropagation();
+    body.querySelectorAll(".forget-it-drop-zone").forEach((z) => z.classList.remove("drop-target-active"));
     try {
       const data = JSON.parse(e.dataTransfer.getData("text/plain"));
       if (!data?.id) return;
@@ -1385,37 +1705,47 @@ function setupForgetItDropZone(container) {
   });
 }
 
-function setupPlan135DropZones(container) {
-  container.querySelectorAll(".plan-135-drop-zone").forEach((slot) => {
-    if (slot.dataset.dropBound) return;
-    slot.dataset.dropBound = "1";
+function setupPlan135DropDelegation() {
+  const root = document.getElementById("plan-135-sections");
+  if (!root || root.dataset.dropDelegation) return;
+  root.dataset.dropDelegation = "1";
 
-    slot.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      slot.classList.add("drop-target-active");
-    });
+  root.addEventListener("dragover", (e) => {
+    const slot = e.target.closest(".plan-135-drop-zone");
+    if (!slot) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    root.querySelectorAll(".plan-135-drop-zone").forEach((z) => z.classList.remove("drop-target-active"));
+    slot.classList.add("drop-target-active");
+  });
 
-    slot.addEventListener("dragleave", (e) => {
-      if (!slot.contains(e.relatedTarget)) slot.classList.remove("drop-target-active");
-    });
+  root.addEventListener("dragleave", (e) => {
+    const slot = e.target.closest(".plan-135-drop-zone");
+    if (slot && !slot.contains(e.relatedTarget)) slot.classList.remove("drop-target-active");
+  });
 
-    slot.addEventListener("drop", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      slot.classList.remove("drop-target-active");
-      try {
-        const data = JSON.parse(e.dataTransfer.getData("text/plain"));
-        if (!data?.id) return;
-        const task = findTaskByRef(data);
-        if (!task || task.done) return;
-        const group = slot.dataset.slotGroup;
-        const index = Number(slot.dataset.slotIndex);
-        assignTaskToPlan135Slot(group, index, data);
-        renderAll();
-      } catch {
-        /* ignore */
-      }
-    });
+  root.addEventListener("drop", (e) => {
+    const slot = e.target.closest(".plan-135-drop-zone");
+    if (!slot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    root.querySelectorAll(".plan-135-drop-zone").forEach((z) => z.classList.remove("drop-target-active"));
+    handlePlan135Drop(slot, e.dataTransfer);
+  });
+}
+
+function setupSidebarDragAssist() {
+  const workspace = document.querySelector(".tasks-workspace");
+  if (!workspace || workspace.dataset.dragAssist) return;
+  workspace.dataset.dragAssist = "1";
+
+  workspace.addEventListener("dragover", (e) => {
+    if (!document.querySelector(".task-card.dragging")) return;
+    if (e.target.closest("#plan-135-sections, #sidebar-tab-panel-135")) {
+      setSidebarTab("135");
+    } else if (e.target.closest("#forget-it-body, #sidebar-tab-panel-forget")) {
+      setSidebarTab("forget");
+    }
   });
 }
 
@@ -1445,20 +1775,7 @@ function openForgetItPicker() {
   if (tasks.length === 0) {
     list.innerHTML = `<li class="plan-135-picker-empty">No open tasks to choose from.</li>`;
   } else {
-    list.innerHTML = tasks
-      .map(
-        (task) => `
-      <li>
-        <button type="button" class="plan-135-picker-item" data-id="${task.id}" data-context="${task.context}">
-          <span class="plan-135-picker-item-text">${escapeHtml(task.text)}</span>
-          <span class="plan-135-picker-item-meta">
-            <span class="plan-135-tier-badge">${TIER_LABELS[task.tier - 1]}</span>
-            ${filter === "all" ? contextIconHtml(task.context, "plan-135-ctx") : ""}
-          </span>
-        </button>
-      </li>`
-      )
-      .join("");
+    list.innerHTML = buildPickerListHtml(tasks);
 
     list.querySelectorAll(".plan-135-picker-item").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1473,6 +1790,8 @@ function openForgetItPicker() {
 }
 
 function setupForgetIt() {
+  setupForgetItDropDelegation();
+
   document.getElementById("forget-it-picker-close")?.addEventListener("click", () => {
     document.getElementById("forget-it-picker-dialog").close();
   });
@@ -1480,10 +1799,14 @@ function setupForgetIt() {
 }
 
 function setupMode135() {
-  document.getElementById("mode-135-toggle").addEventListener("click", () => {
+  document.getElementById("plan-135-home-toggle")?.addEventListener("click", () => {
     setMode135(!mode135);
     renderAll();
   });
+
+  setupPlan135DropDelegation();
+  setupSidebarDragAssist();
+  syncMode135Toggle();
 
   const pickerDialog = document.getElementById("plan-135-picker-dialog");
   document.getElementById("plan-135-picker-close").addEventListener("click", () => {
@@ -1496,11 +1819,21 @@ function setupMode135() {
 }
 
 function renderGrid() {
+  const board = document.getElementById("board");
+  if (board) {
+    board.classList.toggle("board-single-column", !isTierVisible(2) && !isTierVisible(3) && !isTierVisible(4));
+  }
+
   for (let tier = 1; tier <= 4; tier++) {
+    const column = document.querySelector(`.column[data-tier="${tier}"]`);
     const list = document.querySelector(`.task-list[data-tier="${tier}"]`);
     const tierTasks = getTasksForTier(tier);
     const countEl = document.querySelector(`[data-tier-count="${tier}"]`);
     const seeAllBtn = document.querySelector(`.column-see-all[data-tier="${tier}"]`);
+    const visible = isTierVisible(tier);
+
+    if (column) column.classList.toggle("hidden", !visible);
+    if (!visible || !list) continue;
 
     countEl.textContent = `${tierTasks.length} task${tierTasks.length === 1 ? "" : "s"}`;
 
@@ -1517,6 +1850,8 @@ function renderGrid() {
     const addBtn = document.querySelector(`.column-add[data-tier="${tier}"]`);
     if (addBtn) addBtn.classList.toggle("hidden", tierTasks.length > PREVIEW_TASK_LIMIT);
   }
+
+  syncPriorityVisibilityTags();
 }
 
 function getTopPriorityTasks(limit = 5) {
@@ -1604,7 +1939,7 @@ function renderHomePlan135() {
 
   if (filled === 0) {
     content.innerHTML = "";
-    empty.textContent = "No tasks planned yet. Turn on 1-3-5 on All Tasks to plan your day.";
+    empty.textContent = "No tasks planned yet. Open 1-3-5 on All Tasks and tap Show on Home to plan your day.";
     empty.classList.remove("hidden");
     renderForgetItHome();
     return;
@@ -1735,13 +2070,12 @@ function setupTierExpand() {
   });
 
   list.addEventListener("drop", (e) => {
-    if (e.target.closest(".task-card")) return;
     e.preventDefault();
     if (!expandedTier) return;
     try {
       const data = JSON.parse(e.dataTransfer.getData("text/plain"));
       if (data?.id) {
-        moveTask(data.id, data.context, expandedTier);
+        applyListInsertMove(data.id, data.context, expandedTier, list, e.clientY);
         renderAll();
       }
     } catch {
@@ -1807,21 +2141,189 @@ function setupTierExpand() {
   });
 }
 
-function bindTaskEvents(card) {
+function taskCardAtPoint(card, x, y) {
+  const el = document.elementFromPoint(x, y);
+  const target = el?.closest(".task-card");
+  if (!target || target === card) return null;
+  return target;
+}
+
+function columnAtPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el?.closest(".column") || null;
+}
+
+function applyGripDragDrop(card, x, y) {
   const id = card.dataset.id;
   const ctx = card.dataset.context;
 
+  if (isTierExpandCard(card)) {
+    if (!expandedTier) return;
+    const list = document.getElementById("tier-expand-list");
+    if (!list) return;
+    const dropEl = document.elementFromPoint(x, y);
+    if (!dropEl?.closest("#tier-expand-list")) return;
+    applyListInsertMove(id, ctx, expandedTier, list, y);
+    renderAll();
+    return;
+  }
+
+  const planSlot = document.elementFromPoint(x, y)?.closest(".plan-135-drop-zone");
+  if (planSlot) {
+    assignTaskToPlan135Slot(planSlot.dataset.slotGroup, Number(planSlot.dataset.slotIndex), {
+      id,
+      context: ctx,
+    });
+    renderAll();
+    return;
+  }
+
+  const forgetZone = document.elementFromPoint(x, y)?.closest(".forget-it-drop-zone");
+  if (forgetZone) {
+    const task = loadTasks(ctx).find((t) => t.id === id);
+    if (task && !task.done) {
+      setForgetIt({ id, context: ctx });
+      renderAll();
+    }
+    return;
+  }
+
+  const target = taskCardAtPoint(card, x, y);
+  if (target && !isTierExpandCard(target)) {
+    const tier = getCardTier(target);
+    const list = target.parentElement;
+    if (tier && list) {
+      applyListInsertMove(id, ctx, tier, list, y);
+      renderAll();
+      return;
+    }
+  }
+
+  const col = columnAtPoint(x, y);
+  if (col) {
+    moveTask(id, ctx, Number(col.dataset.tier));
+    renderAll();
+  }
+}
+
+function clearGripDragHighlights() {
+  document.querySelectorAll(".column").forEach((c) => c.classList.remove("drag-over"));
+  document.querySelectorAll(".plan-135-drop-zone, .forget-it-drop-zone").forEach((z) =>
+    z.classList.remove("drop-target-active")
+  );
+}
+
+function updateGripDragHighlights(x, y) {
+  clearGripDragHighlights();
+  const col = columnAtPoint(x, y);
+  if (col) col.classList.add("drag-over");
+  const dropEl = document.elementFromPoint(x, y);
+  dropEl?.closest(".plan-135-drop-zone")?.classList.add("drop-target-active");
+  dropEl?.closest(".forget-it-drop-zone")?.classList.add("drop-target-active");
+  if (dropEl?.closest(".plan-135-drop-zone, #plan-135-sections")) setSidebarTab("135");
+  else if (dropEl?.closest(".forget-it-drop-zone, #forget-it-body")) setSidebarTab("forget");
+}
+
+function bindMouseGripDrag(card) {
+  const handle = card.querySelector(".task-drag-handle");
+  if (!handle) return;
+
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  const endDrag = (x, y) => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    if (!dragging) return;
+    dragging = false;
+    card.classList.remove("dragging");
+    handle.classList.remove("dragging-active");
+    removeDragGhost();
+    clearGripDragHighlights();
+    applyGripDragDrop(card, x, y);
+  };
+
+  const onMouseMove = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    lastX = e.clientX;
+    lastY = e.clientY;
+    moveDragGhost(e.clientX, e.clientY);
+    updateGripDragHighlights(e.clientX, e.clientY);
+  };
+
+  const onMouseUp = (e) => {
+    endDrag(lastX || e.clientX, lastY || e.clientY);
+  };
+
+  handle.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    card.classList.add("dragging");
+    handle.classList.add("dragging-active");
+    beginDragGhost(card, lastX, lastY);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+
+  handle.addEventListener("dragstart", (e) => e.preventDefault());
+}
+
+function bindTaskEvents(card) {
+  const id = card.dataset.id;
+  const ctx = card.dataset.context;
+  const inTierExpand = isTierExpandCard(card);
+
   if (!isTouchDevice()) {
-    card.addEventListener("dragstart", (e) => {
+    if (inTierExpand) {
+      card.draggable = false;
+      bindMouseGripDrag(card);
+    } else {
+    const handle = card.querySelector(".task-drag-handle");
+
+    const onDragStart = (e) => {
+      if (e.target.closest("button:not(.task-drag-handle), input, label, .task-check")) {
+        e.preventDefault();
+        return;
+      }
       draggedTask = { id, context: ctx };
       card.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.effectAllowed = "copyMove";
       e.dataTransfer.setData("text/plain", JSON.stringify(draggedTask));
-    });
+      beginDragGhost(card, e.clientX, e.clientY);
+    };
+
+    const onDrag = (e) => {
+      if (e.clientX === 0 && e.clientY === 0) return;
+      moveDragGhost(e.clientX, e.clientY);
+    };
+
+    const onDragEnd = () => {
+      card.classList.remove("dragging");
+      draggedTask = null;
+      removeDragGhost();
+      document.querySelectorAll(".column.drag-over").forEach((c) => c.classList.remove("drag-over"));
+      document.querySelectorAll(".drop-target-active").forEach((z) => z.classList.remove("drop-target-active"));
+    };
+
+    card.addEventListener("dragstart", onDragStart);
+    card.addEventListener("drag", onDrag);
+    card.addEventListener("dragend", onDragEnd);
+
+    if (handle) {
+      handle.addEventListener("mousedown", (e) => e.preventDefault());
+      handle.addEventListener("dragstart", (e) => e.preventDefault());
+    }
 
     card.addEventListener("dragover", (e) => {
       if (!draggedTask || draggedTask.id === id) return;
       e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
     });
 
     card.addEventListener("drop", (e) => {
@@ -1830,17 +2332,12 @@ function bindTaskEvents(card) {
       const data = JSON.parse(e.dataTransfer.getData("text/plain") || "null");
       if (!data || data.id === id) return;
       const tier = getCardTier(card);
-      if (!tier) return;
-      moveTask(data.id, data.context, tier, id);
+      const list = card.parentElement;
+      if (!tier || !list) return;
+      applyListInsertMove(data.id, data.context, tier, list, e.clientY);
       renderAll();
     });
-
-    card.addEventListener("dragend", () => {
-      card.classList.remove("dragging");
-      draggedTask = null;
-      document.querySelectorAll(".column.drag-over").forEach((c) => c.classList.remove("drag-over"));
-      document.querySelectorAll(".drop-target-active").forEach((z) => z.classList.remove("drop-target-active"));
-    });
+    }
   }
 
   card.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
@@ -1873,6 +2370,9 @@ function bindTaskEvents(card) {
 }
 
 function bindTouchDrag(card) {
+  const handle = card.querySelector(".task-drag-handle");
+  if (!handle) return;
+
   const id = card.dataset.id;
   const ctx = card.dataset.context;
   let dragging = false;
@@ -1881,7 +2381,6 @@ function bindTouchDrag(card) {
   let startY = 0;
   let lastX = 0;
   let lastY = 0;
-  let suppressClick = false;
 
   const clearHold = () => {
     if (holdTimer) {
@@ -1890,131 +2389,67 @@ function bindTouchDrag(card) {
     }
   };
 
-  const columnAt = (x, y) => {
-    const el = document.elementFromPoint(x, y);
-    return el?.closest(".column") || null;
+  const finishDrag = (x, y) => {
+    document.removeEventListener("touchmove", onTouchMove);
+    document.removeEventListener("touchend", onTouchEnd);
+    document.removeEventListener("touchcancel", onTouchEnd);
+
+    if (!dragging) return;
+
+    dragging = false;
+    card.classList.remove("dragging");
+    handle.classList.remove("dragging-active");
+    removeTouchDragGhost();
+    clearGripDragHighlights();
+    applyGripDragDrop(card, x, y);
   };
 
-  const taskCardAt = (x, y) => {
-    const el = document.elementFromPoint(x, y);
-    const target = el?.closest(".task-card");
-    if (!target || target === card) return null;
-    return target;
-  };
+  const onTouchMove = (e) => {
+    const touch = e.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
 
-  const isDraggableTouchTarget = (target) => {
-    if (!target) return false;
-    if (target.closest(".task-card-actions, .task-check, input, .archive-btn, .edit-btn")) {
-      return false;
+    if (!dragging) {
+      const dx = Math.abs(touch.clientX - startX);
+      const dy = Math.abs(touch.clientY - startY);
+      if (dx > 10 || dy > 10) clearHold();
+      return;
     }
-    return Boolean(target.closest(".task-card-main, .task-card-body, .task-text-btn"));
+
+    e.preventDefault();
+    moveTouchDragGhost(touch.clientX, touch.clientY);
+    updateGripDragHighlights(touch.clientX, touch.clientY);
   };
 
-  card.addEventListener(
+  const onTouchEnd = (e) => {
+    clearHold();
+    const touch = e.changedTouches[0];
+    finishDrag(lastX || touch.clientX, lastY || touch.clientY);
+  };
+
+  handle.addEventListener(
     "touchstart",
     (e) => {
-      if (!isDraggableTouchTarget(e.target)) return;
+      e.stopPropagation();
       const touch = e.touches[0];
       startX = touch.clientX;
       startY = touch.clientY;
       lastX = startX;
       lastY = startY;
-      suppressClick = false;
       clearHold();
       holdTimer = setTimeout(() => {
         dragging = true;
-        suppressClick = true;
         card.classList.add("dragging");
+        handle.classList.add("dragging-active");
+        createTouchDragGhost(card, lastX, lastY);
+        document.addEventListener("touchmove", onTouchMove, { passive: false });
+        document.addEventListener("touchend", onTouchEnd, { passive: true });
+        document.addEventListener("touchcancel", onTouchEnd, { passive: true });
         if (navigator.vibrate) navigator.vibrate(12);
-      }, 320);
+      }, 280);
     },
     { passive: true }
   );
-
-  card.addEventListener(
-    "touchmove",
-    (e) => {
-      const touch = e.touches[0];
-      const dx = Math.abs(touch.clientX - startX);
-      const dy = Math.abs(touch.clientY - startY);
-
-      if (!dragging && (dx > 10 || dy > 10)) clearHold();
-
-      if (!dragging) return;
-
-      e.preventDefault();
-      lastX = touch.clientX;
-      lastY = touch.clientY;
-      document.querySelectorAll(".column").forEach((c) => c.classList.remove("drag-over"));
-      const col = columnAt(touch.clientX, touch.clientY);
-      if (col) col.classList.add("drag-over");
-    },
-    { passive: false }
-  );
-
-  card.addEventListener(
-    "touchend",
-    (e) => {
-      clearHold();
-      if (!dragging) return;
-
-      dragging = false;
-      card.classList.remove("dragging");
-      document.querySelectorAll(".column").forEach((c) => c.classList.remove("drag-over"));
-
-      const touch = e.changedTouches[0];
-      const x = lastX || touch.clientX;
-      const y = lastY || touch.clientY;
-
-      if (isTierExpandCard(card)) {
-        const target = taskCardAt(x, y);
-        if (target && isTierExpandCard(target) && expandedTier) {
-          moveTask(id, ctx, expandedTier, target.dataset.id);
-          renderAll();
-        } else if (expandedTier) {
-          const dropEl = document.elementFromPoint(x, y);
-          if (dropEl?.closest("#tier-expand-list")) {
-            moveTask(id, ctx, expandedTier);
-            renderAll();
-          }
-        }
-        return;
-      }
-
-      const target = taskCardAt(x, y);
-      if (target && !isTierExpandCard(target)) {
-        const tier = getCardTier(target);
-        if (tier) {
-          moveTask(id, ctx, tier, target.dataset.id);
-          renderAll();
-          return;
-        }
-      }
-
-      const col = columnAt(x, y);
-      if (col) {
-        const tier = Number(col.dataset.tier);
-        moveTask(id, ctx, tier);
-        renderAll();
-      }
-    },
-    { passive: true }
-  );
-
-  card.addEventListener("touchcancel", () => {
-    clearHold();
-    dragging = false;
-    card.classList.remove("dragging");
-    document.querySelectorAll(".column").forEach((c) => c.classList.remove("drag-over"));
-  });
-
-  card.querySelector(".task-text-btn")?.addEventListener("click", (e) => {
-    if (suppressClick) {
-      e.preventDefault();
-      e.stopPropagation();
-      suppressClick = false;
-    }
-  });
 }
 
 function setupDropZones() {
@@ -2037,7 +2472,9 @@ function setupDropZones() {
       try {
         const data = JSON.parse(e.dataTransfer.getData("text/plain"));
         if (data?.id) {
-          moveTask(data.id, data.context, tier);
+          const list = column.querySelector(".task-list");
+          const atStart = list ? isDropAtListStart(list, e.clientY) : false;
+          moveTask(data.id, data.context, tier, null, atStart);
           renderAll();
         }
       } catch {
@@ -2323,9 +2760,7 @@ function renderAll() {
   }
   if (page === "tasks") {
     renderGrid();
-    if (mode135) {
-      renderPlan135();
-    }
+    renderPlan135();
     renderBrainPanel();
     renderForgetItPanel();
     renderArchivePanel();
@@ -2364,7 +2799,6 @@ function seedHomeFromNotebook() {
 }
 
 migrateLegacyData();
-seedHomeFromNotebook();
 
 document.documentElement.dataset.theme = getTheme();
 document.documentElement.dataset.font = getFont();
@@ -2381,6 +2815,7 @@ setupDataSync();
 setupTierExpand();
 setupMode135();
 setupForgetIt();
+setupPriorityVisibilityTags();
 updateBoardHint();
 
 setPage(page, filter);
