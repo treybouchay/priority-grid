@@ -69,6 +69,7 @@ let syncPushing = false;
 let syncDirty = false;
 let touchDragGhost = null;
 let dragGrabOffset = { x: 0, y: 0 };
+let listDragState = null;
 let visibleTiers = getVisibleTiers();
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
@@ -999,6 +1000,7 @@ function beginDragGhost(sourceCard, clientX, clientY) {
 function createDragGhost(sourceCard, x, y) {
   removeDragGhost();
   const ghost = sourceCard.cloneNode(true);
+  ghost.classList.remove("dragging");
   ghost.classList.add("touch-drag-ghost");
   ghost.removeAttribute("draggable");
   const listWidth = sourceCard.parentElement?.clientWidth;
@@ -1026,6 +1028,142 @@ function removeDragGhost() {
   touchDragGhost?.remove();
   touchDragGhost = null;
   dragGrabOffset = { x: 0, y: 0 };
+}
+
+function computeListReorder(listEl, draggedId, clientY) {
+  const cards = [...listEl.querySelectorAll(".task-card")];
+  const fromIndex = cards.findIndex((c) => c.dataset.id === draggedId);
+  if (fromIndex === -1) return { fromIndex: 0, toIndex: 0, entries: [] };
+
+  let insertAt = cards.length;
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].dataset.id === draggedId) continue;
+    const rect = cards[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      insertAt = i;
+      break;
+    }
+  }
+
+  const entries = cards.map((c) => ({ id: c.dataset.id, context: c.dataset.context }));
+  const [moved] = entries.splice(fromIndex, 1);
+  if (insertAt > fromIndex) insertAt -= 1;
+  entries.splice(insertAt, 0, moved);
+
+  return { fromIndex, toIndex: insertAt, entries };
+}
+
+function reorderTierTasksInContext(ctx, tier, orderedIds) {
+  const list = loadTasks(ctx);
+  const idSet = new Set(orderedIds);
+  const tierMap = new Map(
+    list.filter((t) => t.tier === tier && idSet.has(t.id)).map((t) => [t.id, t])
+  );
+
+  const result = [];
+  let replaced = false;
+  for (const t of list) {
+    if (t.tier === tier && idSet.has(t.id)) {
+      if (!replaced) {
+        orderedIds.forEach((id) => {
+          if (tierMap.has(id)) result.push(tierMap.get(id));
+        });
+        replaced = true;
+      }
+    } else {
+      result.push(t);
+    }
+  }
+  saveTasks(ctx, result);
+}
+
+function applyListReorderEntries(listEl, entries, tier) {
+  const byCtx = new Map();
+  entries.forEach(({ id, context }) => {
+    if (!byCtx.has(context)) byCtx.set(context, []);
+    byCtx.get(context).push(id);
+  });
+  byCtx.forEach((ids, ctx) => reorderTierTasksInContext(ctx, tier, ids));
+}
+
+function getListDragTier(listEl) {
+  if (listEl.id === "tier-expand-list") return expandedTier;
+  return Number(listEl.dataset.tier) || null;
+}
+
+function startListDragSession(card, listEl, clientX, clientY) {
+  const cards = [...listEl.querySelectorAll(".task-card")];
+  const fromIndex = cards.indexOf(card);
+  const gap = parseFloat(getComputedStyle(listEl).gap) || 0;
+  const rowHeight = card.offsetHeight + gap;
+
+  listDragState = {
+    card,
+    listEl,
+    fromIndex,
+    toIndex: fromIndex,
+    rowHeight,
+    tier: getListDragTier(listEl),
+    lastX: clientX,
+    lastY: clientY,
+  };
+
+  listEl.classList.add("list-drag-active");
+  card.classList.add("dragging");
+  card.querySelector(".task-drag-handle")?.classList.add("dragging-active");
+  beginDragGhost(card, clientX, clientY);
+  updateListDragSession(clientX, clientY);
+}
+
+function updateListDragSession(clientX, clientY) {
+  if (!listDragState) return;
+  const { card, listEl, fromIndex, rowHeight } = listDragState;
+  const { toIndex } = computeListReorder(listEl, card.dataset.id, clientY);
+  listDragState.toIndex = toIndex;
+  listDragState.lastX = clientX;
+  listDragState.lastY = clientY;
+
+  const cards = [...listEl.querySelectorAll(".task-card")];
+  cards.forEach((c, i) => {
+    if (c === card) return;
+    let shift = 0;
+    if (fromIndex < toIndex) {
+      if (i > fromIndex && i <= toIndex) shift = -rowHeight;
+    } else if (fromIndex > toIndex) {
+      if (i >= toIndex && i < fromIndex) shift = rowHeight;
+    }
+    c.style.transform = shift ? `translateY(${shift}px)` : "";
+  });
+
+  moveDragGhost(clientX, clientY);
+}
+
+function clearListDragSession() {
+  if (!listDragState) return;
+  const { card, listEl } = listDragState;
+
+  listEl.classList.remove("list-drag-active");
+  listEl.querySelectorAll(".task-card").forEach((c) => {
+    c.style.transform = "";
+    c.style.transition = "";
+    c.classList.remove("dragging");
+  });
+  card.querySelector(".task-drag-handle")?.classList.remove("dragging-active");
+  removeDragGhost();
+  listDragState = null;
+}
+
+function commitListDragSession() {
+  if (!listDragState) return;
+  const { listEl, fromIndex, toIndex, tier, card, lastY } = listDragState;
+  const { entries } = computeListReorder(listEl, card.dataset.id, lastY);
+
+  clearListDragSession();
+
+  if (fromIndex !== toIndex && tier) {
+    applyListReorderEntries(listEl, entries, tier);
+    renderAll();
+  }
 }
 
 function resolveListInsert(clientY, listEl, draggedId) {
@@ -1516,31 +1654,35 @@ function prefersReducedMotion() {
 function spawnCompletionRipple(anchorEl) {
   if (prefersReducedMotion() || !anchorEl) return;
 
-  const check = anchorEl.querySelector(".task-check") || anchorEl.closest(".task-check") || anchorEl;
-  const host = check.closest(".task-card, .priority-preview-item, .plan-135-slot") || anchorEl;
+  const host =
+    anchorEl.closest(".task-card, .priority-preview-item, .plan-135-slot, .plan-135-slot-filled") ||
+    anchorEl;
+  const check = anchorEl.querySelector?.(".task-check") || anchorEl.closest?.(".task-check");
+
   if (host && getComputedStyle(host).position === "static") {
     host.style.position = "relative";
   }
 
-  const rect = (check.getBoundingClientRect?.() || host.getBoundingClientRect());
+  const hostRect = host.getBoundingClientRect();
+  const origin = check?.getBoundingClientRect() || hostRect;
+  const cx = origin.left + origin.width / 2 - hostRect.left;
+  const cy = origin.top + origin.height / 2 - hostRect.top;
+
   const layer = document.createElement("span");
   layer.className = "completion-ripple-layer";
   layer.setAttribute("aria-hidden", "true");
+  layer.style.left = `${cx}px`;
+  layer.style.top = `${cy}px`;
   layer.innerHTML = `
     <span class="completion-ripple completion-ripple-1"></span>
     <span class="completion-ripple completion-ripple-2"></span>
     <span class="completion-ripple completion-ripple-3"></span>`;
 
-  const offsetParent = host.offsetParent || host;
-  const hostRect = host.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2 - hostRect.left;
-  const cy = rect.top + rect.height / 2 - hostRect.top;
-  layer.style.left = `${cx}px`;
-  layer.style.top = `${cy}px`;
-
   host.appendChild(layer);
-  layer.addEventListener("animationend", () => layer.remove(), { once: true });
-  setTimeout(() => layer.remove(), 1200);
+
+  const cleanup = () => layer.remove();
+  layer.querySelector(".completion-ripple-3")?.addEventListener("animationend", cleanup, { once: true });
+  setTimeout(cleanup, 2400);
 }
 
 function toggleTaskDone(id, ctx, markingDone, anchorEl) {
@@ -2071,13 +2213,11 @@ function setupTierExpand() {
 
   list.addEventListener("drop", (e) => {
     e.preventDefault();
-    if (!expandedTier) return;
+    if (!expandedTier || !draggedTask) return;
     try {
-      const data = JSON.parse(e.dataTransfer.getData("text/plain"));
-      if (data?.id) {
-        applyListInsertMove(data.id, data.context, expandedTier, list, e.clientY);
-        renderAll();
-      }
+      const { entries } = computeListReorder(list, draggedTask.id, e.clientY);
+      applyListReorderEntries(list, entries, expandedTier);
+      renderAll();
     } catch {
       /* ignore */
     }
@@ -2163,7 +2303,8 @@ function applyGripDragDrop(card, x, y) {
     if (!list) return;
     const dropEl = document.elementFromPoint(x, y);
     if (!dropEl?.closest("#tier-expand-list")) return;
-    applyListInsertMove(id, ctx, expandedTier, list, y);
+    const { entries } = computeListReorder(list, id, y);
+    applyListReorderEntries(list, entries, expandedTier);
     renderAll();
     return;
   }
@@ -2228,20 +2369,25 @@ function bindMouseGripDrag(card) {
   const handle = card.querySelector(".task-drag-handle");
   if (!handle) return;
 
+  const listEl = card.closest("#tier-expand-list");
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
 
-  const endDrag = (x, y) => {
+  const endDrag = () => {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
     if (!dragging) return;
     dragging = false;
-    card.classList.remove("dragging");
-    handle.classList.remove("dragging-active");
-    removeDragGhost();
     clearGripDragHighlights();
-    applyGripDragDrop(card, x, y);
+    if (listDragState) {
+      commitListDragSession();
+    } else {
+      card.classList.remove("dragging");
+      handle.classList.remove("dragging-active");
+      removeDragGhost();
+      applyGripDragDrop(card, lastX, lastY);
+    }
   };
 
   const onMouseMove = (e) => {
@@ -2249,12 +2395,16 @@ function bindMouseGripDrag(card) {
     e.preventDefault();
     lastX = e.clientX;
     lastY = e.clientY;
-    moveDragGhost(e.clientX, e.clientY);
-    updateGripDragHighlights(e.clientX, e.clientY);
+    if (listDragState) {
+      updateListDragSession(e.clientX, e.clientY);
+    } else {
+      moveDragGhost(e.clientX, e.clientY);
+      updateGripDragHighlights(e.clientX, e.clientY);
+    }
   };
 
-  const onMouseUp = (e) => {
-    endDrag(lastX || e.clientX, lastY || e.clientY);
+  const onMouseUp = () => {
+    endDrag();
   };
 
   handle.addEventListener("mousedown", (e) => {
@@ -2264,9 +2414,13 @@ function bindMouseGripDrag(card) {
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
-    card.classList.add("dragging");
-    handle.classList.add("dragging-active");
-    beginDragGhost(card, lastX, lastY);
+    if (listEl) {
+      startListDragSession(card, listEl, lastX, lastY);
+    } else {
+      card.classList.add("dragging");
+      handle.classList.add("dragging-active");
+      beginDragGhost(card, lastX, lastY);
+    }
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   });
@@ -2397,10 +2551,18 @@ function bindTouchDrag(card) {
     if (!dragging) return;
 
     dragging = false;
-    card.classList.remove("dragging");
     handle.classList.remove("dragging-active");
-    removeTouchDragGhost();
     clearGripDragHighlights();
+
+    if (listDragState) {
+      listDragState.lastY = y;
+      listDragState.lastX = x;
+      commitListDragSession();
+      return;
+    }
+
+    card.classList.remove("dragging");
+    removeTouchDragGhost();
     applyGripDragDrop(card, x, y);
   };
 
@@ -2417,8 +2579,12 @@ function bindTouchDrag(card) {
     }
 
     e.preventDefault();
-    moveTouchDragGhost(touch.clientX, touch.clientY);
-    updateGripDragHighlights(touch.clientX, touch.clientY);
+    if (listDragState) {
+      updateListDragSession(touch.clientX, touch.clientY);
+    } else {
+      moveTouchDragGhost(touch.clientX, touch.clientY);
+      updateGripDragHighlights(touch.clientX, touch.clientY);
+    }
   };
 
   const onTouchEnd = (e) => {
@@ -2439,9 +2605,14 @@ function bindTouchDrag(card) {
       clearHold();
       holdTimer = setTimeout(() => {
         dragging = true;
-        card.classList.add("dragging");
         handle.classList.add("dragging-active");
-        createTouchDragGhost(card, lastX, lastY);
+        const listEl = card.closest("#tier-expand-list");
+        if (listEl) {
+          startListDragSession(card, listEl, lastX, lastY);
+        } else {
+          card.classList.add("dragging");
+          createTouchDragGhost(card, lastX, lastY);
+        }
         document.addEventListener("touchmove", onTouchMove, { passive: false });
         document.addEventListener("touchend", onTouchEnd, { passive: true });
         document.addEventListener("touchcancel", onTouchEnd, { passive: true });

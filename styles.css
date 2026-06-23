@@ -1484,18 +1484,24 @@ body {
   touch-action: none;
 }
 
+.list-drag-active .task-card:not(.dragging) {
+  transition: transform 0.12s ease;
+}
+
 .touch-drag-ghost {
   position: fixed;
   left: 0;
   top: 0;
   z-index: 10001;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.88;
   list-style: none;
   margin: 0;
   box-shadow: 0 8px 24px var(--shadow);
   touch-action: none;
   will-change: transform;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
 }
 
 .task-check input {
@@ -3253,40 +3259,53 @@ dialog {
   width: 0;
   height: 0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 1;
   overflow: visible;
 }
 
 .completion-ripple {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
   border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, #b46b61 55%, transparent);
-  background: radial-gradient(circle, color-mix(in srgb, #fde8e8 70%, transparent) 0%, transparent 70%);
-  animation: completionRipple 0.9s ease-out forwards;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+    color-mix(in srgb, var(--primary) 8%, transparent) 38%,
+    transparent 68%
+  );
+  box-shadow: 0 0 14px 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  animation: waterRipple 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   opacity: 0;
+  filter: blur(0.35px);
+  will-change: transform, opacity;
 }
 
 .completion-ripple-2 {
-  animation-delay: 0.12s;
+  animation-delay: 0.28s;
+  border-color: color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 .completion-ripple-3 {
-  animation-delay: 0.24s;
-  border-color: color-mix(in srgb, #b46b61 35%, transparent);
+  animation-delay: 0.56s;
+  border-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 10px 0 color-mix(in srgb, var(--primary) 6%, transparent);
 }
 
-@keyframes completionRipple {
+@keyframes waterRipple {
   0% {
-    transform: scale(0.4);
-    opacity: 0.85;
+    transform: scale(0.25);
+    opacity: 0.42;
+  }
+  18% {
+    opacity: 0.28;
   }
   100% {
-    transform: scale(5.5);
+    transform: scale(7);
     opacity: 0;
   }
 }
