@@ -1651,48 +1651,74 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function spawnCompletionRipple(anchorEl) {
-  if (prefersReducedMotion() || !anchorEl) return;
-
+function getRippleOrigin(anchorEl) {
   const host =
-    anchorEl.closest(".task-card, .priority-preview-item, .plan-135-slot, .plan-135-slot-filled") ||
-    anchorEl;
+    anchorEl.closest(
+      ".home-task-row, .home-task-card, .task-card, .priority-preview-item, .plan-135-slot, .plan-135-slot-filled"
+    ) || anchorEl;
   const check = anchorEl.querySelector?.(".task-check") || anchorEl.closest?.(".task-check");
-
-  if (host && getComputedStyle(host).position === "static") {
-    host.style.position = "relative";
-  }
-
+  const origin = check?.getBoundingClientRect() || host.getBoundingClientRect();
   const hostRect = host.getBoundingClientRect();
-  const origin = check?.getBoundingClientRect() || hostRect;
-  const cx = origin.left + origin.width / 2 - hostRect.left;
-  const cy = origin.top + origin.height / 2 - hostRect.top;
+  const endScale = Math.max(14, Math.min(Math.ceil(hostRect.width / 6), 22));
+  return {
+    x: origin.left + origin.width / 2,
+    y: origin.top + origin.height / 2,
+    endScale,
+  };
+}
+
+function spawnCompletionRippleAt(x, y, endScale = 14) {
+  if (prefersReducedMotion()) return;
 
   const layer = document.createElement("span");
-  layer.className = "completion-ripple-layer";
+  layer.className = "completion-ripple-layer completion-ripple-layer-floating";
   layer.setAttribute("aria-hidden", "true");
-  layer.style.left = `${cx}px`;
-  layer.style.top = `${cy}px`;
-  layer.innerHTML = `
-    <span class="completion-ripple completion-ripple-1"></span>
-    <span class="completion-ripple completion-ripple-2"></span>
-    <span class="completion-ripple completion-ripple-3"></span>`;
+  layer.style.left = `${x}px`;
+  layer.style.top = `${y}px`;
 
-  host.appendChild(layer);
+  const delays = [0, 300, 600];
+  delays.forEach((delay) => {
+    const ring = document.createElement("span");
+    ring.className = "completion-ripple";
+    layer.appendChild(ring);
+    if (typeof ring.animate === "function") {
+      ring.animate(
+        [
+          { transform: "scale(0.35)", opacity: 0.58 },
+          { transform: `scale(${endScale})`, opacity: 0 },
+        ],
+        {
+          duration: 2100,
+          delay,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          fill: "forwards",
+        }
+      );
+    } else {
+      ring.classList.add("completion-ripple-css");
+      ring.style.setProperty("--ripple-end-scale", String(endScale));
+    }
+  });
 
-  const cleanup = () => layer.remove();
-  layer.querySelector(".completion-ripple-3")?.addEventListener("animationend", cleanup, { once: true });
-  setTimeout(cleanup, 2400);
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 3200);
+}
+
+function spawnCompletionRipple(anchorEl) {
+  if (!anchorEl) return;
+  const point = getRippleOrigin(anchorEl);
+  spawnCompletionRippleAt(point.x, point.y, point.endScale);
 }
 
 function toggleTaskDone(id, ctx, markingDone, anchorEl) {
   const task = loadTasks(ctx).find((t) => t.id === id);
   const wasDone = task?.done ?? false;
-  if (markingDone && !wasDone) spawnCompletionRipple(anchorEl);
+  const ripplePoint = markingDone && !wasDone && anchorEl ? getRippleOrigin(anchorEl) : null;
   updateTaskInContext(ctx, (list) =>
     list.map((t) => (t.id === id ? { ...t, done: markingDone } : t))
   );
   renderAll();
+  if (ripplePoint) spawnCompletionRippleAt(ripplePoint.x, ripplePoint.y, ripplePoint.endScale);
 }
 
 function bindPlan135Slots(container) {
@@ -2007,45 +2033,42 @@ function getTopPriorityTasks(limit = 5) {
   return [...tasks, ...extras];
 }
 
-function homeTaskRowHtml(task) {
-  return `
-    <li class="priority-preview-item${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
-      <label class="task-check">
-        <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
-      </label>
-      <button type="button" class="priority-preview-text">${escapeHtml(task.text)}</button>
-      <span class="context-pill context-pill-${task.context}">
-        ${contextIconHtml(task.context, "context-pill-icon")}
-      </span>
-      <button type="button" class="archive-btn priority-archive-btn" aria-label="Archive task">×</button>
-      <svg class="icon icon-star" aria-hidden="true"><use href="#icon-star"></use></svg>
-    </li>`;
+function homeTaskMenuBtn() {
+  return `<button type="button" class="home-task-menu" aria-label="Task options"><svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg></button>`;
 }
 
-const HOME_135_SIZE_LABELS = { big: "Big", medium: "Medium", small: "Small" };
+function homeTaskItemHtml(task, layout = "row") {
+  const itemClass = layout === "card" ? "home-task-card" : "home-task-row";
+  return `
+    <li class="${itemClass}${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
+      <label class="task-check home-task-check">
+        <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
+      </label>
+      <button type="button" class="home-task-title">${escapeHtml(task.text)}</button>
+      <span class="home-task-tier">${TIER_NAMES[task.tier - 1]}</span>
+      ${homeTaskMenuBtn()}
+    </li>`;
+}
 
 function home135TaskRowHtml(task, group) {
-  const sizeLabel = HOME_135_SIZE_LABELS[group];
-  const isBig = group === "big";
+  const layout = group === "big" ? "card" : "row";
+  const itemClass = layout === "card" ? "home-task-card" : "home-task-row";
   return `
-    <li class="priority-preview-item${task.done ? " done" : ""}${isBig ? " priority-preview-item-big" : ""}"
-      data-id="${task.id}" data-context="${task.context}" data-plan-group="${group}">
-      <label class="task-check">
+    <li class="${itemClass}${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}" data-plan-group="${group}">
+      <label class="task-check home-task-check">
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
-      <button type="button" class="priority-preview-text">${escapeHtml(task.text)}</button>
-      <span class="plan-135-tier-badge">${TIER_NAMES[task.tier - 1]}</span>
-      <span class="context-pill context-pill-${task.context}">
-        ${contextIconHtml(task.context, "context-pill-icon")}
-      </span>
-      <span class="plan-135-size-badge plan-135-size-badge-${group}">${sizeLabel}</span>
-      <button type="button" class="archive-btn priority-archive-btn" aria-label="Archive task">×</button>
+      <button type="button" class="home-task-title">${escapeHtml(task.text)}</button>
+      <span class="home-task-tier">${TIER_NAMES[task.tier - 1]}</span>
+      ${homeTaskMenuBtn()}
     </li>`;
 }
 
-function home135EmptyRowHtml(slotLabel) {
+function home135EmptyRowHtml(slotLabel, group) {
+  const layout = group === "big" ? "card" : "row";
+  const itemClass = layout === "card" ? "home-task-card" : "home-task-row";
   return `
-    <li class="priority-preview-item priority-preview-item-empty">
+    <li class="${itemClass} home-task-empty">
       <span class="home-plan-135-empty">Add ${slotLabel} on All Tasks</span>
     </li>`;
 }
@@ -2076,7 +2099,7 @@ function renderHomePlan135() {
   if (title) title.textContent = "Today's 1-3-5";
   if (progress) {
     progress.textContent = `${filled} of ${total} planned`;
-    progress.classList.toggle("hidden", filled === 0);
+    progress.classList.remove("hidden");
   }
 
   if (filled === 0) {
@@ -2101,19 +2124,24 @@ function renderHomePlan135() {
             : section.group === "medium"
               ? `medium task ${i + 1}`
               : `small task ${i + 1}`;
-        return home135EmptyRowHtml(slotName);
+        return home135EmptyRowHtml(slotName, section.group);
       })
       .join("");
 
+    const isBig = section.group === "big";
+    const listWrap = isBig
+      ? `<ul class="home-135-big-list">${rows}</ul>`
+      : `<div class="home-task-group"><ul class="home-task-group-list">${rows}</ul></div>`;
+
     return `
-      <section class="home-plan-135-group">
-        <h4 class="home-plan-135-label">${section.label}</h4>
-        <ul class="priority-preview-list">${rows}</ul>
+      <section class="home-135-section">
+        <h4 class="home-135-heading">${section.label}</h4>
+        ${listWrap}
       </section>`;
   }).join("");
 
   content.innerHTML = `<div class="home-plan-135">${sectionsHtml}</div>`;
-  content.querySelectorAll(".priority-preview-item:not(.priority-preview-item-empty)").forEach(bindHomeTaskEvents);
+  content.querySelectorAll(".home-task-card:not(.home-task-empty), .home-task-row:not(.home-task-empty)").forEach(bindHomeTaskEvents);
   renderForgetItHome();
 }
 
@@ -2124,14 +2152,15 @@ function bindHomeTaskEvents(row) {
     toggleTaskDone(id, ctx, e.target.checked, row);
   });
 
-  row.querySelector(".priority-preview-text").addEventListener("click", () => {
+  row.querySelector(".home-task-title")?.addEventListener("click", () => {
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
   });
 
-  row.querySelector(".priority-archive-btn")?.addEventListener("click", (e) => {
+  row.querySelector(".home-task-menu")?.addEventListener("click", (e) => {
     e.stopPropagation();
-    archiveTask(id, ctx);
+    const task = loadTasks(ctx).find((t) => t.id === id);
+    if (task) openEditTaskDialog(task, ctx);
   });
 }
 
@@ -2161,8 +2190,8 @@ function renderHome() {
   }
 
   empty.classList.add("hidden");
-  content.innerHTML = `<ul class="priority-preview-list">${tasks.map((task) => homeTaskRowHtml(task)).join("")}</ul>`;
-  content.querySelectorAll(".priority-preview-item").forEach(bindHomeTaskEvents);
+  content.innerHTML = `<div class="home-task-group"><ul class="home-task-group-list">${tasks.map((task) => homeTaskItemHtml(task)).join("")}</ul></div>`;
+  content.querySelectorAll(".home-task-row").forEach(bindHomeTaskEvents);
   renderForgetItHome();
 }
 
