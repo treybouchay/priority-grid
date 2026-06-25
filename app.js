@@ -12,13 +12,14 @@ const SIDEBAR_TAB_KEY = "priority-grid-sidebar-tab";
 const PLAN_135_PREFIX = "priority-grid-135-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
 const SYNC_META_KEY = "priority-grid-sync-meta";
+const APP_STARTED_KEY = "priority-grid-app-started";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
 const PLAN_135_SLOTS = [
-  { group: "big", label: "1 Big Task", count: 1 },
-  { group: "medium", label: "3 Medium Tasks", count: 3 },
-  { group: "small", label: "5 Small Tasks", count: 5 },
+  { group: "big", label: "Big Task", count: 1 },
+  { group: "medium", label: "Medium Tasks", count: 3 },
+  { group: "small", label: "Small Tasks", count: 5 },
 ];
 
 const CONTEXTS = ["work", "home"];
@@ -26,23 +27,8 @@ const TIER_LABELS = ["1st", "2nd", "3rd", "4th"];
 const isTouchDevice = () => window.matchMedia("(hover: none), (pointer: coarse)").matches;
 
 const THEMES = [
-  { id: "soft-sand", name: "Soft Sand", colors: ["#FFFAF6", "#F5F1EB", "#DBA063", "#C29A7A", "#2A2724"] },
-  { id: "calm-neutral", name: "Calm Neutral", colors: ["#FAFBF5", "#F2EEE9", "#A89F93", "#7D9186", "#3E3E3E"] },
-  { id: "soft-sage", name: "Soft Sage", colors: ["#F4F7F2", "#E9F0E6", "#A8C0A3", "#6E8F7A", "#334236"] },
-  { id: "warm-minimal", name: "Warm Minimal", colors: ["#FFFAF6", "#F6EFE9", "#D6B397", "#C46A4A", "#3B2F2A"] },
-  { id: "zen-blue", name: "Zen Blue", colors: ["#F2F6FA", "#E6EEF5", "#9EB8D1", "#4C6A88", "#2D3748"] },
-  { id: "earthy-clay", name: "Earthy Clay", colors: ["#F7F3EF", "#ECE4DA", "#C09A7B", "#7A8A74", "#3B342E"] },
-  { id: "soft-lavender", name: "Soft Lavender", colors: ["#F6F4FA", "#EDE9F5", "#B7A7C9", "#7E6B91", "#3A3347"] },
-  { id: "pure-white", name: "Pure White", colors: ["#FFFFFF", "#F7F7F8", "#222222", "#A6A6A6", "#333333"] },
-  { id: "dusty-rose", name: "My Day", colors: ["#FFF9F9", "#FFFFFF", "#B46B61", "#FDE8E8", "#2D2D2D"] },
-  { id: "mindful-greige", name: "Mindful Greige", colors: ["#F6F4F1", "#EDEAE4", "#8D857A", "#C4B8A6", "#3E3A36"] },
-  { id: "ocean-breeze", name: "Ocean Breeze", colors: ["#F0F7FA", "#D8F0F3", "#5D8FA6", "#9CCBD6", "#2C3E46"] },
-  { id: "sunlit-sand", name: "Sunlit Sand", colors: ["#FFF8F2", "#F7EFE1", "#D4B063", "#E9D3A8", "#584D35"] },
-  { id: "forest-mist", name: "Forest Mist", colors: ["#F2F7F3", "#E4ECE6", "#3D5A47", "#A8C5AD", "#2F3D32"] },
-  { id: "terra-cotta", name: "Terra Cotta", colors: ["#FFF3EF", "#F7E4DD", "#C15A3D", "#E7A28B", "#5A4036"] },
-  { id: "storm-grey", name: "Storm Grey", colors: ["#F0F1F3", "#E3E5E8", "#4A4F55", "#7B828C", "#212427"] },
-  { id: "blush-clay", name: "Blush Clay", colors: ["#FFF5F4", "#F4E7E4", "#B97A6E", "#DDB2A7", "#533F3A"] },
-  { id: "clear-sky", name: "Clear Sky", colors: ["#F3F8FF", "#EAF3FB", "#6FA8DC", "#B9D7EF", "#1F2D3D"] },
+  { id: "warm-earth", name: "Warm Earth", colors: ["#FCEFEA", "#0E3D3B", "#E07A5F", "#F4A6A1", "#1F3F2E"] },
+  { id: "terracotta", name: "Terracotta", colors: ["#FFF9F9", "#B46B61", "#FDE8E8", "#F4E7E4", "#2D2D2D"] },
 ];
 
 const FONTS = [
@@ -50,14 +36,13 @@ const FONTS = [
   { id: "lora-inter", name: "Lora + Inter", heading: "Lora", body: "Inter" },
   { id: "pairing-1", name: "Noto Serif + Inter", heading: "Noto Serif", body: "Inter" },
   { id: "pairing-2", name: "Cormorant + Lato", heading: "Cormorant Garamond", body: "Lato" },
-  { id: "pairing-3", name: "Playfair + Nunito Sans", heading: "Playfair Display", body: "Nunito Sans" },
+  { id: "pairing-3", name: "Playfair + Inter", heading: "Playfair Display", body: "Inter" },
   { id: "pairing-4", name: "DM Serif + Source Sans", heading: "DM Serif Display", body: "Source Sans 3" },
   { id: "pairing-5", name: "Libre Baskerville + Work Sans", heading: "Libre Baskerville", body: "Work Sans" },
 ];
 
 let page = getPage();
 let filter = getFilter();
-let draggedTask = null;
 let expandedTier = null;
 let mode135 = getMode135();
 let sidebarTab = getSidebarTab();
@@ -608,7 +593,7 @@ async function initRemoteSync() {
 function getPage() {
   try {
     const saved = localStorage.getItem(PAGE_KEY);
-    if (saved === "home" || saved === "tasks") return saved;
+    if (saved === "home" || saved === "tasks" || saved === "history") return saved;
     if (saved === "brain-dump") return "tasks";
     if (saved === "settings") return "home";
   } catch {
@@ -631,14 +616,23 @@ function getTheme() {
   try {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved && THEMES.some((t) => t.id === saved)) return saved;
-    if (saved) {
-      const map = { "warm-minimal": "soft-sand" };
-      if (map[saved]) return map[saved];
-    }
+    if (saved === "dusty-rose") return "terracotta";
   } catch {
     /* ignore */
   }
-  return "dusty-rose";
+  return "warm-earth";
+}
+
+function tierTagClass(tier, planGroup = "") {
+  if (planGroup === "big" || tier === 1) return "home-card-task-tier--1st";
+  if (planGroup === "medium" || tier === 2) return "home-card-task-tier--medium";
+  return "home-card-task-tier--small";
+}
+
+function plan135TierBadgeClass(tier, planGroup = "") {
+  if (planGroup === "big" || tier === 1) return "plan-135-tier-badge--1st";
+  if (planGroup === "medium" || tier === 2) return "plan-135-tier-badge--medium";
+  return "plan-135-tier-badge--small";
 }
 
 function getFont() {
@@ -648,7 +642,7 @@ function getFont() {
   } catch {
     /* ignore */
   }
-  return "playfair-inter";
+  return "pairing-3";
 }
 
 function escapeHtml(text) {
@@ -722,19 +716,31 @@ function setupPriorityVisibilityTags() {
   syncPriorityVisibilityTags();
 }
 
+function formatHomeDate(date = new Date()) {
+  const weekday = date.toLocaleDateString("en-US", { weekday: "long" });
+  const month = date.toLocaleDateString("en-US", { month: "long" });
+  const day = date.getDate();
+  const mod10 = day % 10;
+  const mod100 = day % 100;
+  let suffix = "th";
+  if (mod10 === 1 && mod100 !== 11) suffix = "st";
+  else if (mod10 === 2 && mod100 !== 12) suffix = "nd";
+  else if (mod10 === 3 && mod100 !== 13) suffix = "rd";
+  return `${weekday}, ${month} ${day}${suffix}`;
+}
+
 function setupDateHeader() {
   const now = new Date();
-  document.getElementById("page-date").textContent = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
   const hour = now.getHours();
   let greeting = "Good evening";
   if (hour < 12) greeting = "Good morning";
   else if (hour < 17) greeting = "Good afternoon";
-  document.getElementById("page-greeting-text").textContent = `${greeting}, Trey`;
+
+  const greetingEl = document.getElementById("home-greeting-line");
+  if (greetingEl) greetingEl.textContent = greeting;
+
+  const dateEl = document.getElementById("home-date");
+  if (dateEl) dateEl.textContent = formatHomeDate(now);
 }
 
 function todayKey() {
@@ -751,9 +757,11 @@ function emptyPlan135() {
 
 function getMode135() {
   try {
-    return localStorage.getItem(MODE_135_KEY) === "1";
+    const stored = localStorage.getItem(MODE_135_KEY);
+    if (stored === null) return true;
+    return stored === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -1227,16 +1235,18 @@ function updatePageTitle() {
   const titles = {
     home: { all: "My Day", work: "My Day", home: "My Day" },
     tasks: { all: "All Tasks", work: "Work Tasks", home: "Home Tasks" },
+    history: { all: "History", work: "History", home: "History" },
   };
   document.getElementById("page-title").textContent = titles[page][filter];
   document.getElementById("page-title").classList.toggle("hidden", page === "home");
+  document.getElementById("page-header").classList.toggle("hidden", page === "home");
+  document.getElementById("page-header").classList.toggle("page-header--home", page === "home");
   document.getElementById("page-header-actions").classList.toggle("hidden", page !== "home");
 
   const isHome = page === "home";
   const isTasks = page === "tasks";
-  document.getElementById("page-greeting").classList.toggle("hidden", !isHome);
   document.getElementById("filter-pills").classList.toggle("hidden", !isTasks);
-  document.getElementById("add-task-btn").classList.toggle("hidden", !isTasks);
+  document.getElementById("add-task-btn").classList.toggle("hidden", !(isHome || isTasks));
   syncMode135Toggle();
   updateTasksLayout();
 }
@@ -1246,6 +1256,8 @@ function syncNavActive() {
     let active = false;
     if (page === "home") {
       active = btn.dataset.page === "home";
+    } else if (page === "history") {
+      active = btn.dataset.page === "history";
     } else if (page === "tasks") {
       if (btn.dataset.focusBrain === "true") {
         active = false;
@@ -1258,10 +1270,14 @@ function syncNavActive() {
 
   document.querySelectorAll(".mobile-nav-item").forEach((btn) => {
     let active = false;
-    if (page === "home") {
+    if (btn.dataset.nav === "profile" || btn.dataset.nav === "settings") {
+      active = false;
+    } else if (page === "home") {
       active = btn.dataset.page === "home";
+    } else if (page === "history") {
+      active = btn.dataset.page === "history";
     } else if (page === "tasks" && btn.dataset.page === "tasks") {
-      active = !btn.dataset.focusBrain && btn.dataset.filter === filter;
+      active = !btn.dataset.focusBrain && btn.dataset.filter === filter && !btn.dataset.nav;
     }
     btn.classList.toggle("active", active);
   });
@@ -1292,6 +1308,12 @@ function setPage(nextPage, nextFilter = filter, options = {}) {
 
   document.getElementById("home-page").classList.toggle("hidden", page !== "home");
   document.getElementById("tasks-page").classList.toggle("hidden", page !== "tasks");
+  document.getElementById("history-page").classList.toggle("hidden", page !== "history");
+
+  document.body.dataset.page = page;
+
+  const appearance = document.getElementById("appearance-panel");
+  if (appearance && page !== "home") appearance.removeAttribute("open");
 
   syncNavActive();
   updatePageTitle();
@@ -1310,9 +1332,20 @@ function setFilter(nextFilter) {
   renderAll();
 }
 
+function openAppearancePanel() {
+  const panel = document.getElementById("appearance-panel");
+  if (!panel) return;
+  panel.open = true;
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function setupNavigation() {
   document.querySelectorAll(".nav-item, .mobile-nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
+      if (btn.dataset.nav === "profile" || btn.dataset.nav === "settings") {
+        openAppearancePanel();
+        return;
+      }
       const nextPage = btn.dataset.page;
       const nextFilter = btn.dataset.filter || filter;
       const focusBrain = btn.dataset.focusBrain === "true";
@@ -1328,26 +1361,23 @@ function setupNavigation() {
     setPage("tasks", filter);
   });
 
-  document.getElementById("focus-reflection-btn").addEventListener("click", () => {
-    setPage("tasks", filter);
-  });
+  const sidebarMenuBtn = document.getElementById("sidebar-menu-btn");
+  if (sidebarMenuBtn) {
+    sidebarMenuBtn.addEventListener("click", openAppearancePanel);
+  }
+
+  const sidebarProfileBtn = document.getElementById("sidebar-profile-btn");
+  if (sidebarProfileBtn) {
+    sidebarProfileBtn.addEventListener("click", openAppearancePanel);
+  }
 }
 
 function setTheme(themeId) {
-  document.documentElement.dataset.theme = themeId;
-  localStorage.setItem(THEME_KEY, themeId);
+  const theme = THEMES.some((t) => t.id === themeId) ? themeId : "warm-earth";
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem(THEME_KEY, theme);
   document.querySelectorAll(".theme-option").forEach((btn) => {
-    const isActive = btn.dataset.theme === themeId;
-    btn.classList.toggle("active", isActive);
-    btn.setAttribute("aria-checked", isActive);
-  });
-}
-
-function setFont(fontId) {
-  document.documentElement.dataset.font = fontId;
-  localStorage.setItem(FONT_KEY, fontId);
-  document.querySelectorAll(".font-option").forEach((btn) => {
-    const isActive = btn.dataset.font === fontId;
+    const isActive = btn.dataset.theme === theme;
     btn.classList.toggle("active", isActive);
     btn.setAttribute("aria-checked", isActive);
   });
@@ -1355,6 +1385,7 @@ function setFont(fontId) {
 
 function setupThemePicker() {
   const picker = document.getElementById("theme-picker");
+  if (!picker) return;
   const current = getTheme();
   document.documentElement.dataset.theme = current;
 
@@ -1372,6 +1403,16 @@ function setupThemePicker() {
 
   picker.querySelectorAll(".theme-option").forEach((btn) => {
     btn.addEventListener("click", () => setTheme(btn.dataset.theme));
+  });
+}
+
+function setFont(fontId) {
+  document.documentElement.dataset.font = fontId;
+  localStorage.setItem(FONT_KEY, fontId);
+  document.querySelectorAll(".font-option").forEach((btn) => {
+    const isActive = btn.dataset.font === fontId;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-checked", isActive);
   });
 }
 
@@ -1418,7 +1459,12 @@ function archiveTask(id, ctx) {
   clearTaskRefs(id, ctx);
   const archivedAt = new Date().toISOString();
   updateTaskInContext(ctx, (list) =>
-    list.map((t) => (t.id === id ? { ...t, archived: true, archivedAt } : t))
+    list.map((t) => {
+      if (t.id !== id) return t;
+      const next = { ...t, archived: true, archivedAt };
+      if (next.done && !next.completedAt) next.completedAt = archivedAt;
+      return next;
+    })
   );
   renderAll();
 }
@@ -1565,7 +1611,7 @@ function plan135SlotHtml(group, index, ref, task) {
         <div class="plan-135-slot-body">
           <span class="plan-135-slot-text">${escapeHtml(task.text)}</span>
           <span class="plan-135-slot-meta">
-            <span class="plan-135-tier-badge">${TIER_LABELS[task.tier - 1]} Priority</span>
+            <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier, group)}">${TIER_LABELS[task.tier - 1]} Priority</span>
             ${filter === "all" ? contextIconHtml(task.context, "plan-135-ctx") : ""}
           </span>
         </div>
@@ -1621,7 +1667,7 @@ function renderPlan135() {
   });
 
   if (progress) {
-    progress.textContent = `${filled} of ${total} planned`;
+    progress.textContent = `${filled} of ${total} tasks planned`;
   }
 
   sections.innerHTML = PLAN_135_SLOTS.map((section) => {
@@ -1647,78 +1693,136 @@ function renderPlan135() {
   bindPlan135Slots(sections);
 }
 
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function dayBoundsFromOffset(offsetDays) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() + offsetDays);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start, end };
 }
 
-function getRippleOrigin(anchorEl) {
-  const host =
-    anchorEl.closest(
-      ".home-task-row, .home-task-card, .task-card, .priority-preview-item, .plan-135-slot, .plan-135-slot-filled"
-    ) || anchorEl;
-  const check = anchorEl.querySelector?.(".task-check") || anchorEl.closest?.(".task-check");
-  const origin = check?.getBoundingClientRect() || host.getBoundingClientRect();
-  const hostRect = host.getBoundingClientRect();
-  const endScale = Math.max(14, Math.min(Math.ceil(hostRect.width / 6), 22));
-  return {
-    x: origin.left + origin.width / 2,
-    y: origin.top + origin.height / 2,
-    endScale,
-  };
+function isTimestampOnDay(iso, offsetDays) {
+  if (!iso) return false;
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return false;
+  const { start, end } = dayBoundsFromOffset(offsetDays);
+  return t >= start && t < end;
 }
 
-function spawnCompletionRippleAt(x, y, endScale = 14) {
-  if (prefersReducedMotion()) return;
+function relativeDayKey(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
-  const layer = document.createElement("span");
-  layer.className = "completion-ripple-layer completion-ripple-layer-floating";
-  layer.setAttribute("aria-hidden", "true");
-  layer.style.left = `${x}px`;
-  layer.style.top = `${y}px`;
+function getEffectiveCompletedAt(task) {
+  if (!task.done) return null;
+  return task.completedAt || null;
+}
 
-  const delays = [0, 300, 600];
-  delays.forEach((delay) => {
-    const ring = document.createElement("span");
-    ring.className = "completion-ripple";
-    layer.appendChild(ring);
-    if (typeof ring.animate === "function") {
-      ring.animate(
-        [
-          { transform: "scale(0.35)", opacity: 0.58 },
-          { transform: `scale(${endScale})`, opacity: 0 },
-        ],
-        {
-          duration: 2100,
-          delay,
-          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-          fill: "forwards",
-        }
-      );
-    } else {
-      ring.classList.add("completion-ripple-css");
-      ring.style.setProperty("--ripple-end-scale", String(endScale));
-    }
+function isYesterdayWin(task) {
+  if (!task.done) return false;
+  return isTimestampOnDay(getEffectiveCompletedAt(task), -1);
+}
+
+function getTasksCompletedYesterday() {
+  const seen = new Set();
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!isYesterdayWin(t)) return;
+      const key = `${ctx}:${t.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks;
+}
+
+function reflectionYesterdayLabel() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+}
+
+function renderReflectionContent() {
+  const list = document.getElementById("reflection-list");
+  const tasks = getTasksCompletedYesterday();
+  document.getElementById("reflection-date").textContent = reflectionYesterdayLabel();
+
+  const countEl = document.getElementById("reflection-count");
+  if (countEl) {
+    countEl.textContent =
+      tasks.length === 0
+        ? ""
+        : tasks.length === 1
+          ? "1 task completed"
+          : `${tasks.length} tasks completed`;
+  }
+
+  if (tasks.length === 0) {
+    list.innerHTML =
+      '<li class="reflection-empty">No tasks completed yesterday. Rest up or aim for a fresh win today.</li>';
+    return;
+  }
+
+  const byCtx = new Map();
+  tasks.forEach((t) => {
+    if (!byCtx.has(t.context)) byCtx.set(t.context, []);
+    byCtx.get(t.context).push(t);
   });
 
-  document.body.appendChild(layer);
-  setTimeout(() => layer.remove(), 3200);
+  let html = "";
+  CONTEXTS.forEach((ctx) => {
+    const ctxTasks = byCtx.get(ctx);
+    if (!ctxTasks?.length) return;
+    const label = ctx === "work" ? "Work" : "Home";
+    html += `<li class="reflection-context-heading">${label}</li>`;
+
+    const tiers = [...new Set(ctxTasks.map((t) => t.tier))].sort((a, b) => a - b);
+    const multiTier = tiers.length > 1;
+
+    tiers.forEach((tier) => {
+      const tierTasks = ctxTasks.filter((t) => t.tier === tier);
+      if (multiTier) {
+        html += `<li class="reflection-tier-heading">${TIER_NAMES[tier - 1]}</li>`;
+      }
+      tierTasks.forEach((task) => {
+        html += `<li class="reflection-item"><span class="reflection-check" aria-hidden="true">✓</span><span class="reflection-text">${escapeHtml(task.text)}</span></li>`;
+      });
+    });
+  });
+  list.innerHTML = html;
 }
 
-function spawnCompletionRipple(anchorEl) {
-  if (!anchorEl) return;
-  const point = getRippleOrigin(anchorEl);
-  spawnCompletionRippleAt(point.x, point.y, point.endScale);
+function openReflectionDialog() {
+  renderReflectionContent();
+  document.getElementById("reflection-dialog").showModal();
 }
 
-function toggleTaskDone(id, ctx, markingDone, anchorEl) {
-  const task = loadTasks(ctx).find((t) => t.id === id);
-  const wasDone = task?.done ?? false;
-  const ripplePoint = markingDone && !wasDone && anchorEl ? getRippleOrigin(anchorEl) : null;
+function setupReflection() {
+  document.getElementById("focus-reflection-btn").addEventListener("click", openReflectionDialog);
+  document.getElementById("reflection-close").addEventListener("click", () => {
+    document.getElementById("reflection-dialog").close();
+  });
+}
+
+function toggleTaskDone(id, ctx, markingDone) {
   updateTaskInContext(ctx, (list) =>
-    list.map((t) => (t.id === id ? { ...t, done: markingDone } : t))
+    list.map((t) => {
+      if (t.id !== id) return t;
+      const next = { ...t, done: markingDone };
+      if (markingDone) next.completedAt = new Date().toISOString();
+      else delete next.completedAt;
+      return next;
+    })
   );
   renderAll();
-  if (ripplePoint) spawnCompletionRippleAt(ripplePoint.x, ripplePoint.y, ripplePoint.endScale);
 }
 
 function bindPlan135Slots(container) {
@@ -1746,7 +1850,7 @@ function bindPlan135Slots(container) {
       const ref = getPlan135Ref(group, Number(slot.dataset.slotIndex));
       const task = findTaskByRef(ref);
       if (!task) return;
-      toggleTaskDone(task.id, task.context, e.target.checked, slot);
+      toggleTaskDone(task.id, task.context, e.target.checked);
     });
   });
 
@@ -1918,21 +2022,7 @@ function setupSidebarDragAssist() {
 }
 
 function renderForgetItHome() {
-  const section = document.getElementById("forget-it-home");
-  const body = document.getElementById("forget-it-home-body");
-  if (!section || !body) return;
-
-  const ref = loadForgetIt();
-  const task = findTaskByRef(ref);
-
-  if (!task) {
-    section.classList.add("hidden");
-    return;
-  }
-
-  section.classList.remove("hidden");
-  body.innerHTML = forgetItTaskHtml(task, { compact: true });
-  bindForgetItActions(body);
+  /* Home forget-it widget removed — matches Figma home mockup */
 }
 
 function openForgetItPicker() {
@@ -2023,54 +2113,106 @@ function renderGrid() {
 }
 
 function getTopPriorityTasks(limit = 5) {
-  const tasks = getVisibleTasks()
-    .filter((t) => !t.done && t.tier === 1)
-    .slice(0, limit);
-  if (tasks.length >= limit) return tasks;
-  const extras = getVisibleTasks()
-    .filter((t) => !t.done && t.tier === 2)
-    .slice(0, limit - tasks.length);
-  return [...tasks, ...extras];
+  const visible = CONTEXTS.flatMap((ctx) =>
+    loadTasks(ctx)
+      .filter((t) => !t.archived)
+      .map((t) => ({ ...t, context: ctx }))
+  );
+  const ranked = visible
+    .filter((t) => t.tier === 1 || t.tier === 2)
+    .sort((a, b) => {
+      if (a.tier !== b.tier) return a.tier - b.tier;
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      return 0;
+    });
+  return ranked.slice(0, limit);
 }
 
-function homeTaskMenuBtn() {
-  return `<button type="button" class="home-task-menu" aria-label="Task options"><svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg></button>`;
-}
-
-function homeTaskItemHtml(task, layout = "row") {
-  const itemClass = layout === "card" ? "home-task-card" : "home-task-row";
+function planCardTaskHtml(task) {
+  if (!task) return "";
   return `
-    <li class="${itemClass}${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
-      <label class="task-check home-task-check">
+    <li class="plan-card-task${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
+      <label class="plan-card-check">
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
-      <button type="button" class="home-task-title">${escapeHtml(task.text)}</button>
-      <span class="home-task-tier">${TIER_NAMES[task.tier - 1]}</span>
-      ${homeTaskMenuBtn()}
+      <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
     </li>`;
 }
 
-function home135TaskRowHtml(task, group) {
-  const layout = group === "big" ? "card" : "row";
-  const itemClass = layout === "card" ? "home-task-card" : "home-task-row";
+const PRIORITY_CARD_VARIANTS = ["p1", "p2", "p3", "p4"];
+
+function figmaPlanCardHtml({ number, variant, tasks = [] }) {
+  const items = tasks.map((task) => planCardTaskHtml(task));
+  const firstTask = items[0] || "";
+  const restTasks = items.slice(1).join("");
+
   return `
-    <li class="${itemClass}${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}" data-plan-group="${group}">
-      <label class="task-check home-task-check">
+    <article class="plan-card plan-card--${variant}">
+      <div class="plan-card-body">
+        <div class="plan-card-first-row">
+          <span class="plan-card-number" aria-hidden="true">${escapeHtml(number)}</span>
+          ${firstTask ? `<ul class="plan-card-list plan-card-list--first">${firstTask}</ul>` : ""}
+        </div>
+        ${restTasks ? `<ul class="plan-card-list plan-card-list--rest">${restTasks}</ul>` : ""}
+      </div>
+      <div class="plan-card-scenery" aria-hidden="true">
+        <img class="plan-card-scenery-img" src="assets/sidebar-landscape.png?v=68" alt="" decoding="async" />
+      </div>
+    </article>`;
+}
+
+function homeCardTaskHtml(task, options = {}) {
+  const { showTier = false, planGroup = "" } = options;
+  const tierClass = tierTagClass(task.tier, planGroup);
+  return `
+    <li class="home-card-task${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}"${planGroup ? ` data-plan-group="${planGroup}"` : ""}>
+      <label class="task-check home-card-check">
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
-      <button type="button" class="home-task-title">${escapeHtml(task.text)}</button>
-      <span class="home-task-tier">${TIER_NAMES[task.tier - 1]}</span>
-      ${homeTaskMenuBtn()}
+      <div class="home-card-task-body">
+        <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
+        ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
+      </div>
     </li>`;
 }
 
-function home135EmptyRowHtml(slotLabel, group) {
-  const layout = group === "big" ? "card" : "row";
-  const itemClass = layout === "card" ? "home-task-card" : "home-task-row";
+function homeCardEmptyHtml(label) {
+  return `<li class="home-card-task home-card-task--empty"><span>${escapeHtml(label)}</span></li>`;
+}
+
+function homeCardProgressRing(done, total) {
+  const pct = total > 0 ? done / total : 0;
+  const r = 36;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - pct);
   return `
-    <li class="${itemClass} home-task-empty">
-      <span class="home-plan-135-empty">Add ${slotLabel} on All Tasks</span>
-    </li>`;
+    <div class="home-priority-card-progress home-priority-card-progress--ring" role="progressbar" aria-valuenow="${done}" aria-valuemin="0" aria-valuemax="${total}">
+      <svg class="progress-ring" viewBox="0 0 88 88" aria-hidden="true">
+        <circle class="progress-ring-track" cx="44" cy="44" r="${r}" />
+        <circle class="progress-ring-fill" cx="44" cy="44" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
+      </svg>
+      <span class="home-priority-card-progress-label">${done}/${total} done</span>
+    </div>`;
+}
+
+function homePriorityCardHtml({ variant, badge, title, listHtml, footerHtml = "" }) {
+  return `
+    <article class="home-priority-card home-priority-card--${variant}">
+      <header class="home-priority-card-header">
+        <span class="home-priority-card-badge" aria-hidden="true">${badge}</span>
+        <h4 class="home-priority-card-title">${escapeHtml(title)}</h4>
+      </header>
+      <ul class="home-priority-card-list">${listHtml}</ul>
+      ${footerHtml ? `<footer class="home-priority-card-footer">${footerHtml}</footer>` : ""}
+    </article>`;
+}
+
+function bindHomeCardTasks(container) {
+  container
+    .querySelectorAll(
+      ".home-card-task:not(.home-card-task--empty):not(.home-card-task--summary), .plan-card-task"
+    )
+    .forEach(bindHomeTaskEvents);
 }
 
 function countPlan135Filled(plan) {
@@ -2085,6 +2227,53 @@ function countPlan135Filled(plan) {
   return filled;
 }
 
+function getOpenTasksByTier(tier, limit) {
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.archived && !t.done && t.tier === tier) tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks.slice(0, limit);
+}
+
+function getOpenTasksForTiers(tiers, limit) {
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.archived && !t.done && tiers.includes(t.tier)) tasks.push({ ...t, context: ctx });
+    });
+  });
+  tasks.sort((a, b) => a.tier - b.tier);
+  return tasks.slice(0, limit);
+}
+
+function renderHomePriorities() {
+  const title = document.getElementById("home-priority-title");
+  const progress = document.getElementById("home-priority-progress");
+  const content = document.getElementById("home-priority-content");
+  const empty = document.getElementById("home-priority-empty");
+  if (!content || !empty) return;
+
+  if (title) title.textContent = "Today's Plan";
+  if (progress) progress.classList.add("hidden");
+  empty.classList.add("hidden");
+
+  const cardsHtml = [1, 2, 3, 4]
+    .map((tier, index) => {
+      const tasks = getOpenTasksByTier(tier, 3);
+      return figmaPlanCardHtml({
+        number: String(tier),
+        variant: PRIORITY_CARD_VARIANTS[index],
+        tasks,
+      });
+    })
+    .join("");
+
+  content.innerHTML = `<div class="plan-card-grid plan-card-grid--priorities">${cardsHtml}</div>`;
+  bindHomeCardTasks(content);
+}
+
 function renderHomePlan135() {
   const title = document.getElementById("home-priority-title");
   const progress = document.getElementById("home-priority-progress");
@@ -2092,67 +2281,47 @@ function renderHomePlan135() {
   const empty = document.getElementById("home-priority-empty");
   if (!content) return;
 
-  const plan = sanitizePlan135(loadPlan135());
-  const filled = countPlan135Filled(plan);
-  const total = 9;
-
-  if (title) title.textContent = "Today's 1-3-5";
-  if (progress) {
-    progress.textContent = `${filled} of ${total} planned`;
-    progress.classList.remove("hidden");
+  const rawPlan = loadPlan135();
+  const plan = sanitizePlan135(rawPlan);
+  if (JSON.stringify(plan) !== JSON.stringify(rawPlan)) {
+    savePlan135(plan);
   }
 
-  if (filled === 0) {
-    content.innerHTML = "";
-    empty.textContent = "No tasks planned yet. Open 1-3-5 on All Tasks and tap Show on Home to plan your day.";
-    empty.classList.remove("hidden");
-    renderForgetItHome();
-    return;
-  }
-
+  if (title) title.textContent = "Today's Plan";
+  if (progress) progress.classList.add("hidden");
   empty.classList.add("hidden");
 
-  const sectionsHtml = PLAN_135_SLOTS.map((section) => {
+  const cardsHtml = PLAN_135_SLOTS.map((section) => {
     const slots = section.group === "big" ? [plan.big] : plan[section.group];
-    const rows = slots
-      .map((ref, i) => {
-        const task = findTaskByRef(ref);
-        if (task) return home135TaskRowHtml(task, section.group);
-        const slotName =
-          section.group === "big"
-            ? "a big task"
-            : section.group === "medium"
-              ? `medium task ${i + 1}`
-              : `small task ${i + 1}`;
-        return home135EmptyRowHtml(slotName, section.group);
-      })
-      .join("");
+    const resolved = slots.map((ref) => findTaskByRef(ref)).filter(Boolean);
 
-    const isBig = section.group === "big";
-    const listWrap = isBig
-      ? `<ul class="home-135-big-list">${rows}</ul>`
-      : `<div class="home-task-group"><ul class="home-task-group-list">${rows}</ul></div>`;
+    if (section.group === "big") {
+      const tasks = resolved[0] ? [resolved[0]] : [];
+      return figmaPlanCardHtml({ number: "1", variant: "big", tasks });
+    }
 
-    return `
-      <section class="home-135-section">
-        <h4 class="home-135-heading">${section.label}</h4>
-        ${listWrap}
-      </section>`;
+    return figmaPlanCardHtml({
+      number: String(section.count),
+      variant: section.group,
+      tasks: resolved,
+    });
   }).join("");
 
-  content.innerHTML = `<div class="home-plan-135">${sectionsHtml}</div>`;
-  content.querySelectorAll(".home-task-card:not(.home-task-empty), .home-task-row:not(.home-task-empty)").forEach(bindHomeTaskEvents);
-  renderForgetItHome();
+  content.innerHTML = `<div class="plan-card-grid">${cardsHtml}</div>`;
+  bindHomeCardTasks(content);
 }
 
 function bindHomeTaskEvents(row) {
   const id = row.dataset.id;
   const ctx = row.dataset.context;
-  row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
-    toggleTaskDone(id, ctx, e.target.checked, row);
+  const checkbox = row.querySelector('input[type="checkbox"]');
+  if (!checkbox) return;
+
+  checkbox.addEventListener("change", (e) => {
+    toggleTaskDone(id, ctx, e.target.checked);
   });
 
-  row.querySelector(".home-task-title")?.addEventListener("click", () => {
+  row.querySelector(".home-card-task-title, .home-task-title, .plan-card-task-text")?.addEventListener("click", () => {
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
   });
@@ -2165,34 +2334,11 @@ function bindHomeTaskEvents(row) {
 }
 
 function renderHome() {
-  const title = document.getElementById("home-priority-title");
-  const progress = document.getElementById("home-priority-progress");
-  const content = document.getElementById("home-priority-content");
-  const empty = document.getElementById("home-priority-empty");
-  if (!content || !empty) return;
-
   if (mode135) {
     renderHomePlan135();
-    return;
+  } else {
+    renderHomePriorities();
   }
-
-  if (title) title.textContent = "Top Priorities";
-  if (progress) progress.classList.add("hidden");
-  empty.textContent = "No open priorities yet — add a task to get started.";
-
-  const tasks = getTopPriorityTasks(5);
-
-  if (tasks.length === 0) {
-    content.innerHTML = "";
-    empty.classList.remove("hidden");
-    renderForgetItHome();
-    return;
-  }
-
-  empty.classList.add("hidden");
-  content.innerHTML = `<div class="home-task-group"><ul class="home-task-group-list">${tasks.map((task) => homeTaskItemHtml(task)).join("")}</ul></div>`;
-  content.querySelectorAll(".home-task-row").forEach(bindHomeTaskEvents);
-  renderForgetItHome();
 }
 
 function openTierExpand(tier) {
@@ -2233,24 +2379,6 @@ function getCardTier(card) {
 
 function setupTierExpand() {
   const dialog = document.getElementById("tier-expand-dialog");
-  const list = document.getElementById("tier-expand-list");
-
-  list.addEventListener("dragover", (e) => {
-    if (!draggedTask) return;
-    e.preventDefault();
-  });
-
-  list.addEventListener("drop", (e) => {
-    e.preventDefault();
-    if (!expandedTier || !draggedTask) return;
-    try {
-      const { entries } = computeListReorder(list, draggedTask.id, e.clientY);
-      applyListReorderEntries(list, entries, expandedTier);
-      renderAll();
-    } catch {
-      /* ignore */
-    }
-  });
 
   document.getElementById("tier-expand-close").addEventListener("click", dialogCloseTierExpand);
   document.getElementById("tier-expand-add").addEventListener("click", () => {
@@ -2394,11 +2522,27 @@ function updateGripDragHighlights(x, y) {
   else if (dropEl?.closest(".forget-it-drop-zone, #forget-it-body")) setSidebarTab("forget");
 }
 
+function finishGripListDrag(x, y) {
+  if (!listDragState) return;
+  const dropEl = document.elementFromPoint(x, y);
+  const dropList = dropEl?.closest("#tier-expand-list, .task-list[data-tier]");
+  const isExternal =
+    dropEl?.closest(".plan-135-drop-zone, .forget-it-drop-zone") ||
+    dropList !== listDragState.listEl;
+  if (isExternal) {
+    const { card } = listDragState;
+    clearListDragSession();
+    applyGripDragDrop(card, x, y);
+  } else {
+    commitListDragSession();
+  }
+}
+
 function bindMouseGripDrag(card) {
   const handle = card.querySelector(".task-drag-handle");
   if (!handle) return;
 
-  const listEl = card.closest("#tier-expand-list");
+  const listEl = card.closest("#tier-expand-list, .task-list[data-tier]");
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -2410,7 +2554,7 @@ function bindMouseGripDrag(card) {
     dragging = false;
     clearGripDragHighlights();
     if (listDragState) {
-      commitListDragSession();
+      finishGripListDrag(lastX, lastY);
     } else {
       card.classList.remove("dragging");
       handle.classList.remove("dragging-active");
@@ -2460,71 +2604,14 @@ function bindMouseGripDrag(card) {
 function bindTaskEvents(card) {
   const id = card.dataset.id;
   const ctx = card.dataset.context;
-  const inTierExpand = isTierExpandCard(card);
 
   if (!isTouchDevice()) {
-    if (inTierExpand) {
-      card.draggable = false;
-      bindMouseGripDrag(card);
-    } else {
-    const handle = card.querySelector(".task-drag-handle");
-
-    const onDragStart = (e) => {
-      if (e.target.closest("button:not(.task-drag-handle), input, label, .task-check")) {
-        e.preventDefault();
-        return;
-      }
-      draggedTask = { id, context: ctx };
-      card.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "copyMove";
-      e.dataTransfer.setData("text/plain", JSON.stringify(draggedTask));
-      beginDragGhost(card, e.clientX, e.clientY);
-    };
-
-    const onDrag = (e) => {
-      if (e.clientX === 0 && e.clientY === 0) return;
-      moveDragGhost(e.clientX, e.clientY);
-    };
-
-    const onDragEnd = () => {
-      card.classList.remove("dragging");
-      draggedTask = null;
-      removeDragGhost();
-      document.querySelectorAll(".column.drag-over").forEach((c) => c.classList.remove("drag-over"));
-      document.querySelectorAll(".drop-target-active").forEach((z) => z.classList.remove("drop-target-active"));
-    };
-
-    card.addEventListener("dragstart", onDragStart);
-    card.addEventListener("drag", onDrag);
-    card.addEventListener("dragend", onDragEnd);
-
-    if (handle) {
-      handle.addEventListener("mousedown", (e) => e.preventDefault());
-      handle.addEventListener("dragstart", (e) => e.preventDefault());
-    }
-
-    card.addEventListener("dragover", (e) => {
-      if (!draggedTask || draggedTask.id === id) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-    });
-
-    card.addEventListener("drop", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const data = JSON.parse(e.dataTransfer.getData("text/plain") || "null");
-      if (!data || data.id === id) return;
-      const tier = getCardTier(card);
-      const list = card.parentElement;
-      if (!tier || !list) return;
-      applyListInsertMove(data.id, data.context, tier, list, e.clientY);
-      renderAll();
-    });
-    }
+    card.draggable = false;
+    bindMouseGripDrag(card);
   }
 
   card.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
-    toggleTaskDone(id, ctx, e.target.checked, card);
+    toggleTaskDone(id, ctx, e.target.checked);
   });
 
   card.querySelector(".archive-btn").addEventListener("click", (e) => {
@@ -2586,7 +2673,7 @@ function bindTouchDrag(card) {
     if (listDragState) {
       listDragState.lastY = y;
       listDragState.lastX = x;
-      commitListDragSession();
+      finishGripListDrag(x, y);
       return;
     }
 
@@ -2635,7 +2722,7 @@ function bindTouchDrag(card) {
       holdTimer = setTimeout(() => {
         dragging = true;
         handle.classList.add("dragging-active");
-        const listEl = card.closest("#tier-expand-list");
+        const listEl = card.closest("#tier-expand-list, .task-list[data-tier]");
         if (listEl) {
           startListDragSession(card, listEl, lastX, lastY);
         } else {
@@ -2860,6 +2947,124 @@ function formatArchiveDayHeading(dayKey) {
   });
 }
 
+function getEarliestCompletedDay() {
+  let earliest = null;
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.completedAt) return;
+      const key = archiveDayKey(t.completedAt);
+      if (key === "unknown") return;
+      if (!earliest || key < earliest) earliest = key;
+    });
+  });
+  return earliest;
+}
+
+function ensureAppStartedDay() {
+  try {
+    if (localStorage.getItem(APP_STARTED_KEY)) return;
+    localStorage.setItem(APP_STARTED_KEY, getEarliestCompletedDay() || todayKey());
+  } catch {
+    /* ignore */
+  }
+}
+
+function getAppStartedDay() {
+  ensureAppStartedDay();
+  try {
+    return localStorage.getItem(APP_STARTED_KEY) || todayKey();
+  } catch {
+    return todayKey();
+  }
+}
+
+function getCompletedTasksForHistory() {
+  const seen = new Set();
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.done || !t.completedAt) return;
+      const key = `${ctx}:${t.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks.sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+}
+
+function historyItemHtml(task) {
+  return `
+    <li class="history-item" data-id="${task.id}" data-context="${task.context}">
+      <span class="history-check" aria-hidden="true">✓</span>
+      <div class="history-item-body">
+        <span class="history-text">${escapeHtml(task.text)}</span>
+        <span class="history-meta">
+          <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
+          ${contextIconHtml(task.context, "brain-ctx-tag")}
+        </span>
+      </div>
+    </li>`;
+}
+
+function renderHistory() {
+  const list = document.getElementById("history-list");
+  const empty = document.getElementById("history-empty");
+  const subtitle = document.getElementById("history-subtitle");
+  if (!list || !empty) return;
+
+  const startedDay = getAppStartedDay();
+  const tasks = getCompletedTasksForHistory().filter(
+    (t) => archiveDayKey(t.completedAt) >= startedDay
+  );
+
+  if (subtitle) {
+    const startedLabel = formatArchiveDayHeading(startedDay);
+    subtitle.textContent =
+      tasks.length === 0
+        ? `Completed tasks since ${startedLabel} will appear here.`
+        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}`;
+  }
+
+  if (tasks.length === 0) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+
+  const groups = new Map();
+  tasks.forEach((task) => {
+    const key = archiveDayKey(task.completedAt);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(task);
+  });
+
+  const sortedKeys = [...groups.keys()].sort((a, b) => {
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
+    return b.localeCompare(a);
+  });
+
+  list.innerHTML = sortedKeys
+    .map(
+      (dayKey) => `
+    <li class="history-day-heading">${formatArchiveDayHeading(dayKey)}</li>
+    ${groups.get(dayKey).map((task) => historyItemHtml(task)).join("")}`
+    )
+    .join("");
+
+  list.querySelectorAll(".history-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      const task = loadTasks(el.dataset.context).find((t) => t.id === el.dataset.id);
+      if (task) openEditTaskDialog(task, el.dataset.context);
+    });
+  });
+}
+
 function archivePanelItemHtml(task) {
   return `
     <li class="archive-panel-item" data-id="${task.id}" data-context="${task.context}">
@@ -2867,7 +3072,7 @@ function archivePanelItemHtml(task) {
         <span class="archive-panel-text">${escapeHtml(task.text)}</span>
         <span class="archive-panel-meta">
           <span class="task-dot task-dot-tier-${task.tier}" title="${TIER_NAMES[task.tier - 1]}" aria-label="${TIER_NAMES[task.tier - 1]}"></span>
-          <span class="plan-135-tier-badge">${TIER_LABELS[task.tier - 1]}</span>
+          <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
           ${filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : ""}
         </span>
       </div>
@@ -2958,6 +3163,9 @@ function renderAll() {
   if (page === "home") {
     renderHome();
   }
+  if (page === "history") {
+    renderHistory();
+  }
   if (page === "tasks") {
     renderGrid();
     renderPlan135();
@@ -2999,6 +3207,7 @@ function seedHomeFromNotebook() {
 }
 
 migrateLegacyData();
+ensureAppStartedDay();
 
 document.documentElement.dataset.theme = getTheme();
 document.documentElement.dataset.font = getFont();
@@ -3013,6 +3222,7 @@ setupTaskDialog();
 setupBrainDumpForms();
 setupDataSync();
 setupTierExpand();
+setupReflection();
 setupMode135();
 setupForgetIt();
 setupPriorityVisibilityTags();
