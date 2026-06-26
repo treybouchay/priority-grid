@@ -32,11 +32,11 @@ const THEMES = [
 ];
 
 const FONTS = [
-  { id: "playfair-inter", name: "Inter", heading: "Inter", body: "Inter" },
-  { id: "lora-inter", name: "Lora + Inter", heading: "Lora", body: "Inter" },
-  { id: "pairing-1", name: "Noto Serif + Inter", heading: "Noto Serif", body: "Inter" },
+  { id: "playfair-inter", name: "Playfair Display", heading: "Playfair Display", body: "Playfair Display" },
+  { id: "lora-inter", name: "Lora + Playfair", heading: "Lora", body: "Playfair Display" },
+  { id: "pairing-1", name: "Noto Serif + Playfair", heading: "Noto Serif", body: "Playfair Display" },
   { id: "pairing-2", name: "Cormorant + Lato", heading: "Cormorant Garamond", body: "Lato" },
-  { id: "pairing-3", name: "Playfair + Inter", heading: "Playfair Display", body: "Inter" },
+  { id: "pairing-3", name: "Playfair Display", heading: "Playfair Display", body: "Playfair Display" },
   { id: "pairing-4", name: "DM Serif + Source Sans", heading: "DM Serif Display", body: "Source Sans 3" },
   { id: "pairing-5", name: "Libre Baskerville + Work Sans", heading: "Libre Baskerville", body: "Work Sans" },
 ];

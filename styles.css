@@ -148,18 +148,18 @@
 
 :root,
 [data-font="playfair-inter"] {
-  --font-heading: "Inter", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-heading: "Playfair Display", Georgia, serif;
+  --font-body: "Playfair Display", Georgia, serif;
 }
 
 [data-font="lora-inter"] {
   --font-heading: "Lora", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-body: "Playfair Display", Georgia, serif;
 }
 
 [data-font="pairing-1"] {
   --font-heading: "Noto Serif", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-body: "Playfair Display", Georgia, serif;
 }
 
 [data-font="pairing-2"] {
@@ -169,7 +169,7 @@
 
 [data-font="pairing-3"] {
   --font-heading: "Playfair Display", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-body: "Playfair Display", Georgia, serif;
 }
 
 [data-font="pairing-4"] {
@@ -690,7 +690,7 @@ body {
 }
 
 .page-title {
-  font-family: var(--font-body);
+  font-family: var(--font-heading);
   font-size: var(--type-display-size);
   font-weight: var(--font-weight-bold);
   letter-spacing: var(--type-display-tracking);
