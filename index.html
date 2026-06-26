@@ -17,19 +17,30 @@
         } else {
           document.documentElement.dataset.theme = "warm-earth";
         }
-        if (font) document.documentElement.dataset.font = font;
-        else document.documentElement.dataset.font = "pairing-3";
-        if (font === "playfair-inter") {
-          localStorage.setItem("priority-grid-font", "pairing-3");
-          document.documentElement.dataset.font = "pairing-3";
+        const font = localStorage.getItem("priority-grid-font");
+        const fontMigration = {
+          "playfair-inter": "pairing-playfair",
+          "pairing-3": "pairing-playfair",
+          "lora-inter": "pairing-playfair-serif",
+          "pairing-1": "pairing-playfair-serif",
+          "pairing-2": "pairing-playfair-sans",
+          "pairing-4": "pairing-playfair-sans",
+          "pairing-5": "pairing-playfair-sans",
+          "pairing-source-sans": "pairing-playfair-sans",
+        };
+        const resolvedFont = fontMigration[font] || font;
+        if (resolvedFont) document.documentElement.dataset.font = resolvedFont;
+        else document.documentElement.dataset.font = "pairing-playfair-serif";
+        if (font && fontMigration[font]) {
+          localStorage.setItem("priority-grid-font", fontMigration[font]);
         }
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=70" />
+    <link rel="stylesheet" href="styles.css?v=77" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=Lato:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Lora:wght@500;600&family=Noto+Serif:wght@500;600&family=Nunito+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -383,6 +394,7 @@
                   <button type="button" class="column-add" data-tier="4">+ Add task</button>
                 </section>
               </div>
+              <ul class="tasks-flat-list" id="tasks-flat-list"></ul>
               <p class="board-hint" id="board-hint">Drag tasks between priorities. Click a priority title to see all tasks.</p>
             </div>
 
@@ -577,6 +589,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=70"></script>
+    <script src="app.js?v=77"></script>
   </body>
 </html>

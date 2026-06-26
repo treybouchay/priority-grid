@@ -147,39 +147,20 @@
 }
 
 :root,
-[data-font="playfair-inter"] {
+[data-font="pairing-playfair-serif"] {
   --font-heading: "Playfair Display", Georgia, serif;
-  --font-body: "Playfair Display", Georgia, serif;
+  --font-body: "Source Serif 4", Georgia, serif;
 }
 
-[data-font="lora-inter"] {
-  --font-heading: "Lora", Georgia, serif;
-  --font-body: "Playfair Display", Georgia, serif;
-}
-
-[data-font="pairing-1"] {
-  --font-heading: "Noto Serif", Georgia, serif;
-  --font-body: "Playfair Display", Georgia, serif;
-}
-
-[data-font="pairing-2"] {
-  --font-heading: "Cormorant Garamond", Georgia, serif;
-  --font-body: "Lato", system-ui, sans-serif;
-}
-
-[data-font="pairing-3"] {
+[data-font="pairing-playfair-sans"] {
   --font-heading: "Playfair Display", Georgia, serif;
-  --font-body: "Playfair Display", Georgia, serif;
-}
-
-[data-font="pairing-4"] {
-  --font-heading: "DM Serif Display", Georgia, serif;
   --font-body: "Source Sans 3", system-ui, sans-serif;
 }
 
-[data-font="pairing-5"] {
-  --font-heading: "Libre Baskerville", Georgia, serif;
-  --font-body: "Work Sans", system-ui, sans-serif;
+[data-font="pairing-playfair"] {
+  --font-heading: "Playfair Display", Georgia, serif;
+  --font-body: "Playfair Display", Georgia, serif;
+  --font-body-weight: 400;
 }
 
 :root {
@@ -213,6 +194,8 @@
   --font-weight-heading: 600;
   --font-weight-medium: 600;
   --font-weight-bold: 600;
+  --font-weight-task: 500;
+  --font-body-weight: var(--font-weight-body);
   --type-display-size: 2.25rem;
   --type-display-lh: 2.75rem;
   --type-display-tracking: -0.01em;
@@ -360,7 +343,7 @@ body {
 body {
   font-family: var(--font-body);
   font-size: 16px;
-  font-weight: var(--font-weight-body);
+  font-weight: var(--font-body-weight);
   color: var(--ink);
   background-color: var(--body-bg);
   min-height: 100vh;
@@ -1359,7 +1342,7 @@ body[data-page="home"] .appearance-panel[open] {
   text-align: left;
   font-family: var(--font-body);
   font-size: 1rem;
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-task);
   line-height: 1.5;
   letter-spacing: 0;
   color: #193e3c;
@@ -1372,9 +1355,9 @@ body[data-page="home"] .appearance-panel[open] {
 }
 
 .plan-card-task--empty .plan-card-task-text {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: clamp(1rem, 1.5vw, 1.25rem);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-task);
   color: color-mix(in srgb, #073335 38%, #ffffff);
   cursor: default;
 }
@@ -1558,9 +1541,9 @@ body[data-page="home"] .appearance-panel[open] {
   text-align: left;
   border: none;
   background: none;
-  font-family: inherit;
+  font-family: var(--font-body);
   font-size: var(--type-body-size);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-task);
   line-height: var(--type-body-lh);
   color: var(--ink);
   cursor: pointer;
@@ -1762,9 +1745,9 @@ body[data-page="home"] .appearance-panel[open] {
   text-align: left;
   border: none;
   background: none;
-  font-family: inherit;
+  font-family: var(--font-body);
   font-size: var(--type-body-size);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-task);
   line-height: var(--type-body-lh);
   color: var(--ink);
   cursor: pointer;
@@ -2245,7 +2228,7 @@ body[data-page="home"] .appearance-panel[open] {
   max-height: calc(3 * 52px + 2 * 0.35rem);
 }
 
-.tasks-board-area .task-card {
+.tasks-board-area .task-card:not(.tasks-flat-item) {
   align-items: flex-start;
   border: none;
   box-shadow: none;
@@ -2261,20 +2244,20 @@ body[data-page="home"] .appearance-panel[open] {
   gap: 0.5rem;
 }
 
-.tasks-board-area .task-card-actions {
+.tasks-board-area .task-card:not(.tasks-flat-item) .task-card-actions {
   align-self: flex-start;
   padding-top: 1px;
 }
 
-.tasks-board-area .task-card:hover {
+.tasks-board-area .task-card:not(.tasks-flat-item):hover {
   box-shadow: none;
 }
 
-.tasks-board-area .task-card .edit-btn {
+.tasks-board-area .task-card:not(.tasks-flat-item) .edit-btn {
   display: none;
 }
 
-.tasks-board-area .task-card .archive-btn {
+.tasks-board-area .task-card:not(.tasks-flat-item) .archive-btn {
   opacity: 0.45;
   display: flex;
   align-items: center;
@@ -2283,7 +2266,7 @@ body[data-page="home"] .appearance-panel[open] {
   min-height: 24px;
 }
 
-.tasks-board-area .task-card:hover .archive-btn {
+.tasks-board-area .task-card:not(.tasks-flat-item):hover .archive-btn {
   opacity: 0.75;
 }
 
@@ -2403,8 +2386,21 @@ body[data-page="home"] .appearance-panel[open] {
   touch-action: none;
 }
 
+.list-drag-active {
+  touch-action: none;
+}
+
 .list-drag-active .task-card:not(.dragging) {
   transition: transform 0.12s ease;
+}
+
+body.task-dragging-lock {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+body.task-dragging-lock .app-main {
+  overflow: hidden;
 }
 
 .touch-drag-ghost {
@@ -2455,9 +2451,9 @@ body[data-page="home"] .appearance-panel[open] {
   border: none;
   background: none;
   padding: 0;
-  font-family: inherit;
+  font-family: var(--font-body);
   font-size: var(--type-body-size);
-  font-weight: var(--font-weight-body);
+  font-weight: var(--font-weight-task);
   line-height: var(--type-body-lh);
   overflow-wrap: break-word;
   word-break: normal;
@@ -2657,6 +2653,90 @@ body[data-page="home"] .appearance-panel[open] {
   margin: 1rem 0 0;
 }
 
+/* Mobile flat task list (All Tasks) */
+.tasks-flat-list {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tasks-flat-section {
+  list-style: none;
+}
+
+.tasks-flat-heading {
+  margin: 1.25rem 0 0.35rem;
+  padding: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+  color: #073335;
+}
+
+.tasks-flat-list > .tasks-flat-section:first-child .tasks-flat-heading {
+  margin-top: 0;
+}
+
+.tasks-flat-tier-list {
+  gap: 0.5rem;
+}
+
+.tasks-flat-item {
+  cursor: default;
+  min-height: 0;
+  touch-action: manipulation;
+}
+
+.tasks-flat-item .task-drag-handle {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  touch-action: none;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  position: relative;
+  z-index: 2;
+}
+
+.tasks-flat-item .task-check {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.tasks-flat-item .history-text {
+  text-align: left;
+  padding: 0;
+}
+
+.tasks-flat-item .task-card-actions {
+  align-self: flex-start;
+  padding-top: 0.1rem;
+}
+
+.tasks-flat-item .archive-btn {
+  opacity: 0.55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.tasks-flat-item:hover .archive-btn {
+  opacity: 0.85;
+}
+
+.tasks-flat-section.drag-over .tasks-flat-tier-list {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--drag);
+}
+
 /* 1-3-5 daily planning */
 .plan-135 {
   background: var(--surface);
@@ -2794,13 +2874,13 @@ body[data-page="home"] .appearance-panel[open] {
   display: block;
   font-size: var(--type-body-size);
   line-height: var(--type-body-lh);
-  font-weight: var(--font-weight-body);
+  font-weight: var(--font-weight-task);
   word-break: break-word;
 }
 
 .plan-135-slot-big .plan-135-slot-text {
   font-size: var(--type-card-title-size);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-task);
   line-height: var(--type-card-title-lh);
 }
 
@@ -2976,7 +3056,7 @@ body[data-page="home"] .appearance-panel[open] {
 }
 
 .plan-135-picker-title {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: var(--font-weight-heading);
 }
@@ -3048,8 +3128,10 @@ body[data-page="home"] .appearance-panel[open] {
 .plan-135-picker-item-text {
   flex: 1;
   min-width: 0;
+  font-family: var(--font-body);
   font-size: var(--type-body-size);
   line-height: var(--type-body-lh);
+  font-weight: var(--font-weight-task);
   word-break: break-word;
 }
 
@@ -3291,6 +3373,7 @@ body[data-page="home"] .appearance-panel[open] {
 .forget-it-task-text {
   font-size: var(--type-body-size);
   line-height: var(--type-body-lh);
+  font-weight: var(--font-weight-task);
   color: var(--ink);
   word-break: break-word;
 }
@@ -3441,8 +3524,10 @@ body[data-page="home"] .appearance-panel[open] {
 }
 
 .archive-panel-text {
+  font-family: var(--font-body);
   font-size: var(--type-body-size);
   line-height: var(--type-body-lh);
+  font-weight: var(--font-weight-task);
   word-break: break-word;
 }
 
@@ -3584,9 +3669,9 @@ body[data-page="home"] .appearance-panel[open] {
 }
 
 .history-text {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 1rem;
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-task);
   line-height: 1.35;
   color: #073335;
 }
@@ -3726,7 +3811,7 @@ body[data-page="home"] .appearance-panel[open] {
 }
 
 .settings-heading {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   margin-bottom: 1.25rem;
 }
@@ -4068,7 +4153,7 @@ dialog {
 
   .plan-card-task-text {
     font-size: 1rem;
-    font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-task);
     color: #193e3c;
   }
 
@@ -4122,6 +4207,21 @@ dialog {
     column-count: 1;
   }
 
+  .tasks-board-area #board {
+    display: none;
+  }
+
+  .tasks-flat-list {
+    display: flex;
+  }
+
+  .tasks-flat-item .archive-btn {
+    opacity: 0.65;
+    min-width: 22px;
+    min-height: 22px;
+    font-size: 0.95rem;
+  }
+
   .column {
     margin-bottom: 0.75rem;
   }
@@ -4144,7 +4244,7 @@ dialog {
     gap: 0.08rem;
   }
 
-  .tasks-board-area .task-card {
+  .tasks-board-area .task-card:not(.tasks-flat-item) {
     gap: 0.15rem;
     padding: 0.35rem 0;
   }
@@ -4337,7 +4437,7 @@ dialog {
     font-size: 0.88rem;
   }
 
-  .tasks-board-area .task-card {
+  .tasks-board-area .task-card:not(.tasks-flat-item) {
     padding: 0.3rem 0;
     gap: 0.1rem;
   }

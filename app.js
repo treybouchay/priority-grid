@@ -32,14 +32,39 @@ const THEMES = [
 ];
 
 const FONTS = [
-  { id: "playfair-inter", name: "Playfair Display", heading: "Playfair Display", body: "Playfair Display" },
-  { id: "lora-inter", name: "Lora + Playfair", heading: "Lora", body: "Playfair Display" },
-  { id: "pairing-1", name: "Noto Serif + Playfair", heading: "Noto Serif", body: "Playfair Display" },
-  { id: "pairing-2", name: "Cormorant + Lato", heading: "Cormorant Garamond", body: "Lato" },
-  { id: "pairing-3", name: "Playfair Display", heading: "Playfair Display", body: "Playfair Display" },
-  { id: "pairing-4", name: "DM Serif + Source Sans", heading: "DM Serif Display", body: "Source Sans 3" },
-  { id: "pairing-5", name: "Libre Baskerville + Work Sans", heading: "Libre Baskerville", body: "Work Sans" },
+  {
+    id: "pairing-playfair-serif",
+    name: "Playfair Display + Source Serif 4",
+    heading: "Playfair Display",
+    body: "Source Serif 4",
+    bodyWeight: 400,
+  },
+  {
+    id: "pairing-playfair-sans",
+    name: "Playfair Display + Source Sans 3",
+    heading: "Playfair Display",
+    body: "Source Sans 3",
+    bodyWeight: 400,
+  },
+  {
+    id: "pairing-playfair",
+    name: "Playfair Display + Playfair Display",
+    heading: "Playfair Display",
+    body: "Playfair Display",
+    bodyWeight: 400,
+  },
 ];
+
+const FONT_MIGRATION = {
+  "playfair-inter": "pairing-playfair",
+  "pairing-3": "pairing-playfair",
+  "lora-inter": "pairing-playfair-serif",
+  "pairing-1": "pairing-playfair-serif",
+  "pairing-2": "pairing-playfair-sans",
+  "pairing-4": "pairing-playfair-sans",
+  "pairing-5": "pairing-playfair-sans",
+  "pairing-source-sans": "pairing-playfair-sans",
+};
 
 let page = getPage();
 let filter = getFilter();
@@ -171,7 +196,7 @@ function updateBoardHint() {
   const hint = document.getElementById("board-hint");
   if (!hint) return;
   hint.textContent = isTouchDevice()
-    ? "Hold the grip icon on a task, then drag to reorder, move priorities, or drop into 1-3-5 / Forget It."
+    ? "Press and drag the grip icon to reorder tasks or move them between priorities."
     : "Drag tasks between priorities, or drop them into 1-3-5 slots and the Forget It box in the sidebar.";
 }
 
@@ -637,12 +662,16 @@ function plan135TierBadgeClass(tier, planGroup = "") {
 
 function getFont() {
   try {
-    const saved = localStorage.getItem(FONT_KEY);
+    let saved = localStorage.getItem(FONT_KEY);
+    if (saved && FONT_MIGRATION[saved]) {
+      saved = FONT_MIGRATION[saved];
+      localStorage.setItem(FONT_KEY, saved);
+    }
     if (saved && FONTS.some((f) => f.id === saved)) return saved;
   } catch {
     /* ignore */
   }
-  return "pairing-3";
+  return "pairing-playfair-serif";
 }
 
 function escapeHtml(text) {
@@ -1047,7 +1076,8 @@ function computeListReorder(listEl, draggedId, clientY) {
   for (let i = 0; i < cards.length; i++) {
     if (cards[i].dataset.id === draggedId) continue;
     const rect = cards[i].getBoundingClientRect();
-    if (clientY < rect.top + rect.height / 2) {
+    const midY = rect.top + rect.height / 2;
+    if (clientY < midY) {
       insertAt = i;
       break;
     }
@@ -1055,37 +1085,68 @@ function computeListReorder(listEl, draggedId, clientY) {
 
   const entries = cards.map((c) => ({ id: c.dataset.id, context: c.dataset.context }));
   const [moved] = entries.splice(fromIndex, 1);
-  if (insertAt > fromIndex) insertAt -= 1;
-  entries.splice(insertAt, 0, moved);
+  let targetIndex = insertAt;
+  if (targetIndex > fromIndex) targetIndex -= 1;
+  entries.splice(targetIndex, 0, moved);
 
-  return { fromIndex, toIndex: insertAt, entries };
+  return { fromIndex, toIndex: targetIndex, entries };
+}
+
+function tierOrderKey(tier) {
+  return `priority-grid-tier-order-${tier}`;
+}
+
+function sortTasksByTierDisplayOrder(tasks, tier) {
+  try {
+    const saved = localStorage.getItem(tierOrderKey(tier));
+    if (!saved) return tasks;
+    const order = JSON.parse(saved);
+    const map = new Map(tasks.map((t) => [`${t.context}:${t.id}`, t]));
+    const result = [];
+    const used = new Set();
+    for (const ref of order) {
+      const key = `${ref.context}:${ref.id}`;
+      if (map.has(key)) {
+        result.push(map.get(key));
+        used.add(key);
+      }
+    }
+    for (const t of tasks) {
+      const key = `${t.context}:${t.id}`;
+      if (!used.has(key)) result.push(t);
+    }
+    return result;
+  } catch {
+    return tasks;
+  }
+}
+
+function saveTierDisplayOrder(tier, entries) {
+  try {
+    localStorage.setItem(
+      tierOrderKey(tier),
+      JSON.stringify(entries.map(({ id, context }) => ({ id, context })))
+    );
+    markSyncDirty();
+  } catch {
+    /* ignore */
+  }
 }
 
 function reorderTierTasksInContext(ctx, tier, orderedIds) {
   const list = loadTasks(ctx);
-  const idSet = new Set(orderedIds);
-  const tierMap = new Map(
-    list.filter((t) => t.tier === tier && idSet.has(t.id)).map((t) => [t.id, t])
-  );
-
-  const result = [];
-  let replaced = false;
-  for (const t of list) {
-    if (t.tier === tier && idSet.has(t.id)) {
-      if (!replaced) {
-        orderedIds.forEach((id) => {
-          if (tierMap.has(id)) result.push(tierMap.get(id));
-        });
-        replaced = true;
-      }
-    } else {
-      result.push(t);
-    }
-  }
+  const tierMap = new Map(list.filter((t) => t.tier === tier).map((t) => [t.id, t]));
+  const reordered = orderedIds.filter((id) => tierMap.has(id)).map((id) => tierMap.get(id));
+  const missing = list.filter((t) => t.tier === tier && !orderedIds.includes(t.id));
+  const orderedTierTasks = [...reordered, ...missing];
+  const insertAt = tierStartIndex(list, tier);
+  const withoutTier = list.filter((t) => t.tier !== tier);
+  const result = [...withoutTier.slice(0, insertAt), ...orderedTierTasks, ...withoutTier.slice(insertAt)];
   saveTasks(ctx, result);
 }
 
 function applyListReorderEntries(listEl, entries, tier) {
+  saveTierDisplayOrder(tier, entries);
   const byCtx = new Map();
   entries.forEach(({ id, context }) => {
     if (!byCtx.has(context)) byCtx.set(context, []);
@@ -1144,6 +1205,7 @@ function updateListDragSession(clientX, clientY) {
   });
 
   moveDragGhost(clientX, clientY);
+  updateGripDragHighlights(clientX, clientY);
 }
 
 function clearListDragSession() {
@@ -1163,8 +1225,8 @@ function clearListDragSession() {
 
 function commitListDragSession() {
   if (!listDragState) return;
-  const { listEl, fromIndex, toIndex, tier, card, lastY } = listDragState;
-  const { entries } = computeListReorder(listEl, card.dataset.id, lastY);
+  const { listEl, tier, card, lastY } = listDragState;
+  const { fromIndex, toIndex, entries } = computeListReorder(listEl, card.dataset.id, lastY);
 
   clearListDragSession();
 
@@ -1425,9 +1487,9 @@ function setupFontPicker() {
     (font) => `
     <button type="button" class="font-option${font.id === current ? " active" : ""}"
       data-font="${font.id}" role="radio" aria-checked="${font.id === current}"
-      aria-label="${font.name}" style="font-family:'${font.body}',sans-serif">
-      <span class="font-option-name" style="font-family:'${font.heading}',serif">${font.name}</span>
-      <span class="font-option-sample" style="font-family:'${font.heading}',serif">Aa Bb Cc</span>
+      aria-label="${font.name}">
+      <span class="font-option-name" style="font-family:'${font.heading}',serif;font-weight:600">${font.name}</span>
+      <span class="font-option-sample" style="font-family:'${font.body}',serif;font-weight:${font.bodyWeight || 400}">Aa Bb Cc</span>
     </button>`
   ).join("");
 
@@ -1437,7 +1499,8 @@ function setupFontPicker() {
 }
 
 function getTasksForTier(tier) {
-  return getVisibleTasks().filter((t) => t.tier === tier);
+  const tasks = getVisibleTasks().filter((t) => t.tier === tier);
+  return sortTasksByTierDisplayOrder(tasks, tier);
 }
 
 function updateTaskInContext(ctx, updater) {
@@ -2076,7 +2139,61 @@ function setupMode135() {
   });
 }
 
+function tasksFlatRowHtml(task) {
+  const inForgetIt = isTaskForgetIt(task);
+  const contextBadge = filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : "";
+  return `
+    <li class="history-item task-card tasks-flat-item${task.done ? " done" : ""}" draggable="false"
+      data-id="${task.id}" data-context="${task.context}">
+      ${taskDragHandleHtml()}
+      <label class="task-check">
+        <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
+      </label>
+      <div class="history-item-body">
+        <button type="button" class="task-text-btn history-text">${escapeHtml(task.text)}</button>
+        <span class="history-meta tasks-flat-meta">
+          <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
+          ${contextBadge}
+          ${inForgetIt ? `<span class="forget-it-indicator" title="In Forget It box today" aria-label="In Forget It box today"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
+        </span>
+      </div>
+      <div class="task-card-actions">
+        <button type="button" class="archive-btn" aria-label="Archive task" title="Archive task">×</button>
+      </div>
+    </li>`;
+}
+
+function renderTasksFlat() {
+  const container = document.getElementById("tasks-flat-list");
+  if (!container) return;
+
+  let html = "";
+  for (let tier = 1; tier <= 4; tier++) {
+    if (!isTierVisible(tier)) continue;
+    const tierTasks = getTasksForTier(tier);
+    html += `
+    <li class="tasks-flat-section" data-tier="${tier}">
+      <h3 class="tasks-flat-heading">${TIER_NAMES[tier - 1]} · ${tierTasks.length} task${tierTasks.length === 1 ? "" : "s"}</h3>
+      <ul class="task-list tasks-flat-tier-list" data-tier="${tier}">
+        ${tierTasks.map((task) => tasksFlatRowHtml(task)).join("")}
+      </ul>
+    </li>`;
+  }
+
+  container.innerHTML = html;
+  container.querySelectorAll(".task-card").forEach(bindTaskEvents);
+  syncPriorityVisibilityTags();
+}
+
 function renderGrid() {
+  const flatList = document.getElementById("tasks-flat-list");
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    renderTasksFlat();
+    return;
+  }
+
+  if (flatList) flatList.innerHTML = "";
+
   const board = document.getElementById("board");
   if (board) {
     board.classList.toggle("board-single-column", !isTierVisible(2) && !isTierVisible(3) && !isTierVisible(4));
@@ -2373,6 +2490,8 @@ function isTierExpandCard(card) {
 
 function getCardTier(card) {
   if (isTierExpandCard(card)) return expandedTier;
+  const list = card.closest(".task-list[data-tier]");
+  if (list) return Number(list.dataset.tier);
   const column = card.closest(".column");
   return column ? Number(column.dataset.tier) : null;
 }
@@ -2450,6 +2569,15 @@ function columnAtPoint(x, y) {
   return el?.closest(".column") || null;
 }
 
+function listAtPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const list = el?.closest("#tier-expand-list, .task-list[data-tier]");
+  if (list) return list;
+  const section = el?.closest(".tasks-flat-section");
+  if (section) return section.querySelector(".task-list[data-tier]");
+  return null;
+}
+
 function applyGripDragDrop(card, x, y) {
   const id = card.dataset.id;
   const ctx = card.dataset.context;
@@ -2497,15 +2625,29 @@ function applyGripDragDrop(card, x, y) {
     }
   }
 
+  const list = listAtPoint(x, y);
+  if (list) {
+    const tier = getListDragTier(list);
+    if (tier) {
+      const atStart = isDropAtListStart(list, y);
+      moveTask(id, ctx, tier, null, atStart);
+      renderAll();
+      return;
+    }
+  }
+
   const col = columnAtPoint(x, y);
   if (col) {
-    moveTask(id, ctx, Number(col.dataset.tier));
+    const tier = Number(col.dataset.tier);
+    const colList = col.querySelector(".task-list");
+    const atStart = colList ? isDropAtListStart(colList, y) : false;
+    moveTask(id, ctx, tier, null, atStart);
     renderAll();
   }
 }
 
 function clearGripDragHighlights() {
-  document.querySelectorAll(".column").forEach((c) => c.classList.remove("drag-over"));
+  document.querySelectorAll(".column, .tasks-flat-section").forEach((c) => c.classList.remove("drag-over"));
   document.querySelectorAll(".plan-135-drop-zone, .forget-it-drop-zone").forEach((z) =>
     z.classList.remove("drop-target-active")
   );
@@ -2515,6 +2657,10 @@ function updateGripDragHighlights(x, y) {
   clearGripDragHighlights();
   const col = columnAtPoint(x, y);
   if (col) col.classList.add("drag-over");
+  const list = listAtPoint(x, y);
+  if (list?.classList.contains("tasks-flat-tier-list")) {
+    list.closest(".tasks-flat-section")?.classList.add("drag-over");
+  }
   const dropEl = document.elementFromPoint(x, y);
   dropEl?.closest(".plan-135-drop-zone")?.classList.add("drop-target-active");
   dropEl?.closest(".forget-it-drop-zone")?.classList.add("drop-target-active");
@@ -2524,17 +2670,27 @@ function updateGripDragHighlights(x, y) {
 
 function finishGripListDrag(x, y) {
   if (!listDragState) return;
+  const { card, listEl } = listDragState;
   const dropEl = document.elementFromPoint(x, y);
   const dropList = dropEl?.closest("#tier-expand-list, .task-list[data-tier]");
-  const isExternal =
-    dropEl?.closest(".plan-135-drop-zone, .forget-it-drop-zone") ||
-    dropList !== listDragState.listEl;
-  if (isExternal) {
-    const { card } = listDragState;
-    clearListDragSession();
+  const isSidebarDrop = Boolean(dropEl?.closest(".plan-135-drop-zone, .forget-it-drop-zone"));
+  const isCrossListDrop = Boolean(dropList && dropList !== listEl);
+
+  if (isSidebarDrop || isCrossListDrop) {
     applyGripDragDrop(card, x, y);
+    listEl.classList.remove("list-drag-active");
+    listEl.querySelectorAll(".task-card").forEach((c) => {
+      c.style.transform = "";
+      c.style.transition = "";
+      c.classList.remove("dragging");
+    });
+    card.querySelector(".task-drag-handle")?.classList.remove("dragging-active");
+    removeDragGhost();
+    listDragState = null;
+    document.body.classList.remove("task-dragging-lock");
   } else {
     commitListDragSession();
+    document.body.classList.remove("task-dragging-lock");
   }
 }
 
@@ -2643,36 +2799,39 @@ function bindTouchDrag(card) {
   const handle = card.querySelector(".task-drag-handle");
   if (!handle) return;
 
-  const id = card.dataset.id;
-  const ctx = card.dataset.context;
   let dragging = false;
-  let holdTimer = null;
-  let startX = 0;
-  let startY = 0;
   let lastX = 0;
   let lastY = 0;
+  let activePointerId = null;
 
-  const clearHold = () => {
-    if (holdTimer) {
-      clearTimeout(holdTimer);
-      holdTimer = null;
+  const listEl = () => card.closest("#tier-expand-list, .task-list[data-tier]");
+
+  const endPointer = () => {
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.removeEventListener("pointercancel", onPointerUp);
+    if (activePointerId != null && handle.hasPointerCapture(activePointerId)) {
+      try {
+        handle.releasePointerCapture(activePointerId);
+      } catch {
+        /* ignore */
+      }
     }
+    activePointerId = null;
   };
 
   const finishDrag = (x, y) => {
-    document.removeEventListener("touchmove", onTouchMove);
-    document.removeEventListener("touchend", onTouchEnd);
-    document.removeEventListener("touchcancel", onTouchEnd);
-
+    endPointer();
     if (!dragging) return;
 
     dragging = false;
     handle.classList.remove("dragging-active");
     clearGripDragHighlights();
+    document.body.classList.remove("task-dragging-lock");
 
     if (listDragState) {
-      listDragState.lastY = y;
       listDragState.lastX = x;
+      listDragState.lastY = y;
       finishGripListDrag(x, y);
       return;
     }
@@ -2682,60 +2841,60 @@ function bindTouchDrag(card) {
     applyGripDragDrop(card, x, y);
   };
 
-  const onTouchMove = (e) => {
-    const touch = e.touches[0];
-    lastX = touch.clientX;
-    lastY = touch.clientY;
-
-    if (!dragging) {
-      const dx = Math.abs(touch.clientX - startX);
-      const dy = Math.abs(touch.clientY - startY);
-      if (dx > 10 || dy > 10) clearHold();
-      return;
-    }
-
+  const onPointerMove = (e) => {
+    if (!dragging || e.pointerId !== activePointerId) return;
     e.preventDefault();
+    lastX = e.clientX;
+    lastY = e.clientY;
     if (listDragState) {
-      updateListDragSession(touch.clientX, touch.clientY);
+      updateListDragSession(e.clientX, e.clientY);
     } else {
-      moveTouchDragGhost(touch.clientX, touch.clientY);
-      updateGripDragHighlights(touch.clientX, touch.clientY);
+      moveTouchDragGhost(e.clientX, e.clientY);
+      updateGripDragHighlights(e.clientX, e.clientY);
     }
   };
 
-  const onTouchEnd = (e) => {
-    clearHold();
-    const touch = e.changedTouches[0];
-    finishDrag(lastX || touch.clientX, lastY || touch.clientY);
+  const onPointerUp = (e) => {
+    if (e.pointerId !== activePointerId) return;
+    finishDrag(lastX || e.clientX, lastY || e.clientY);
   };
 
   handle.addEventListener(
-    "touchstart",
+    "pointerdown",
     (e) => {
+      if (e.button !== 0 || !e.isPrimary) return;
+      e.preventDefault();
       e.stopPropagation();
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
-      lastX = startX;
-      lastY = startY;
-      clearHold();
-      holdTimer = setTimeout(() => {
-        dragging = true;
-        handle.classList.add("dragging-active");
-        const listEl = card.closest("#tier-expand-list, .task-list[data-tier]");
-        if (listEl) {
-          startListDragSession(card, listEl, lastX, lastY);
-        } else {
-          card.classList.add("dragging");
-          createTouchDragGhost(card, lastX, lastY);
-        }
-        document.addEventListener("touchmove", onTouchMove, { passive: false });
-        document.addEventListener("touchend", onTouchEnd, { passive: true });
-        document.addEventListener("touchcancel", onTouchEnd, { passive: true });
-        if (navigator.vibrate) navigator.vibrate(12);
-      }, 280);
+
+      dragging = true;
+      activePointerId = e.pointerId;
+      lastX = e.clientX;
+      lastY = e.clientY;
+
+      try {
+        handle.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+
+      handle.classList.add("dragging-active");
+      document.body.classList.add("task-dragging-lock");
+
+      const list = listEl();
+      if (list) {
+        startListDragSession(card, list, lastX, lastY);
+      } else {
+        card.classList.add("dragging");
+        createTouchDragGhost(card, lastX, lastY);
+      }
+
+      document.addEventListener("pointermove", onPointerMove, { passive: false });
+      document.addEventListener("pointerup", onPointerUp, { passive: true });
+      document.addEventListener("pointercancel", onPointerUp, { passive: true });
+
+      if (navigator.vibrate) navigator.vibrate(8);
     },
-    { passive: true }
+    { passive: false }
   );
 }
 
