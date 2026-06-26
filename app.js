@@ -691,7 +691,7 @@ function contextIconHtml(ctx, className = "context-icon") {
 }
 
 function taskDragHandleHtml() {
-  return `<button type="button" class="task-drag-handle" aria-label="Drag to reorder"><svg class="icon icon-grip" aria-hidden="true"><use href="#icon-grip"></use></svg></button>`;
+  return `<div class="task-drag-handle" role="button" tabindex="-1" aria-label="Drag to reorder"><svg class="icon icon-grip" aria-hidden="true"><use href="#icon-grip"></use></svg></div>`;
 }
 
 function getVisibleTiers() {
@@ -1072,12 +1072,11 @@ function computeListReorder(listEl, draggedId, clientY) {
   const fromIndex = cards.findIndex((c) => c.dataset.id === draggedId);
   if (fromIndex === -1) return { fromIndex: 0, toIndex: 0, entries: [] };
 
-  let insertAt = cards.length;
-  for (let i = 0; i < cards.length; i++) {
-    if (cards[i].dataset.id === draggedId) continue;
-    const rect = cards[i].getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    if (clientY < midY) {
+  const others = cards.filter((c) => c.dataset.id !== draggedId);
+  let insertAt = others.length;
+  for (let i = 0; i < others.length; i++) {
+    const rect = others[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
       insertAt = i;
       break;
     }
@@ -1085,11 +1084,9 @@ function computeListReorder(listEl, draggedId, clientY) {
 
   const entries = cards.map((c) => ({ id: c.dataset.id, context: c.dataset.context }));
   const [moved] = entries.splice(fromIndex, 1);
-  let targetIndex = insertAt;
-  if (targetIndex > fromIndex) targetIndex -= 1;
-  entries.splice(targetIndex, 0, moved);
+  entries.splice(insertAt, 0, moved);
 
-  return { fromIndex, toIndex: targetIndex, entries };
+  return { fromIndex, toIndex: insertAt, entries };
 }
 
 function tierOrderKey(tier) {
@@ -1147,12 +1144,16 @@ function reorderTierTasksInContext(ctx, tier, orderedIds) {
 
 function applyListReorderEntries(listEl, entries, tier) {
   saveTierDisplayOrder(tier, entries);
-  const byCtx = new Map();
-  entries.forEach(({ id, context }) => {
-    if (!byCtx.has(context)) byCtx.set(context, []);
-    byCtx.get(context).push(id);
-  });
-  byCtx.forEach((ids, ctx) => reorderTierTasksInContext(ctx, tier, ids));
+  if (filter === "all") {
+    const byCtx = new Map();
+    entries.forEach(({ id, context }) => {
+      if (!byCtx.has(context)) byCtx.set(context, []);
+      byCtx.get(context).push(id);
+    });
+    byCtx.forEach((ids, ctx) => reorderTierTasksInContext(ctx, tier, ids));
+    return;
+  }
+  reorderTierTasksInContext(filter, tier, entries.map((entry) => entry.id));
 }
 
 function getListDragTier(listEl) {
@@ -1175,6 +1176,7 @@ function startListDragSession(card, listEl, clientX, clientY) {
     tier: getListDragTier(listEl),
     lastX: clientX,
     lastY: clientY,
+    entries: null,
   };
 
   listEl.classList.add("list-drag-active");
@@ -1187,8 +1189,9 @@ function startListDragSession(card, listEl, clientX, clientY) {
 function updateListDragSession(clientX, clientY) {
   if (!listDragState) return;
   const { card, listEl, fromIndex, rowHeight } = listDragState;
-  const { toIndex } = computeListReorder(listEl, card.dataset.id, clientY);
+  const { toIndex, entries } = computeListReorder(listEl, card.dataset.id, clientY);
   listDragState.toIndex = toIndex;
+  listDragState.entries = entries;
   listDragState.lastX = clientX;
   listDragState.lastY = clientY;
 
@@ -1225,12 +1228,11 @@ function clearListDragSession() {
 
 function commitListDragSession() {
   if (!listDragState) return;
-  const { listEl, tier, card, lastY } = listDragState;
-  const { fromIndex, toIndex, entries } = computeListReorder(listEl, card.dataset.id, lastY);
+  const { tier, fromIndex, toIndex, entries, listEl } = listDragState;
 
   clearListDragSession();
 
-  if (fromIndex !== toIndex && tier) {
+  if (fromIndex !== toIndex && tier && entries?.length) {
     applyListReorderEntries(listEl, entries, tier);
     renderAll();
   }
@@ -1238,11 +1240,11 @@ function commitListDragSession() {
 
 function resolveListInsert(clientY, listEl, draggedId) {
   const cards = [...listEl.querySelectorAll(".task-card")];
-  for (const item of cards) {
-    if (item.dataset.id === draggedId) continue;
-    const rect = item.getBoundingClientRect();
+  const others = cards.filter((item) => item.dataset.id !== draggedId);
+  for (let i = 0; i < others.length; i++) {
+    const rect = others[i].getBoundingClientRect();
     if (clientY < rect.top + rect.height / 2) {
-      return { beforeId: item.dataset.id };
+      return { beforeId: others[i].dataset.id };
     }
   }
   return { atEnd: true };
@@ -2187,11 +2189,6 @@ function renderTasksFlat() {
 
 function renderGrid() {
   const flatList = document.getElementById("tasks-flat-list");
-  if (window.matchMedia("(max-width: 768px)").matches) {
-    renderTasksFlat();
-    return;
-  }
-
   if (flatList) flatList.innerHTML = "";
 
   const board = document.getElementById("board");
@@ -2789,63 +2786,19 @@ function bindTaskEvents(card) {
     e.stopPropagation();
     openEdit();
   });
-
-  if (isTouchDevice()) {
-    bindTouchDrag(card);
-  }
 }
 
-function bindTouchDrag(card) {
-  const handle = card.querySelector(".task-drag-handle");
-  if (!handle) return;
+let touchDragPointer = null;
 
-  let dragging = false;
-  let lastX = 0;
-  let lastY = 0;
-  let activePointerId = null;
-
-  const listEl = () => card.closest("#tier-expand-list, .task-list[data-tier]");
-
-  const endPointer = () => {
-    document.removeEventListener("pointermove", onPointerMove);
-    document.removeEventListener("pointerup", onPointerUp);
-    document.removeEventListener("pointercancel", onPointerUp);
-    if (activePointerId != null && handle.hasPointerCapture(activePointerId)) {
-      try {
-        handle.releasePointerCapture(activePointerId);
-      } catch {
-        /* ignore */
-      }
-    }
-    activePointerId = null;
-  };
-
-  const finishDrag = (x, y) => {
-    endPointer();
-    if (!dragging) return;
-
-    dragging = false;
-    handle.classList.remove("dragging-active");
-    clearGripDragHighlights();
-    document.body.classList.remove("task-dragging-lock");
-
-    if (listDragState) {
-      listDragState.lastX = x;
-      listDragState.lastY = y;
-      finishGripListDrag(x, y);
-      return;
-    }
-
-    card.classList.remove("dragging");
-    removeTouchDragGhost();
-    applyGripDragDrop(card, x, y);
-  };
+function setupTouchListDrag() {
+  if (!isTouchDevice() || setupTouchListDrag.ready) return;
+  setupTouchListDrag.ready = true;
 
   const onPointerMove = (e) => {
-    if (!dragging || e.pointerId !== activePointerId) return;
+    if (!touchDragPointer || e.pointerId !== touchDragPointer.id) return;
     e.preventDefault();
-    lastX = e.clientX;
-    lastY = e.clientY;
+    touchDragPointer.lastX = e.clientX;
+    touchDragPointer.lastY = e.clientY;
     if (listDragState) {
       updateListDragSession(e.clientX, e.clientY);
     } else {
@@ -2854,22 +2807,52 @@ function bindTouchDrag(card) {
     }
   };
 
-  const onPointerUp = (e) => {
-    if (e.pointerId !== activePointerId) return;
-    finishDrag(lastX || e.clientX, lastY || e.clientY);
+  const finishTouchDrag = (e) => {
+    if (!touchDragPointer || e.pointerId !== touchDragPointer.id) return;
+    const { card, handle, lastX, lastY } = touchDragPointer;
+
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", finishTouchDrag);
+    document.removeEventListener("pointercancel", finishTouchDrag);
+
+    try {
+      handle.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    handle.classList.remove("dragging-active");
+    clearGripDragHighlights();
+    document.body.classList.remove("task-dragging-lock");
+    touchDragPointer = null;
+
+    if (listDragState) {
+      listDragState.lastX = lastX;
+      listDragState.lastY = lastY;
+      finishGripListDrag(lastX, lastY);
+      return;
+    }
+
+    card.classList.remove("dragging");
+    removeTouchDragGhost();
+    applyGripDragDrop(card, lastX, lastY);
   };
 
-  handle.addEventListener(
+  document.addEventListener(
     "pointerdown",
     (e) => {
-      if (e.button !== 0 || !e.isPrimary) return;
+      if (!e.isPrimary || e.button !== 0) return;
+      const handle = e.target.closest(".task-drag-handle");
+      if (!handle) return;
+      const card = handle.closest(".task-card");
+      const list = card?.closest("#tier-expand-list, .task-list[data-tier]");
+      if (!card || !list) return;
+
       e.preventDefault();
       e.stopPropagation();
 
-      dragging = true;
-      activePointerId = e.pointerId;
-      lastX = e.clientX;
-      lastY = e.clientY;
+      const lastX = e.clientX;
+      const lastY = e.clientY;
 
       try {
         handle.setPointerCapture(e.pointerId);
@@ -2880,7 +2863,6 @@ function bindTouchDrag(card) {
       handle.classList.add("dragging-active");
       document.body.classList.add("task-dragging-lock");
 
-      const list = listEl();
       if (list) {
         startListDragSession(card, list, lastX, lastY);
       } else {
@@ -2888,13 +2870,14 @@ function bindTouchDrag(card) {
         createTouchDragGhost(card, lastX, lastY);
       }
 
+      touchDragPointer = { card, handle, id: e.pointerId, lastX, lastY };
       document.addEventListener("pointermove", onPointerMove, { passive: false });
-      document.addEventListener("pointerup", onPointerUp, { passive: true });
-      document.addEventListener("pointercancel", onPointerUp, { passive: true });
+      document.addEventListener("pointerup", finishTouchDrag, { passive: true });
+      document.addEventListener("pointercancel", finishTouchDrag, { passive: true });
 
       if (navigator.vibrate) navigator.vibrate(8);
     },
-    { passive: false }
+    { capture: true, passive: false }
   );
 }
 
@@ -3376,6 +3359,7 @@ setupThemePicker();
 setupFontPicker();
 setupNavigation();
 setupDropZones();
+setupTouchListDrag();
 setupSidebarTabs();
 setupTaskDialog();
 setupBrainDumpForms();

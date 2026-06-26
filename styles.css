@@ -2315,6 +2315,8 @@ body[data-page="home"] .appearance-panel[open] {
   color: var(--ink-muted);
   touch-action: none;
   cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
   opacity: 0.35;
   transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
@@ -2683,12 +2685,13 @@ body.task-dragging-lock .app-main {
 
 .tasks-flat-tier-list {
   gap: 0.5rem;
+  touch-action: pan-y;
 }
 
 .tasks-flat-item {
   cursor: default;
   min-height: 0;
-  touch-action: manipulation;
+  position: relative;
 }
 
 .tasks-flat-item .task-drag-handle {
@@ -4204,15 +4207,16 @@ dialog {
   }
 
   .board {
-    column-count: 1;
+    column-count: 2;
+    column-gap: 0.65rem;
   }
 
   .tasks-board-area #board {
-    display: none;
+    display: block;
   }
 
   .tasks-flat-list {
-    display: flex;
+    display: none !important;
   }
 
   .tasks-flat-item .archive-btn {
