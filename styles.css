@@ -209,10 +209,10 @@
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
-  --font-weight-body: 500;
+  --font-weight-body: 600;
   --font-weight-heading: 600;
-  --font-weight-medium: 500;
-  --font-weight-bold: 700;
+  --font-weight-medium: 600;
+  --font-weight-bold: 600;
   --type-display-size: 2.25rem;
   --type-display-lh: 2.75rem;
   --type-display-tracking: -0.01em;
@@ -1008,7 +1008,7 @@ body[data-page="home"] .appearance-panel[open] {
   color: var(--secondary-btn-text, #ffffff);
   font-family: inherit;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1359,7 +1359,7 @@ body[data-page="home"] .appearance-panel[open] {
   text-align: left;
   font-family: var(--font-body);
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   line-height: 1.5;
   letter-spacing: 0;
   color: #193e3c;
@@ -3779,7 +3779,7 @@ body[data-page="home"] .appearance-panel[open] {
 
 .theme-name {
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--ink);
 }
 
@@ -4068,7 +4068,7 @@ dialog {
 
   .plan-card-task-text {
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     color: #193e3c;
   }
 
