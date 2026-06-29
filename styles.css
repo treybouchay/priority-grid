@@ -4258,14 +4258,15 @@ dialog {
   }
 
   .tasks-board-area .task-card:not(.tasks-flat-item) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.2rem;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.35rem;
     padding: 0.4rem 0.15rem;
   }
 
   .tasks-board-area .task-card-main {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     gap: 0.55rem;
   }
 
@@ -4276,9 +4277,11 @@ dialog {
   }
 
   .tasks-board-area .task-card-actions {
-    align-self: flex-end;
-    padding-left: 1.75rem;
-    gap: 0.35rem;
+    align-self: flex-start;
+    flex-shrink: 0;
+    padding-left: 0;
+    padding-top: 1px;
+    gap: 0.25rem;
   }
 
   .tasks-board-area .task-card-actions .task-context-badge {
@@ -4489,11 +4492,11 @@ dialog {
 
   .tasks-board-area .task-card:not(.tasks-flat-item) {
     padding: 0.35rem 0.1rem;
+    gap: 0.3rem;
   }
 
   .tasks-board-area .task-card-actions {
-    padding-left: 1.55rem;
-    gap: 0.3rem;
+    gap: 0.2rem;
   }
 
   .task-drag-handle {
