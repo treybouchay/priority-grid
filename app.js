@@ -16,6 +16,13 @@ const APP_STARTED_KEY = "priority-grid-app-started";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
+const HOME_DESIGN_KEY = "priority-grid-home-design";
+
+const HOME_DESIGNS = [
+  { id: "apple", name: "Apple Music" },
+  { id: "classic", name: "Classic" },
+];
+
 const PLAN_135_SLOTS = [
   { group: "big", label: "Big Task", count: 1 },
   { group: "medium", label: "Medium Tasks", count: 3 },
@@ -1500,6 +1507,62 @@ function setupFontPicker() {
   });
 }
 
+function getHomeDesign() {
+  try {
+    const stored = localStorage.getItem(HOME_DESIGN_KEY);
+    if (stored === "classic" || stored === "apple") return stored;
+  } catch {
+    /* ignore */
+  }
+  return "classic";
+}
+
+function applyHomeDesign(designId) {
+  document.documentElement.dataset.homeDesign = designId;
+  let link = document.getElementById("home-design-stylesheet");
+  if (designId === "apple") {
+    if (!link) {
+      link = document.createElement("link");
+      link.id = "home-design-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "design/home-apple.css?v=1";
+      document.head.appendChild(link);
+    }
+  } else if (link) {
+    link.remove();
+  }
+}
+
+function setHomeDesign(designId) {
+  localStorage.setItem(HOME_DESIGN_KEY, designId);
+  applyHomeDesign(designId);
+  document.querySelectorAll(".home-design-option").forEach((btn) => {
+    const isActive = btn.dataset.homeDesign === designId;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-checked", isActive);
+  });
+}
+
+function setupHomeDesignPicker() {
+  const picker = document.getElementById("home-design-picker");
+  if (!picker) return;
+  const current = getHomeDesign();
+  applyHomeDesign(current);
+
+  picker.innerHTML = HOME_DESIGNS.map(
+    (design) => `
+    <button type="button" class="theme-option home-design-option${design.id === current ? " active" : ""}"
+      data-home-design="${design.id}" role="radio" aria-checked="${design.id === current}"
+      aria-label="${design.name}">
+      <span class="theme-name">${design.name}</span>
+    </button>`
+  ).join("");
+
+  picker.querySelectorAll(".home-design-option").forEach((btn) => {
+    btn.addEventListener("click", () => setHomeDesign(btn.dataset.homeDesign));
+  });
+}
+
 function getTasksForTier(tier) {
   const tasks = getVisibleTasks().filter((t) => t.tier === tier);
   return sortTasksByTierDisplayOrder(tasks, tier);
@@ -2341,12 +2404,16 @@ function countPlan135Filled(plan) {
   return filled;
 }
 
-function getOpenTasksByTier(tier, limit) {
+function getTasksByTierForHome(tier, limit) {
   const tasks = [];
   CONTEXTS.forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (!t.archived && !t.done && t.tier === tier) tasks.push({ ...t, context: ctx });
+      if (!t.archived && t.tier === tier) tasks.push({ ...t, context: ctx });
     });
+  });
+  tasks.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return 0;
   });
   return tasks.slice(0, limit);
 }
@@ -2375,7 +2442,7 @@ function renderHomePriorities() {
 
   const cardsHtml = [1, 2, 3, 4]
     .map((tier, index) => {
-      const tasks = getOpenTasksByTier(tier, 3);
+      const tasks = getTasksByTierForHome(tier, 3);
       return figmaPlanCardHtml({
         number: String(tier),
         variant: PRIORITY_CARD_VARIANTS[index],
@@ -3357,6 +3424,7 @@ document.documentElement.dataset.font = getFont();
 setupDateHeader();
 setupThemePicker();
 setupFontPicker();
+setupHomeDesignPicker();
 setupNavigation();
 setupDropZones();
 setupTouchListDrag();

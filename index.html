@@ -9,7 +9,7 @@
     <script>
       try {
         const theme = localStorage.getItem("priority-grid-theme");
-        const font = localStorage.getItem("priority-grid-font");
+        let font = localStorage.getItem("priority-grid-font");
         if (theme === "warm-earth" || theme === "terracotta") {
           document.documentElement.dataset.theme = theme;
         } else if (theme === "dusty-rose") {
@@ -17,7 +17,6 @@
         } else {
           document.documentElement.dataset.theme = "warm-earth";
         }
-        const font = localStorage.getItem("priority-grid-font");
         const fontMigration = {
           "playfair-inter": "pairing-playfair",
           "pairing-3": "pairing-playfair",
@@ -34,9 +33,11 @@
         if (font && fontMigration[font]) {
           localStorage.setItem("priority-grid-font", fontMigration[font]);
         }
+        const homeDesign = localStorage.getItem("priority-grid-home-design") || "classic";
+        document.documentElement.dataset.homeDesign = homeDesign;
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=82" />
+    <link rel="stylesheet" href="styles.css?v=86" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -264,6 +265,8 @@
             <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color scheme"></div>
             <p class="appearance-label">Font pairing</p>
             <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
+            <p class="appearance-label">Home layout</p>
+            <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-label="Home layout"></div>
             <p class="appearance-label">Sync data</p>
             <p class="sync-status" id="sync-status">Checking sync…</p>
             <p class="sync-hint">Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.</p>
@@ -589,6 +592,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=79"></script>
+    <script src="app.js?v=87"></script>
   </body>
 </html>

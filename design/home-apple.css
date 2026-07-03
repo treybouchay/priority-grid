@@ -1,0 +1,399 @@
+/**
+ * Apple Music–inspired home shell.
+ * Active when html[data-home-design="apple"].
+ * Revert: Settings → Home layout → Classic, or remove this stylesheet.
+ */
+
+html[data-home-design="apple"] {
+  --apple-bg: #f2f2f7;
+  --apple-card: #ffffff;
+  --apple-text: #1d1d1f;
+  --apple-secondary: #86868b;
+  --apple-accent: #fa2d48;
+  --apple-accent-soft: rgba(250, 45, 72, 0.12);
+  --apple-separator: rgba(60, 60, 67, 0.14);
+  --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  --apple-sidebar: #1c1c1e;
+}
+
+html[data-home-design="apple"] body[data-page="home"] .shell,
+html[data-home-design="apple"] body[data-page="home"] .main,
+html[data-home-design="apple"] #home-page.page-panel {
+  background-color: var(--apple-bg);
+}
+
+html[data-home-design="apple"] #home-page {
+  font-family: var(--apple-font);
+}
+
+/* ——— Greeting ——— */
+html[data-home-design="apple"] .home-greeting {
+  font-family: var(--apple-font);
+  font-size: clamp(2rem, 5.5vw, 2.125rem);
+  font-weight: 700;
+  letter-spacing: -0.028em;
+  color: var(--apple-text);
+  line-height: 1.12;
+}
+
+html[data-home-design="apple"] .home-greeting-wave {
+  font-family: var(--apple-font);
+}
+
+html[data-home-design="apple"] .home-date {
+  font-family: var(--apple-font);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--apple-secondary);
+  margin-top: 0.35rem;
+}
+
+html[data-home-design="apple"] .home-intro {
+  margin-bottom: 0.25rem;
+}
+
+/* ——— Focus hero (featured playlist style) ——— */
+html[data-home-design="apple"] .focus-hero {
+  margin-top: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+html[data-home-design="apple"] .focus-hero-card {
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: 400px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  background: #000;
+}
+
+html[data-home-design="apple"] .focus-hero-bg {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+html[data-home-design="apple"] .focus-hero-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.35) 55%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+}
+
+html[data-home-design="apple"] .focus-hero-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 1.5rem 1.75rem;
+  pointer-events: none;
+}
+
+html[data-home-design="apple"] .focus-hero-label,
+html[data-home-design="apple"] .focus-hero-title,
+html[data-home-design="apple"] .focus-hero-btn {
+  position: static;
+  width: auto;
+  left: auto;
+  top: auto;
+  margin: 0;
+}
+
+html[data-home-design="apple"] .focus-hero-label {
+  font-family: var(--apple-font);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 0.4rem;
+}
+
+html[data-home-design="apple"] .focus-hero-title {
+  font-family: var(--apple-font);
+  font-size: clamp(1.375rem, 4vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #ffffff;
+  margin-bottom: 1rem;
+  max-width: 22ch;
+}
+
+html[data-home-design="apple"] .focus-hero-btn {
+  pointer-events: auto;
+  height: auto;
+  width: auto;
+  padding: 0.55rem 1.25rem;
+  border-radius: 980px;
+  background: var(--apple-accent);
+  font-family: var(--apple-font);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(250, 45, 72, 0.35);
+}
+
+html[data-home-design="apple"] .focus-hero-btn:hover {
+  opacity: 0.92;
+  color: #ffffff;
+}
+
+/* ——— Today's Plan section ——— */
+html[data-home-design="apple"] .top-priorities {
+  gap: 0.75rem;
+}
+
+html[data-home-design="apple"] .section-header--plan {
+  margin-bottom: 0.75rem;
+  padding: 0 0.125rem;
+}
+
+html[data-home-design="apple"] .section-title--plan {
+  font-family: var(--apple-font);
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--apple-text);
+}
+
+html[data-home-design="apple"] .section-link--plan {
+  font-family: var(--apple-font);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--apple-accent);
+}
+
+/* ——— Plan cards → inset grouped lists ——— */
+html[data-home-design="apple"] .plan-card-grid,
+html[data-home-design="apple"] .plan-card-grid--priorities {
+  gap: 0.75rem;
+}
+
+html[data-home-design="apple"] .plan-card {
+  height: auto;
+  min-height: 0;
+  border-radius: 16px;
+  background: var(--apple-card) !important;
+  border: 1px solid var(--apple-separator);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.06);
+  overflow: visible;
+}
+
+html[data-home-design="apple"] .plan-card--big {
+  border-top: 3px solid #fa2d48;
+}
+
+html[data-home-design="apple"] .plan-card--medium {
+  border-top: 3px solid #ff9500;
+}
+
+html[data-home-design="apple"] .plan-card--small {
+  border-top: 3px solid #34c759;
+}
+
+html[data-home-design="apple"] .plan-card--p1 {
+  border-top: 3px solid #fa2d48;
+}
+
+html[data-home-design="apple"] .plan-card--p2 {
+  border-top: 3px solid #5856d6;
+}
+
+html[data-home-design="apple"] .plan-card--p3 {
+  border-top: 3px solid #ff9500;
+}
+
+html[data-home-design="apple"] .plan-card--p4 {
+  border-top: 3px solid #8e8e93;
+}
+
+html[data-home-design="apple"] .plan-card-scenery {
+  display: none;
+}
+
+html[data-home-design="apple"] .plan-card-body {
+  padding: 1rem 1rem 1.125rem;
+}
+
+html[data-home-design="apple"] .plan-card-first-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.625rem;
+  min-height: 0;
+}
+
+html[data-home-design="apple"] .plan-card-number {
+  font-family: var(--apple-font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--apple-secondary);
+  min-width: 0;
+  line-height: 1.2;
+}
+
+html[data-home-design="apple"] .plan-card-list,
+html[data-home-design="apple"] .plan-card-list--first,
+html[data-home-design="apple"] .plan-card-list--rest {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  background: var(--apple-bg);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+html[data-home-design="apple"] .plan-card-list--rest {
+  margin-top: 0.5rem;
+  padding-left: 0;
+}
+
+html[data-home-design="apple"] .plan-card-task {
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--apple-separator);
+}
+
+html[data-home-design="apple"] .plan-card-task:last-child {
+  border-bottom: none;
+}
+
+html[data-home-design="apple"] .plan-card-check {
+  padding-top: 0.125rem;
+}
+
+html[data-home-design="apple"] .plan-card-check input {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #c7c7cc;
+  background: #ffffff;
+}
+
+html[data-home-design="apple"] .plan-card-check input:checked {
+  background: var(--apple-accent);
+  border-color: var(--apple-accent);
+}
+
+html[data-home-design="apple"] .plan-card-task-text {
+  font-family: var(--apple-font);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--apple-text);
+}
+
+html[data-home-design="apple"] .plan-card-task.done .plan-card-task-text {
+  color: var(--apple-secondary);
+  opacity: 1;
+}
+
+/* ——— Desktop sidebar (Apple Music macOS) ——— */
+@media (min-width: 769px) {
+  html[data-home-design="apple"] .sidebar {
+    background: var(--apple-sidebar);
+    padding-top: 1.25rem;
+  }
+
+  html[data-home-design="apple"] .sidebar-identity-name,
+  html[data-home-design="apple"] .nav-item {
+    font-family: var(--apple-font);
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  html[data-home-design="apple"] .nav-item {
+    border-radius: 8px;
+    min-height: 44px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  html[data-home-design="apple"] .nav-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  html[data-home-design="apple"] .nav-item.active {
+    background: var(--apple-accent-soft);
+    color: var(--apple-accent);
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  html[data-home-design="apple"] .nav-item.active .icon-nav {
+    color: var(--apple-accent);
+  }
+
+  html[data-home-design="apple"] .sidebar-landscape::before {
+    background:
+      linear-gradient(180deg, var(--apple-sidebar) 0%, transparent 35%),
+      linear-gradient(0deg, var(--apple-sidebar) 0%, transparent 50%);
+  }
+
+  html[data-home-design="apple"] .sidebar-profile-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* ——— Mobile ——— */
+@media (max-width: 768px) {
+  html[data-home-design="apple"] #home-page.page-panel {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  html[data-home-design="apple"] .home-intro {
+    padding-top: calc(1.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  html[data-home-design="apple"] .focus-hero-card {
+    aspect-ratio: 4 / 3;
+    max-height: 260px;
+    border-radius: 14px;
+  }
+
+  html[data-home-design="apple"] .focus-hero-content {
+    padding: 1.125rem 1.25rem;
+  }
+
+  html[data-home-design="apple"] .section-title--plan {
+    font-size: 1.25rem;
+  }
+
+  html[data-home-design="apple"] .mobile-nav {
+    background: rgba(28, 28, 30, 0.88);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-top: 0.5px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  html[data-home-design="apple"] .mobile-nav-item {
+    font-family: var(--apple-font);
+    font-size: 0.625rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  html[data-home-design="apple"] .mobile-nav-item.active {
+    color: var(--apple-accent);
+    background: transparent;
+  }
+
+  html[data-home-design="apple"] .mobile-nav-item.active .icon-mobile {
+    color: var(--apple-accent);
+  }
+}
