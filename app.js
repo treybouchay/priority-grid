@@ -34,9 +34,25 @@ const TIER_LABELS = ["1st", "2nd", "3rd", "4th"];
 const isTouchDevice = () => window.matchMedia("(hover: none), (pointer: coarse)").matches;
 
 const THEMES = [
+  { id: "auto", name: "Auto (time of day)", colors: ["#0E303B", "#FCEFEA", "#FF6A6A", "#E07A5F", "#072F2E"] },
   { id: "warm-earth", name: "Warm Earth", colors: ["#FCEFEA", "#0E3D3B", "#E07A5F", "#F4A6A1", "#1F3F2E"] },
+  { id: "midnight", name: "Midnight", colors: ["#0E303B", "#072F2E", "#FF6A6A", "#E07A5F", "#2D4E4E"] },
   { id: "terracotta", name: "Terracotta", colors: ["#FFF9F9", "#B46B61", "#FDE8E8", "#F4E7E4", "#2D2D2D"] },
 ];
+
+const TIME_THEME_SLOTS = [
+  { start: 0, label: "Night", theme: "midnight" },
+  { start: 5, label: "Morning", theme: "warm-earth" },
+  { start: 12, label: "Afternoon", theme: "warm-earth" },
+  { start: 17, label: "Evening", theme: "midnight" },
+];
+
+const THEME_META_COLORS = {
+  "warm-earth": "#fef7f4",
+  auto: "#0e303b",
+  midnight: "#0e303b",
+  terracotta: "#fff9f9",
+};
 
 const FONTS = [
   {
@@ -644,15 +660,73 @@ function getFilter() {
   return "all";
 }
 
-function getTheme() {
+function getThemePreference() {
   try {
     const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "auto") return "auto";
     if (saved && THEMES.some((t) => t.id === saved)) return saved;
     if (saved === "dusty-rose") return "terracotta";
   } catch {
     /* ignore */
   }
-  return "warm-earth";
+  return "auto";
+}
+
+function getThemeForHour(hour = new Date().getHours()) {
+  let theme = TIME_THEME_SLOTS[0].theme;
+  for (const slot of TIME_THEME_SLOTS) {
+    if (hour >= slot.start) theme = slot.theme;
+  }
+  return theme;
+}
+
+function getCurrentThemeSlot(hour = new Date().getHours()) {
+  let slot = TIME_THEME_SLOTS[0];
+  for (const entry of TIME_THEME_SLOTS) {
+    if (hour >= entry.start) slot = entry;
+  }
+  return slot;
+}
+
+function getEffectiveTheme() {
+  const preference = getThemePreference();
+  return preference === "auto" ? getThemeForHour() : preference;
+}
+
+function getTheme() {
+  return getThemePreference();
+}
+
+function updateThemeMeta(themeId) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", THEME_META_COLORS[themeId] || THEME_META_COLORS["warm-earth"]);
+  document.documentElement.style.colorScheme = themeId === "midnight" ? "dark" : "light";
+}
+
+function applyTheme() {
+  const preference = getThemePreference();
+  const effective = getEffectiveTheme();
+  document.documentElement.dataset.theme = effective;
+  document.documentElement.dataset.themeMode = preference;
+  updateThemeMeta(effective);
+
+  document.querySelectorAll(".theme-option").forEach((btn) => {
+    const isActive = btn.dataset.theme === preference;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-checked", isActive);
+  });
+
+  const status = document.getElementById("theme-schedule-status");
+  if (status) {
+    if (preference === "auto") {
+      const slot = getCurrentThemeSlot();
+      const activeTheme = THEMES.find((t) => t.id === slot.theme);
+      status.textContent = `${slot.label} — using ${activeTheme?.name || slot.theme} until the next period.`;
+      status.classList.remove("hidden");
+    } else {
+      status.classList.add("hidden");
+    }
+  }
 }
 
 function tierTagClass(tier, planGroup = "") {
@@ -1444,21 +1518,22 @@ function setupNavigation() {
 }
 
 function setTheme(themeId) {
-  const theme = THEMES.some((t) => t.id === themeId) ? themeId : "warm-earth";
-  document.documentElement.dataset.theme = theme;
+  const theme = THEMES.some((t) => t.id === themeId) ? themeId : "auto";
   localStorage.setItem(THEME_KEY, theme);
-  document.querySelectorAll(".theme-option").forEach((btn) => {
-    const isActive = btn.dataset.theme === theme;
-    btn.classList.toggle("active", isActive);
-    btn.setAttribute("aria-checked", isActive);
-  });
+  applyTheme();
+}
+
+function setupThemeSchedule() {
+  applyTheme();
+  window.setInterval(() => {
+    if (getThemePreference() === "auto") applyTheme();
+  }, 60_000);
 }
 
 function setupThemePicker() {
   const picker = document.getElementById("theme-picker");
   if (!picker) return;
-  const current = getTheme();
-  document.documentElement.dataset.theme = current;
+  const current = getThemePreference();
 
   picker.innerHTML = THEMES.map(
     (theme) => `
@@ -1475,6 +1550,8 @@ function setupThemePicker() {
   picker.querySelectorAll(".theme-option").forEach((btn) => {
     btn.addEventListener("click", () => setTheme(btn.dataset.theme));
   });
+
+  applyTheme();
 }
 
 function setFont(fontId) {
@@ -2313,24 +2390,50 @@ function planCardTaskHtml(task) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
+      <span class="plan-card-drag" aria-hidden="true">
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+          <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
+          <circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/>
+          <circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
+        </svg>
+      </span>
     </li>`;
 }
 
 const PRIORITY_CARD_VARIANTS = ["p1", "p2", "p3", "p4"];
 
-function figmaPlanCardHtml({ number, variant, tasks = [] }) {
-  const items = tasks.map((task) => planCardTaskHtml(task));
-  const firstTask = items[0] || "";
-  const restTasks = items.slice(1).join("");
+function planCardProgressRing(done, total) {
+  if (total === 0) return "";
+  const pct = total > 0 ? done / total : 0;
+  const r = 20;
+  const cx = 24;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - pct);
+  return `
+    <div class="plan-card-progress" role="progressbar" aria-valuenow="${done}" aria-valuemin="0" aria-valuemax="${total}">
+      <svg class="plan-card-progress-ring" viewBox="0 0 48 48" aria-hidden="true">
+        <circle class="plan-card-progress-track" cx="${cx}" cy="${cx}" r="${r}" />
+        <circle class="plan-card-progress-fill" cx="${cx}" cy="${cx}" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
+      </svg>
+      <span class="plan-card-progress-label">${done}/${total}</span>
+    </div>`;
+}
+
+function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done = 0, total = 0 }) {
+  const listHtml = tasks.map((task) => planCardTaskHtml(task)).join("");
 
   return `
     <article class="plan-card plan-card--${variant}">
-      <div class="plan-card-body">
-        <div class="plan-card-first-row">
-          <span class="plan-card-number" aria-hidden="true">${escapeHtml(number)}</span>
-          ${firstTask ? `<ul class="plan-card-list plan-card-list--first">${firstTask}</ul>` : ""}
+      <header class="plan-card-header">
+        <span class="plan-card-badge" aria-hidden="true">${escapeHtml(number)}</span>
+        <div class="plan-card-meta">
+          <h3 class="plan-card-title">${escapeHtml(title)}</h3>
+          <p class="plan-card-subtitle">${escapeHtml(subtitle)}</p>
         </div>
-        ${restTasks ? `<ul class="plan-card-list plan-card-list--rest">${restTasks}</ul>` : ""}
+        ${planCardProgressRing(done, total)}
+      </header>
+      <div class="plan-card-body">
+        ${listHtml ? `<ul class="plan-card-list">${listHtml}</ul>` : ""}
       </div>
       <div class="plan-card-scenery" aria-hidden="true">
         <img class="plan-card-scenery-img" src="assets/sidebar-landscape.png?v=68" alt="" decoding="async" />
@@ -2443,10 +2546,16 @@ function renderHomePriorities() {
   const cardsHtml = [1, 2, 3, 4]
     .map((tier, index) => {
       const tasks = getTasksByTierForHome(tier, 3);
+      const done = tasks.filter((t) => t.done).length;
+      const total = tasks.length;
       return figmaPlanCardHtml({
-        number: String(tier),
+        number: String(index + 1).padStart(2, "0"),
         variant: PRIORITY_CARD_VARIANTS[index],
+        title: TIER_NAMES[tier - 1],
+        subtitle: `${total} task${total === 1 ? "" : "s"}`,
         tasks,
+        done,
+        total,
       });
     })
     .join("");
@@ -2472,19 +2581,21 @@ function renderHomePlan135() {
   if (progress) progress.classList.add("hidden");
   empty.classList.add("hidden");
 
-  const cardsHtml = PLAN_135_SLOTS.map((section) => {
+  const cardsHtml = PLAN_135_SLOTS.map((section, index) => {
     const slots = section.group === "big" ? [plan.big] : plan[section.group];
     const resolved = slots.map((ref) => findTaskByRef(ref)).filter(Boolean);
-
-    if (section.group === "big") {
-      const tasks = resolved[0] ? [resolved[0]] : [];
-      return figmaPlanCardHtml({ number: "1", variant: "big", tasks });
-    }
+    const tasks = section.group === "big" ? (resolved[0] ? [resolved[0]] : []) : resolved;
+    const done = tasks.filter((t) => t.done).length;
+    const total = tasks.length;
 
     return figmaPlanCardHtml({
-      number: String(section.count),
+      number: String(index + 1).padStart(2, "0"),
       variant: section.group,
-      tasks: resolved,
+      title: section.label,
+      subtitle: `${total} task${total === 1 ? "" : "s"}`,
+      tasks,
+      done,
+      total,
     });
   }).join("");
 
@@ -3418,11 +3529,12 @@ function seedHomeFromNotebook() {
 migrateLegacyData();
 ensureAppStartedDay();
 
-document.documentElement.dataset.theme = getTheme();
 document.documentElement.dataset.font = getFont();
+applyTheme();
 
 setupDateHeader();
 setupThemePicker();
+setupThemeSchedule();
 setupFontPicker();
 setupHomeDesignPicker();
 setupNavigation();

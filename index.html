@@ -8,14 +8,35 @@
     <title>Presence</title>
     <script>
       try {
-        const theme = localStorage.getItem("priority-grid-theme");
+        const themePref = localStorage.getItem("priority-grid-theme") || "auto";
         let font = localStorage.getItem("priority-grid-font");
-        if (theme === "warm-earth" || theme === "terracotta") {
-          document.documentElement.dataset.theme = theme;
-        } else if (theme === "dusty-rose") {
-          document.documentElement.dataset.theme = "terracotta";
-        } else {
-          document.documentElement.dataset.theme = "warm-earth";
+        const hour = new Date().getHours();
+        const themeForHour = (() => {
+          const h = hour;
+          if (h >= 17 || h < 5) return "midnight";
+          return "warm-earth";
+        })();
+        const resolvedThemePref =
+          themePref === "dusty-rose"
+            ? "terracotta"
+            : themePref === "warm-earth" ||
+                themePref === "terracotta" ||
+                themePref === "midnight" ||
+                themePref === "auto"
+              ? themePref
+              : "auto";
+        const effectiveTheme =
+          resolvedThemePref === "auto" ? themeForHour : resolvedThemePref;
+        document.documentElement.dataset.theme = effectiveTheme;
+        document.documentElement.dataset.themeMode = resolvedThemePref;
+        document.documentElement.style.colorScheme =
+          effectiveTheme === "midnight" ? "dark" : "light";
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) {
+          themeMeta.setAttribute(
+            "content",
+            effectiveTheme === "midnight" ? "#0e303b" : effectiveTheme === "terracotta" ? "#fff9f9" : "#fef7f4"
+          );
         }
         const fontMigration = {
           "playfair-inter": "pairing-playfair",
@@ -37,7 +58,7 @@
         document.documentElement.dataset.homeDesign = homeDesign;
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=86" />
+    <link rel="stylesheet" href="styles.css?v=93" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -263,6 +284,7 @@
           <div class="appearance-content">
             <p class="appearance-label">Color scheme</p>
             <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color scheme"></div>
+            <p class="sync-hint theme-schedule-status" id="theme-schedule-status"></p>
             <p class="appearance-label">Font pairing</p>
             <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
             <p class="appearance-label">Home layout</p>
@@ -592,6 +614,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=87"></script>
+    <script src="app.js?v=92"></script>
   </body>
 </html>
