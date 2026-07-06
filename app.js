@@ -17,6 +17,7 @@ const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
 const HOME_DESIGN_KEY = "priority-grid-home-design";
+const TIME_PREVIEW_KEY = "priority-grid-time-preview";
 
 const HOME_DESIGNS = [
   { id: "apple", name: "Apple Music" },
@@ -46,6 +47,68 @@ const TIME_THEME_SLOTS = [
   { start: 12, label: "Afternoon", theme: "warm-earth" },
   { start: 17, label: "Evening", theme: "midnight" },
 ];
+
+const TIME_PREVIEW_OPTIONS = [
+  { id: "auto", name: "Auto (clock)", slot: null },
+  { id: "night", name: "Night", slot: TIME_THEME_SLOTS[0] },
+  { id: "morning", name: "Morning", slot: TIME_THEME_SLOTS[1] },
+  { id: "afternoon", name: "Afternoon", slot: TIME_THEME_SLOTS[2] },
+  { id: "evening", name: "Evening", slot: TIME_THEME_SLOTS[3] },
+];
+
+const HOME_HERO_WALLPAPERS = {
+  morning: {
+    mobile: "assets/home-hero-morning.png?v=1",
+    desktop: "assets/home-hero-morning-wide.png?v=1",
+  },
+  night: {
+    mobile: "assets/home-hero-night.png?v=1",
+    desktop: "assets/home-hero-night-wide.png?v=1",
+  },
+};
+
+function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
+  const slot = getActiveTimeSlot(hour);
+  return slot.theme === "midnight" ? "night" : "morning";
+}
+
+function applyHomeHeroWallpaper(hour = new Date().getHours()) {
+  const period = getHomeHeroWallpaperPeriod(hour);
+  const assets = HOME_HERO_WALLPAPERS[period];
+  document.documentElement.dataset.heroWallpaper = period;
+
+  const img = document.getElementById("presence-hero-bg");
+  const source = document.getElementById("presence-hero-source-desktop");
+  if (img && img.getAttribute("src") !== assets.mobile) img.src = assets.mobile;
+  if (source && source.getAttribute("srcset") !== assets.desktop) {
+    source.setAttribute("srcset", assets.desktop);
+  }
+}
+
+function getTimePreviewPreference() {
+  try {
+    const stored = localStorage.getItem(TIME_PREVIEW_KEY);
+    if (TIME_PREVIEW_OPTIONS.some((option) => option.id === stored)) return stored;
+  } catch {
+    /* ignore */
+  }
+  return "auto";
+}
+
+function getActiveTimeSlot(hour = new Date().getHours()) {
+  const preview = getTimePreviewPreference();
+  if (preview !== "auto") {
+    const option = TIME_PREVIEW_OPTIONS.find((entry) => entry.id === preview);
+    if (option?.slot) return option.slot;
+  }
+  return getCurrentThemeSlot(hour);
+}
+
+function getGreetingForTimeSlot(slot) {
+  if (slot.start === 5) return "Good morning";
+  if (slot.start === 12) return "Good afternoon";
+  return "Good evening";
+}
 
 const THEME_META_COLORS = {
   "warm-earth": "#fef7f4",
@@ -690,7 +753,13 @@ function getCurrentThemeSlot(hour = new Date().getHours()) {
 
 function getEffectiveTheme() {
   const preference = getThemePreference();
-  return preference === "auto" ? getThemeForHour() : preference;
+  if (preference !== "auto") return preference;
+  const preview = getTimePreviewPreference();
+  if (preview !== "auto") {
+    const option = TIME_PREVIEW_OPTIONS.find((entry) => entry.id === preview);
+    if (option?.slot) return option.slot.theme;
+  }
+  return getThemeForHour();
 }
 
 function getTheme() {
@@ -719,14 +788,34 @@ function applyTheme() {
   const status = document.getElementById("theme-schedule-status");
   if (status) {
     if (preference === "auto") {
-      const slot = getCurrentThemeSlot();
+      const slot = getActiveTimeSlot();
       const activeTheme = THEMES.find((t) => t.id === slot.theme);
-      status.textContent = `${slot.label} — using ${activeTheme?.name || slot.theme} until the next period.`;
+      const preview = getTimePreviewPreference();
+      if (preview === "auto") {
+        status.textContent = `${slot.label} — using ${activeTheme?.name || slot.theme} until the next period.`;
+      } else {
+        status.textContent = `Previewing ${slot.label} — ${activeTheme?.name || slot.theme} wallpaper and colors.`;
+      }
       status.classList.remove("hidden");
     } else {
       status.classList.add("hidden");
     }
   }
+
+  const timePreviewStatus = document.getElementById("time-preview-status");
+  if (timePreviewStatus) {
+    const preview = getTimePreviewPreference();
+    if (preview === "auto") {
+      const slot = getCurrentThemeSlot();
+      timePreviewStatus.textContent = `Following your clock — currently ${slot.label.toLowerCase()}.`;
+    } else {
+      const slot = getActiveTimeSlot();
+      timePreviewStatus.textContent = `Previewing ${slot.label.toLowerCase()} mode on home.`;
+    }
+  }
+
+  applyHomeHeroWallpaper();
+  setupDateHeader();
 }
 
 function tierTagClass(tier, planGroup = "") {
@@ -841,10 +930,8 @@ function formatHomeDate(date = new Date()) {
 
 function setupDateHeader() {
   const now = new Date();
-  const hour = now.getHours();
-  let greeting = "Good evening";
-  if (hour < 12) greeting = "Good morning";
-  else if (hour < 17) greeting = "Good afternoon";
+  const slot = getActiveTimeSlot(now.getHours());
+  const greeting = getGreetingForTimeSlot(slot);
 
   const greetingEl = document.getElementById("home-greeting-line");
   if (greetingEl) greetingEl.textContent = `${greeting},`;
@@ -1536,6 +1623,35 @@ function setupThemeSchedule() {
   window.setInterval(() => {
     if (getThemePreference() === "auto") applyTheme();
   }, 60_000);
+}
+
+function setTimePreview(previewId) {
+  localStorage.setItem(TIME_PREVIEW_KEY, previewId);
+  document.querySelectorAll(".time-preview-option").forEach((btn) => {
+    const isActive = btn.dataset.timePreview === previewId;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-checked", isActive);
+  });
+  applyTheme();
+}
+
+function setupTimePreviewPicker() {
+  const picker = document.getElementById("time-preview-picker");
+  if (!picker) return;
+  const current = getTimePreviewPreference();
+
+  picker.innerHTML = TIME_PREVIEW_OPTIONS.map(
+    (option) => `
+    <button type="button" class="theme-option time-preview-option${option.id === current ? " active" : ""}"
+      data-time-preview="${option.id}" role="radio" aria-checked="${option.id === current}"
+      aria-label="${option.name}">
+      <span class="theme-name">${option.name}</span>
+    </button>`
+  ).join("");
+
+  picker.querySelectorAll(".time-preview-option").forEach((btn) => {
+    btn.addEventListener("click", () => setTimePreview(btn.dataset.timePreview));
+  });
 }
 
 function setupThemePicker() {
@@ -2457,16 +2573,6 @@ const PRESENCE_PLAN_LABELS = {
 
 const PRESENCE_TIER_LABELS = ["Personal", "Work", "Wellness", "Focus"];
 
-const PLAN_CARD_ICONS = {
-  big: "icon-heart",
-  medium: "icon-briefcase",
-  small: "icon-wellness",
-  p1: "icon-heart",
-  p2: "icon-briefcase",
-  p3: "icon-wellness",
-  p4: "icon-heart",
-};
-
 const PRIORITY_CARD_VARIANTS = ["p1", "p2", "p3", "p4"];
 
 function planCardProgressRing(done, total) {
@@ -2487,32 +2593,16 @@ function planCardProgressRing(done, total) {
 
 function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done = 0, total = 0 }) {
   const listHtml = tasks.map((task) => planCardTaskHtml(task)).join("");
-  const iconId = PLAN_CARD_ICONS[variant] || "icon-star";
   const taskLabel = `${total} task${total === 1 ? "" : "s"}`;
 
   return `
     <article class="plan-card plan-card--${variant}">
-      <div class="plan-card-scenery" aria-hidden="true">
-        <img class="plan-card-scenery-img plan-card-scenery-img--${variant}" src="assets/home-hero-mountain.png?v=1" alt="" decoding="async" />
-      </div>
       <div class="plan-card-inner">
         <div class="plan-card-top-row">
-          <span class="plan-card-icon-box" aria-hidden="true">
-            <svg class="icon plan-card-icon" aria-hidden="true"><use href="#${iconId}"></use></svg>
-          </span>
+          <span class="plan-card-badge plan-card-badge--top" aria-hidden="true">${escapeHtml(number)}</span>
           <span class="plan-card-task-pill">${escapeHtml(taskLabel)}</span>
         </div>
-        <header class="plan-card-header plan-card-header--mobile">
-          <div class="plan-card-header-left">
-            <span class="plan-card-badge" aria-hidden="true">${escapeHtml(number)}</span>
-            <div class="plan-card-meta">
-              <h3 class="plan-card-title">${escapeHtml(title)}</h3>
-              <p class="plan-card-subtitle">${escapeHtml(subtitle)}</p>
-            </div>
-          </div>
-          ${planCardProgressRing(done, total)}
-        </header>
-        <h3 class="plan-card-title plan-card-title--desktop">${escapeHtml(title)}</h3>
+        <h3 class="plan-card-title plan-card-title--featured">${escapeHtml(title)}</h3>
         <div class="plan-card-body">
           ${listHtml ? `<ul class="plan-card-list">${listHtml}</ul>` : ""}
         </div>
@@ -2622,7 +2712,7 @@ function renderHomePriorities() {
   if (progress) progress.classList.add("hidden");
   empty.classList.add("hidden");
 
-  const cardsHtml = [1, 2, 3]
+  const cardsHtml = [1, 2, 3, 4]
     .map((tier, index) => {
       const tasks = getTasksByTierForHome(tier, 3);
       const done = tasks.filter((t) => t.done).length;
@@ -3613,6 +3703,7 @@ applyTheme();
 
 setupDateHeader();
 setupThemePicker();
+setupTimePreviewPicker();
 setupThemeSchedule();
 setupFontPicker();
 setupHomeDesignPicker();

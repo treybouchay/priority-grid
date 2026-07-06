@@ -56,10 +56,12 @@
         }
         const homeDesign = localStorage.getItem("priority-grid-home-design") || "classic";
         document.documentElement.dataset.homeDesign = homeDesign;
+        document.documentElement.dataset.heroWallpaper =
+          hour >= 5 && hour < 17 ? "morning" : "night";
       } catch {}
     </script>
     <link rel="stylesheet" href="styles.css?v=99" />
-    <link rel="stylesheet" href="design/home-presence.css?v=8" />
+    <link rel="stylesheet" href="design/home-presence.css?v=12" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -290,6 +292,9 @@
         <details class="appearance-panel" id="appearance-panel">
           <summary class="appearance-breadcrumb">Settings</summary>
           <div class="appearance-content">
+            <p class="appearance-label">Time of day</p>
+            <div class="theme-picker" id="time-preview-picker" role="radiogroup" aria-label="Time of day preview"></div>
+            <p class="sync-hint" id="time-preview-status"></p>
             <p class="appearance-label">Color scheme</p>
             <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color scheme"></div>
             <p class="sync-hint theme-schedule-status" id="theme-schedule-status"></p>
@@ -320,8 +325,8 @@
         <div class="page-panel" id="home-page">
           <section class="presence-hero" aria-label="Focus">
             <picture class="presence-hero-picture">
-              <source media="(min-width: 769px)" srcset="assets/home-hero-mountain-wide.png?v=1" />
-              <img class="presence-hero-bg" src="assets/home-hero-mountain.png?v=1" alt="" decoding="async" />
+              <source id="presence-hero-source-desktop" media="(min-width: 769px)" srcset="assets/home-hero-morning-wide.png?v=1" />
+              <img class="presence-hero-bg" id="presence-hero-bg" src="assets/home-hero-morning.png?v=1" alt="" decoding="async" />
             </picture>
             <div class="presence-hero-gradient" aria-hidden="true"></div>
             <div class="presence-hero-toolbar" aria-label="Quick actions">
@@ -751,6 +756,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=102"></script>
+    <script src="app.js?v=107"></script>
   </body>
 </html>

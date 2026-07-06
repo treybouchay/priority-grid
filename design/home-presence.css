@@ -31,14 +31,15 @@ body[data-page="home"] .plan-card-grid--priorities {
 }
 
 body[data-page="home"] .plan-card {
-  min-height: 0;
-  border-radius: 1.5rem;
+  position: relative;
+  min-height: 280px;
+  border-radius: 2rem;
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  padding: 1.25rem;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -52,26 +53,18 @@ body[data-page="home"] .plan-card--p4 {
   background: rgba(255, 255, 255, 0.5);
 }
 
-body[data-page="home"] .plan-card-header {
-  padding: 0;
-  gap: 1rem;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-body[data-page="home"] .plan-card-header-left {
+body[data-page="home"] .plan-card-top-row {
   display: flex;
-  gap: 1rem;
+  justify-content: space-between;
   align-items: flex-start;
-  min-width: 0;
-  flex: 1;
+  margin-bottom: auto;
 }
 
-body[data-page="home"] .plan-card-meta {
-  flex: 0 1 auto;
-}
-
-body[data-page="home"] .plan-card-badge {
+body[data-page="home"] .plan-card-badge--top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
@@ -82,80 +75,97 @@ body[data-page="home"] .plan-card-badge {
   border: none;
 }
 
-body[data-page="home"] .plan-card--big .plan-card-badge,
-body[data-page="home"] .plan-card--p1 .plan-card-badge {
-  background: #ffedd5;
-  color: #c76b4d;
-}
-
-body[data-page="home"] .plan-card--medium .plan-card-badge,
-body[data-page="home"] .plan-card--p2 .plan-card-badge {
+body[data-page="home"] .plan-card-task-pill {
+  font-family: "Manrope", var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
   background: #0e3030;
   color: #ffffff;
 }
 
-body[data-page="home"] .plan-card--small .plan-card-badge,
-body[data-page="home"] .plan-card--p3 .plan-card-badge {
-  background: #e2e8f0;
-  color: #334155;
+body[data-page="home"] .plan-card-title--featured {
+  display: block;
+  margin: 0 0 1rem;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #11302c;
 }
 
-body[data-page="home"] .plan-card--p4 .plan-card-badge {
+body[data-page="home"] .plan-card--big .plan-card-badge--top,
+body[data-page="home"] .plan-card--p1 .plan-card-badge--top {
   background: #ffedd5;
   color: #c76b4d;
 }
 
-body[data-page="home"] .plan-card-title {
-  font-family: var(--font-heading);
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #11302c;
+body[data-page="home"] .plan-card--medium .plan-card-badge--top,
+body[data-page="home"] .plan-card--p2 .plan-card-badge--top {
+  background: #0e3030;
+  color: #ffffff;
 }
 
-body[data-page="home"] .plan-card-subtitle {
-  font-family: "Manrope", var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #6b7280;
-  opacity: 1;
+body[data-page="home"] .plan-card--small .plan-card-badge--top,
+body[data-page="home"] .plan-card--p3 .plan-card-badge--top {
+  background: #e2e8f0;
+  color: #334155;
 }
 
-body[data-page="home"] .plan-card--medium .plan-card-subtitle,
-body[data-page="home"] .plan-card--p2 .plan-card-subtitle {
-  color: #11302c;
-  opacity: 0.6;
+body[data-page="home"] .plan-card--p4 .plan-card-badge--top {
+  background: #ffedd5;
+  color: #c76b4d;
 }
 
-body[data-page="home"] .plan-card-progress-track {
-  stroke: #e5e7eb;
-  stroke-width: 4;
+body[data-page="home"] .plan-card-scenery {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 
-body[data-page="home"] .plan-card--big .plan-card-progress-fill,
-body[data-page="home"] .plan-card--p1 .plan-card-progress-fill,
-body[data-page="home"] .plan-card--p4 .plan-card-progress-fill {
-  stroke: #c76b4d;
+body[data-page="home"] .plan-card-scenery-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  max-height: none;
+  margin: 0;
+  display: block;
+  opacity: 0.28;
+  object-fit: cover;
+  object-position: center;
+  transform: none;
+  transition: transform 0.7s ease, opacity 0.3s ease;
 }
 
-body[data-page="home"] .plan-card--medium .plan-card-progress-fill,
-body[data-page="home"] .plan-card--p2 .plan-card-progress-fill {
-  stroke: #0f766e;
+body[data-page="home"] .plan-card:hover .plan-card-scenery-img {
+  transform: scale(1.06);
+  opacity: 0.34;
 }
 
-body[data-page="home"] .plan-card--small .plan-card-progress-fill,
-body[data-page="home"] .plan-card--p3 .plan-card-progress-fill {
-  stroke: #94a3b8;
-}
-
-body[data-page="home"] .plan-card-progress-label {
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: #11302c;
+body[data-page="home"] .plan-card-inner {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  min-height: 280px;
 }
 
 body[data-page="home"] .plan-card-body {
   padding: 0;
-  margin-top: 1.5rem;
+  margin-top: 0;
   flex: none;
 }
 
@@ -210,25 +220,21 @@ body[data-page="home"] .plan-card-drag {
   color: #11302c;
 }
 
-body[data-page="home"] .plan-card-scenery {
-  display: block;
-}
-
-body[data-page="home"] .plan-card-scenery-img {
-  position: absolute;
-  bottom: 0;
+body[data-page="home"] .plan-card-scenery-img--big,
+body[data-page="home"] .plan-card-scenery-img--medium,
+body[data-page="home"] .plan-card-scenery-img--small,
+body[data-page="home"] .plan-card-scenery-img--p1,
+body[data-page="home"] .plan-card-scenery-img--p2,
+body[data-page="home"] .plan-card-scenery-img--p3,
+body[data-page="home"] .plan-card-scenery-img--p4 {
+  top: 0;
+  left: 0;
   right: 0;
-  left: auto;
-  top: auto;
-  transform: none;
-  width: 50%;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   max-height: none;
-  height: auto;
-  opacity: 0.1;
-  object-fit: cover;
-  object-position: bottom right;
-  mask-image: none;
-  -webkit-mask-image: none;
+  transform: none;
 }
 
 body[data-page="home"] .plan-card-scenery-img--big,
@@ -479,13 +485,17 @@ body[data-page="home"] .presence-plan-header {
     grid-template-columns: 1fr;
   }
 
-  body[data-page="home"] .plan-card-top-row,
-  body[data-page="home"] .plan-card-title--desktop {
-    display: none;
+  body[data-page="home"] .plan-card {
+    min-height: 300px;
   }
 
-  body[data-page="home"] .plan-card-header--mobile {
-    display: flex;
+  body[data-page="home"] .plan-card-inner {
+    min-height: 300px;
+    padding: 1.25rem;
+  }
+
+  body[data-page="home"] .plan-card-title--featured {
+    font-size: 1.125rem;
   }
 
   body[data-page="home"] .presence-plan-accent,
@@ -628,8 +638,6 @@ body[data-page="home"] .presence-hero-picture {
 body[data-page="home"] .presence-hero-toolbar,
 body[data-page="home"] .presence-plan-accent,
 body[data-page="home"] .presence-home-extras,
-body[data-page="home"] .plan-card-top-row,
-body[data-page="home"] .plan-card-title--desktop,
 body[data-page="home"] .section-link-text--desktop {
   display: none;
 }
@@ -864,70 +872,10 @@ body[data-page="home"] .section-link--plan svg {
     min-height: 340px;
   }
 
-  body[data-page="home"] .plan-card-scenery-img {
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.3;
-    object-fit: cover;
-    object-position: center;
-    transition: transform 0.7s ease;
-  }
-
-  body[data-page="home"] .plan-card:hover .plan-card-scenery-img {
-    transform: scale(1.08);
-  }
-
-  body[data-page="home"] .plan-card-top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: auto;
-  }
-
-  body[data-page="home"] .plan-card-icon-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 1rem;
-    background: #ffffff;
-    box-shadow: 0 2px 8px rgba(14, 48, 48, 0.08);
-    color: #0e3030;
-  }
-
-  body[data-page="home"] .plan-card-icon {
-    width: 1.375rem;
-    height: 1.375rem;
-  }
-
-  body[data-page="home"] .plan-card-task-pill {
-    font-family: "Manrope", var(--font-body);
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    padding: 0.35rem 0.75rem;
-    border-radius: 999px;
-    background: #0e3030;
-    color: #ffffff;
-  }
-
-  body[data-page="home"] .plan-card-header--mobile {
-    display: none;
-  }
-
-  body[data-page="home"] .plan-card-title--desktop {
-    display: block;
-    margin: 0 0 1rem;
-    font-family: var(--font-heading);
+  body[data-page="home"] .plan-card-title--featured {
     font-size: 1.5rem;
     font-weight: 600;
     color: #0e3030;
-  }
-
-  body[data-page="home"] .plan-card-body {
-    margin-top: 0;
   }
 
   body[data-page="home"] .plan-card-task-text {
@@ -1127,5 +1075,55 @@ body[data-page="home"] .section-link--plan svg {
 
   body[data-page="home"] .presence-hero-toolbar {
     right: 3rem;
+  }
+}
+
+/* Hero wallpapers — morning / night */
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-hero-bg {
+  object-position: center 32%;
+}
+
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-hero-gradient {
+  background: linear-gradient(
+    to bottom,
+    rgba(14, 48, 48, 0.05) 0%,
+    rgba(14, 48, 48, 0.25) 50%,
+    rgba(253, 249, 244, 0.88) 88%,
+    rgba(253, 249, 244, 1) 100%
+  );
+}
+
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-time,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-name,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-date,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-label,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-title,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-notify-btn {
+  color: #eef8f7;
+}
+
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-time,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-date,
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-label {
+  opacity: 0.85;
+}
+
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-notify-dot {
+  border-color: #0e3030;
+}
+
+@media (min-width: 769px) {
+  html[data-hero-wallpaper="night"] body[data-page="home"] .presence-hero-gradient {
+    background: linear-gradient(
+      to top,
+      #fff9f5 0%,
+      rgba(255, 249, 245, 0.82) 16%,
+      rgba(14, 48, 48, 0.45) 52%,
+      rgba(14, 48, 48, 0.15) 100%
+    );
+  }
+
+  html[data-hero-wallpaper="night"] body[data-page="home"] .presence-hero-bg {
+    object-position: center center;
   }
 }
