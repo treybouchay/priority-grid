@@ -56,8 +56,12 @@
         }
         const homeDesign = localStorage.getItem("priority-grid-home-design") || "classic";
         document.documentElement.dataset.homeDesign = homeDesign;
-        document.documentElement.dataset.heroWallpaper =
-          hour >= 5 && hour < 17 ? "morning" : "night";
+        document.documentElement.dataset.heroWallpaper = (() => {
+          const h = hour;
+          if (h >= 17 || h < 5) return "night";
+          if (h >= 12) return "afternoon";
+          return "morning";
+        })();
       } catch {}
     </script>
     <link rel="stylesheet" href="styles.css?v=99" />
@@ -756,6 +760,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=107"></script>
+    <script src="app.js?v=108"></script>
   </body>
 </html>

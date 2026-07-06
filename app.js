@@ -61,6 +61,10 @@ const HOME_HERO_WALLPAPERS = {
     mobile: "assets/home-hero-morning.png?v=1",
     desktop: "assets/home-hero-morning-wide.png?v=1",
   },
+  afternoon: {
+    mobile: "assets/home-hero-afternoon.png?v=1",
+    desktop: "assets/home-hero-afternoon-wide.png?v=1",
+  },
   night: {
     mobile: "assets/home-hero-night.png?v=1",
     desktop: "assets/home-hero-night-wide.png?v=1",
@@ -69,7 +73,9 @@ const HOME_HERO_WALLPAPERS = {
 
 function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
   const slot = getActiveTimeSlot(hour);
-  return slot.theme === "midnight" ? "night" : "morning";
+  if (slot.start === 0 || slot.start === 17) return "night";
+  if (slot.start === 12) return "afternoon";
+  return "morning";
 }
 
 function applyHomeHeroWallpaper(hour = new Date().getHours()) {
