@@ -58,11 +58,12 @@
         document.documentElement.dataset.homeDesign = homeDesign;
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=93" />
+    <link rel="stylesheet" href="styles.css?v=99" />
+    <link rel="stylesheet" href="design/home-presence.css?v=8" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -98,6 +99,13 @@
       </symbol>
       <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="m12 3 2.2 4.8L19 8.5l-3.8 3.3 1.2 5.2L12 14.8 7.6 17l1.2-5.2L5 8.5l4.8-.7L12 3Z"/>
+      </symbol>
+      <symbol id="icon-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      </symbol>
+      <symbol id="icon-wellness" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2" />
+        <path d="M12 7v3M7 14l-1.5 6h13L17 14M9.5 14h5" />
       </symbol>
       <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7"/>
@@ -310,37 +318,105 @@
 
         <!-- Home / Dashboard -->
         <div class="page-panel" id="home-page">
-          <header class="home-intro">
-            <h1 class="home-greeting" id="home-greeting">
-              <span class="home-greeting-part home-greeting-part--time" id="home-greeting-line">Good morning</span>
-              <span class="home-greeting-part home-greeting-part--name">Trey <span class="home-greeting-wave" aria-hidden="true">👋</span></span>
-            </h1>
-            <p class="home-date" id="home-date"></p>
-          </header>
-
-          <section class="focus-hero" aria-label="Focus">
-            <div class="focus-hero-card">
-              <img class="focus-hero-bg" src="assets/home-hero-banner.png?v=48" alt="" decoding="async" />
-              <div class="focus-hero-overlay">
-                <div class="focus-hero-content">
-                  <p class="focus-hero-label">FOCUS</p>
-                  <h2 class="focus-hero-title">Take care of what sparks joy.</h2>
-                  <button type="button" class="focus-hero-btn" id="focus-reflection-btn">View Reflection</button>
+          <section class="presence-hero" aria-label="Focus">
+            <picture class="presence-hero-picture">
+              <source media="(min-width: 769px)" srcset="assets/home-hero-mountain-wide.png?v=1" />
+              <img class="presence-hero-bg" src="assets/home-hero-mountain.png?v=1" alt="" decoding="async" />
+            </picture>
+            <div class="presence-hero-gradient" aria-hidden="true"></div>
+            <div class="presence-hero-toolbar" aria-label="Quick actions">
+              <button type="button" class="presence-toolbar-btn" aria-label="Search">
+                <svg class="icon icon-header" aria-hidden="true"><use href="#icon-search"></use></svg>
+              </button>
+              <button type="button" class="presence-toolbar-btn presence-toolbar-btn-bell" aria-label="Notifications">
+                <svg class="icon icon-header" aria-hidden="true"><use href="#icon-bell"></use></svg>
+                <span class="presence-notify-dot" aria-hidden="true"></span>
+              </button>
+              <span class="presence-toolbar-divider" aria-hidden="true"></span>
+              <button type="button" class="presence-toolbar-add" id="presence-hero-add-task">Add Task</button>
+            </div>
+            <div class="presence-hero-inner">
+              <div class="presence-hero-top">
+                <div class="presence-greeting">
+                  <p class="presence-greeting-time" id="home-greeting-line">Good morning,</p>
+                  <h1 class="presence-greeting-name">Trey <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
+                  <p class="presence-greeting-date" id="home-date"></p>
                 </div>
+                <button type="button" class="presence-notify-btn" aria-label="Notifications">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="presence-notify-dot" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="presence-focus">
+                <p class="presence-focus-label">FOCUS</p>
+                <h2 class="presence-focus-title">Take care of what sparks joy.</h2>
+                <button type="button" class="presence-focus-btn" id="focus-reflection-btn">
+                  <span>View Reflection</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                    <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
               </div>
             </div>
           </section>
 
-          <section class="top-priorities">
-            <header class="section-header section-header--plan">
-              <h3 class="section-title section-title--plan" id="home-priority-title">Today's Plan</h3>
-              <button type="button" class="section-link section-link--plan" id="home-view-tasks">View all</button>
-            </header>
-            <p class="home-priority-progress hidden" id="home-priority-progress"></p>
-            <div id="home-priority-content">
-              <ul class="priority-preview-list" id="home-priority-list"></ul>
+          <section class="presence-plan">
+            <div class="presence-plan-sheet">
+              <header class="section-header section-header--plan presence-plan-header">
+                <div class="presence-plan-heading">
+                  <h3 class="section-title section-title--plan" id="home-priority-title">Today's Plan</h3>
+                  <div class="presence-plan-accent" aria-hidden="true"></div>
+                </div>
+                <button type="button" class="section-link section-link--plan" id="home-view-tasks">
+                  <span class="section-link-text section-link-text--mobile">View all</span>
+                  <span class="section-link-text section-link-text--desktop">View Schedule</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                    <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </header>
+              <p class="home-priority-progress hidden" id="home-priority-progress"></p>
+              <div id="home-priority-content">
+                <ul class="priority-preview-list" id="home-priority-list"></ul>
+              </div>
+              <p class="priority-preview-empty hidden" id="home-priority-empty">No open priorities yet — add a task to get started.</p>
             </div>
-            <p class="priority-preview-empty hidden" id="home-priority-empty">No open priorities yet — add a task to get started.</p>
+          </section>
+
+          <section class="presence-home-extras" aria-label="Insights">
+            <div class="presence-focus-flow">
+              <div class="presence-focus-flow-head">
+                <h4 class="presence-extras-title">Your Focus Flow</h4>
+                <div class="presence-flow-tabs" role="tablist" aria-label="Focus flow range">
+                  <button type="button" class="presence-flow-tab active" aria-pressed="true">Week</button>
+                  <button type="button" class="presence-flow-tab" aria-pressed="false">Month</button>
+                </div>
+              </div>
+              <div class="presence-flow-chart" aria-hidden="true">
+                <div class="presence-flow-bar" style="--h: 40%"><span>Mon</span></div>
+                <div class="presence-flow-bar" style="--h: 65%"><span>Tue</span></div>
+                <div class="presence-flow-bar" style="--h: 85%"><span>Wed</span></div>
+                <div class="presence-flow-bar" style="--h: 50%"><span>Thu</span></div>
+                <div class="presence-flow-bar" style="--h: 75%"><span>Fri</span></div>
+                <div class="presence-flow-bar presence-flow-bar--muted" style="--h: 20%"><span>Sat</span></div>
+                <div class="presence-flow-bar presence-flow-bar--muted" style="--h: 15%"><span>Sun</span></div>
+              </div>
+            </div>
+            <aside class="presence-daily-insight">
+              <h4 class="presence-extras-title">Daily Insight</h4>
+              <p class="presence-insight-quote">"The forest does not rush, yet everything is accomplished."</p>
+              <div class="presence-insight-upnext">
+                <p class="presence-insight-label">UP NEXT</p>
+                <p class="presence-insight-event">Strategic Planning Session</p>
+                <p class="presence-insight-time">2:00 PM – 3:30 PM</p>
+                <button type="button" class="presence-insight-btn">Prepare Notes</button>
+              </div>
+            </aside>
           </section>
         </div>
 
@@ -516,24 +592,35 @@
       </div>
     </div>
 
-    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile">
-      <button type="button" class="mobile-nav-item" data-page="home" aria-label="Home">
-        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-home"></use></svg>
-        <span class="mobile-nav-label">Home</span>
-      </button>
-      <button type="button" class="mobile-nav-item" data-page="tasks" data-filter="all" aria-label="Tasks">
-        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-tasks"></use></svg>
-        <span class="mobile-nav-label">Tasks</span>
-      </button>
-      <button type="button" class="mobile-nav-item" data-page="history" aria-label="History">
-        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-        <span class="mobile-nav-label">History</span>
-      </button>
-      <button type="button" class="mobile-nav-item" data-nav="profile" aria-label="Profile">
-        <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-user"></use></svg>
-        <span class="mobile-nav-label">Profile</span>
-      </button>
-    </nav>
+    <div class="mobile-nav-shell">
+      <div class="mobile-nav-fab-wrap">
+        <button type="button" class="mobile-nav-fab" id="mobile-nav-fab" aria-label="Add task">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <line x1="12" x2="12" y1="5" y2="19" stroke-linecap="round" />
+            <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile">
+        <button type="button" class="mobile-nav-item" data-page="home" aria-label="Home">
+          <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-home"></use></svg>
+          <span class="mobile-nav-label">Home</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-page="tasks" data-filter="all" aria-label="Tasks">
+          <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-tasks"></use></svg>
+          <span class="mobile-nav-label">Tasks</span>
+        </button>
+        <span class="mobile-nav-spacer" aria-hidden="true"></span>
+        <button type="button" class="mobile-nav-item" data-page="history" aria-label="History">
+          <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+          <span class="mobile-nav-label">History</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-nav="profile" aria-label="Profile">
+          <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-user"></use></svg>
+          <span class="mobile-nav-label">Profile</span>
+        </button>
+      </nav>
+    </div>
 
     <dialog class="forget-it-picker-dialog" id="forget-it-picker-dialog">
       <div class="plan-135-picker-inner">
@@ -587,16 +674,66 @@
     </dialog>
 
     <dialog class="reflection-dialog" id="reflection-dialog">
-      <div class="reflection-inner">
-        <header class="reflection-header">
-          <div>
-            <h3 class="reflection-title">Yesterday's wins</h3>
-            <p class="reflection-date" id="reflection-date"></p>
-            <p class="reflection-count" id="reflection-count"></p>
+      <div class="reflection-screen">
+        <header class="reflection-screen-header">
+          <span class="reflection-screen-label">Reflection</span>
+          <div class="reflection-progress" aria-hidden="true">
+            <span class="reflection-progress-step"></span>
+            <span class="reflection-progress-step reflection-progress-step--active">
+              <span class="reflection-progress-dot"></span>
+            </span>
+            <span class="reflection-progress-step"></span>
           </div>
-          <button type="button" class="reflection-close" id="reflection-close" aria-label="Close">×</button>
         </header>
-        <ul class="reflection-list" id="reflection-list"></ul>
+
+        <section class="reflection-hero">
+          <h1 class="reflection-hero-title">Take care of<br>what sparks joy.</h1>
+          <p class="reflection-hero-subtitle">What brought you joy today?</p>
+        </section>
+
+        <section class="reflection-input">
+          <div class="reflection-input-card">
+            <div class="reflection-input-main">
+              <textarea
+                id="reflection-text"
+                class="reflection-textarea"
+                maxlength="500"
+                placeholder="Write your thoughts..."
+                rows="4"
+              ></textarea>
+              <svg class="reflection-input-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2l2.4 7.2h7.6l-6.1 4.4 2.3 7.2-6.2-4.5-6.2 4.5 2.3-7.2-6.1-4.4h7.6z" />
+              </svg>
+            </div>
+            <div class="reflection-input-footer">
+              <svg class="reflection-input-star reflection-input-star--small" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2l2.4 7.2h7.6l-6.1 4.4 2.3 7.2-6.2-4.5-6.2 4.5 2.3-7.2-6.1-4.4h7.6z" />
+              </svg>
+              <span class="reflection-char-count" id="reflection-char-count">0 / 500</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="reflection-prompts">
+          <div class="reflection-prompts-header">
+            <h2 class="reflection-prompts-title">Quick prompts</h2>
+            <button type="button" class="reflection-prompts-refresh" id="reflection-prompts-refresh" aria-label="Refresh prompts">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="reflection-prompts-list" id="reflection-prompts-list"></div>
+        </section>
+
+        <footer class="reflection-footer">
+          <button type="button" class="reflection-continue-btn" id="reflection-continue">
+            <span>Continue</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </footer>
       </div>
     </dialog>
 
@@ -614,6 +751,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=92"></script>
+    <script src="app.js?v=102"></script>
   </body>
 </html>

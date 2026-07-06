@@ -847,7 +847,7 @@ function setupDateHeader() {
   else if (hour < 17) greeting = "Good afternoon";
 
   const greetingEl = document.getElementById("home-greeting-line");
-  if (greetingEl) greetingEl.textContent = greeting;
+  if (greetingEl) greetingEl.textContent = `${greeting},`;
 
   const dateEl = document.getElementById("home-date");
   if (dateEl) dateEl.textContent = formatHomeDate(now);
@@ -1515,6 +1515,14 @@ function setupNavigation() {
   if (sidebarProfileBtn) {
     sidebarProfileBtn.addEventListener("click", openAppearancePanel);
   }
+
+  document.getElementById("mobile-nav-fab")?.addEventListener("click", () => {
+    openTaskDialog(1);
+  });
+
+  document.getElementById("presence-hero-add-task")?.addEventListener("click", () => {
+    openTaskDialog(1);
+  });
 }
 
 function setTheme(themeId) {
@@ -1949,71 +1957,112 @@ function getTasksCompletedYesterday() {
   return tasks;
 }
 
-function reflectionYesterdayLabel() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+const REFLECTION_JOURNAL_KEY = "priority-grid-reflection-journal";
+
+const REFLECTION_PROMPT_POOL = [
+  { emoji: "🏆", text: "A small win I'm proud of" },
+  { emoji: "😊", text: "A moment that made me smile" },
+  { emoji: "💛", text: "Someone I'm grateful for" },
+  { emoji: "⚡", text: "Something that energized me" },
+  { emoji: "🌿", text: "A quiet moment I noticed" },
+  { emoji: "🎯", text: "Something I moved forward on" },
+  { emoji: "☀️", text: "What felt easy today" },
+  { emoji: "🤝", text: "A kind gesture I received" },
+];
+
+function reflectionTodayKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function renderReflectionContent() {
-  const list = document.getElementById("reflection-list");
-  const tasks = getTasksCompletedYesterday();
-  document.getElementById("reflection-date").textContent = reflectionYesterdayLabel();
-
-  const countEl = document.getElementById("reflection-count");
-  if (countEl) {
-    countEl.textContent =
-      tasks.length === 0
-        ? ""
-        : tasks.length === 1
-          ? "1 task completed"
-          : `${tasks.length} tasks completed`;
+function loadReflectionJournal() {
+  try {
+    const raw = localStorage.getItem(REFLECTION_JOURNAL_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
   }
+}
 
-  if (tasks.length === 0) {
-    list.innerHTML =
-      '<li class="reflection-empty">No tasks completed yesterday. Rest up or aim for a fresh win today.</li>';
-    return;
+function saveReflectionJournal(text) {
+  const journal = loadReflectionJournal();
+  journal[reflectionTodayKey()] = text;
+  localStorage.setItem(REFLECTION_JOURNAL_KEY, JSON.stringify(journal));
+}
+
+function shuffleReflectionPrompts(count = 4) {
+  const pool = [...REFLECTION_PROMPT_POOL];
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
   }
+  return pool.slice(0, count);
+}
 
-  const byCtx = new Map();
-  tasks.forEach((t) => {
-    if (!byCtx.has(t.context)) byCtx.set(t.context, []);
-    byCtx.get(t.context).push(t);
-  });
+function renderReflectionPrompts(prompts) {
+  const list = document.getElementById("reflection-prompts-list");
+  if (!list) return;
+  list.innerHTML = prompts
+    .map(
+      (prompt) => `
+    <button type="button" class="reflection-prompt-btn" data-prompt="${escapeHtml(prompt.text)}">
+      <span class="reflection-prompt-emoji" aria-hidden="true">${prompt.emoji}</span>
+      <span>${escapeHtml(prompt.text)}</span>
+    </button>`
+    )
+    .join("");
+}
 
-  let html = "";
-  CONTEXTS.forEach((ctx) => {
-    const ctxTasks = byCtx.get(ctx);
-    if (!ctxTasks?.length) return;
-    const label = ctx === "work" ? "Work" : "Home";
-    html += `<li class="reflection-context-heading">${label}</li>`;
-
-    const tiers = [...new Set(ctxTasks.map((t) => t.tier))].sort((a, b) => a - b);
-    const multiTier = tiers.length > 1;
-
-    tiers.forEach((tier) => {
-      const tierTasks = ctxTasks.filter((t) => t.tier === tier);
-      if (multiTier) {
-        html += `<li class="reflection-tier-heading">${TIER_NAMES[tier - 1]}</li>`;
-      }
-      tierTasks.forEach((task) => {
-        html += `<li class="reflection-item"><span class="reflection-check" aria-hidden="true">✓</span><span class="reflection-text">${escapeHtml(task.text)}</span></li>`;
-      });
-    });
-  });
-  list.innerHTML = html;
+function updateReflectionCharCount() {
+  const textarea = document.getElementById("reflection-text");
+  const countEl = document.getElementById("reflection-char-count");
+  if (!textarea || !countEl) return;
+  countEl.textContent = `${textarea.value.length} / 500`;
 }
 
 function openReflectionDialog() {
-  renderReflectionContent();
-  document.getElementById("reflection-dialog").showModal();
+  const dialog = document.getElementById("reflection-dialog");
+  const textarea = document.getElementById("reflection-text");
+  if (!dialog || !textarea) return;
+
+  const journal = loadReflectionJournal();
+  textarea.value = journal[reflectionTodayKey()] || "";
+  updateReflectionCharCount();
+  renderReflectionPrompts(shuffleReflectionPrompts());
+  dialog.showModal();
+  textarea.focus();
 }
 
 function setupReflection() {
-  document.getElementById("focus-reflection-btn").addEventListener("click", openReflectionDialog);
-  document.getElementById("reflection-close").addEventListener("click", () => {
-    document.getElementById("reflection-dialog").close();
+  const dialog = document.getElementById("reflection-dialog");
+  const textarea = document.getElementById("reflection-text");
+  const refreshBtn = document.getElementById("reflection-prompts-refresh");
+  const continueBtn = document.getElementById("reflection-continue");
+  const promptsList = document.getElementById("reflection-prompts-list");
+
+  document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
+
+  textarea?.addEventListener("input", updateReflectionCharCount);
+
+  refreshBtn?.addEventListener("click", () => {
+    renderReflectionPrompts(shuffleReflectionPrompts());
+  });
+
+  promptsList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".reflection-prompt-btn");
+    if (!btn || !textarea) return;
+    const prompt = btn.dataset.prompt;
+    if (!prompt) return;
+    const prefix = textarea.value.trim() ? `${textarea.value.trim()}\n\n` : "";
+    textarea.value = `${prefix}${prompt}: `;
+    updateReflectionCharCount();
+    textarea.focus();
+  });
+
+  continueBtn?.addEventListener("click", () => {
+    if (textarea) saveReflectionJournal(textarea.value.trim());
+    dialog?.close();
   });
 }
 
@@ -2400,17 +2449,34 @@ function planCardTaskHtml(task) {
     </li>`;
 }
 
+const PRESENCE_PLAN_LABELS = {
+  big: "Personal",
+  medium: "Work",
+  small: "Wellness",
+};
+
+const PRESENCE_TIER_LABELS = ["Personal", "Work", "Wellness", "Focus"];
+
+const PLAN_CARD_ICONS = {
+  big: "icon-heart",
+  medium: "icon-briefcase",
+  small: "icon-wellness",
+  p1: "icon-heart",
+  p2: "icon-briefcase",
+  p3: "icon-wellness",
+  p4: "icon-heart",
+};
+
 const PRIORITY_CARD_VARIANTS = ["p1", "p2", "p3", "p4"];
 
 function planCardProgressRing(done, total) {
-  if (total === 0) return "";
   const pct = total > 0 ? done / total : 0;
   const r = 20;
   const cx = 24;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - pct);
   return `
-    <div class="plan-card-progress" role="progressbar" aria-valuenow="${done}" aria-valuemin="0" aria-valuemax="${total}">
+    <div class="plan-card-progress" role="progressbar" aria-valuenow="${done}" aria-valuemin="0" aria-valuemax="${Math.max(total, 1)}">
       <svg class="plan-card-progress-ring" viewBox="0 0 48 48" aria-hidden="true">
         <circle class="plan-card-progress-track" cx="${cx}" cy="${cx}" r="${r}" />
         <circle class="plan-card-progress-fill" cx="${cx}" cy="${cx}" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
@@ -2421,22 +2487,35 @@ function planCardProgressRing(done, total) {
 
 function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done = 0, total = 0 }) {
   const listHtml = tasks.map((task) => planCardTaskHtml(task)).join("");
+  const iconId = PLAN_CARD_ICONS[variant] || "icon-star";
+  const taskLabel = `${total} task${total === 1 ? "" : "s"}`;
 
   return `
     <article class="plan-card plan-card--${variant}">
-      <header class="plan-card-header">
-        <span class="plan-card-badge" aria-hidden="true">${escapeHtml(number)}</span>
-        <div class="plan-card-meta">
-          <h3 class="plan-card-title">${escapeHtml(title)}</h3>
-          <p class="plan-card-subtitle">${escapeHtml(subtitle)}</p>
-        </div>
-        ${planCardProgressRing(done, total)}
-      </header>
-      <div class="plan-card-body">
-        ${listHtml ? `<ul class="plan-card-list">${listHtml}</ul>` : ""}
-      </div>
       <div class="plan-card-scenery" aria-hidden="true">
-        <img class="plan-card-scenery-img" src="assets/sidebar-landscape.png?v=68" alt="" decoding="async" />
+        <img class="plan-card-scenery-img plan-card-scenery-img--${variant}" src="assets/home-hero-mountain.png?v=1" alt="" decoding="async" />
+      </div>
+      <div class="plan-card-inner">
+        <div class="plan-card-top-row">
+          <span class="plan-card-icon-box" aria-hidden="true">
+            <svg class="icon plan-card-icon" aria-hidden="true"><use href="#${iconId}"></use></svg>
+          </span>
+          <span class="plan-card-task-pill">${escapeHtml(taskLabel)}</span>
+        </div>
+        <header class="plan-card-header plan-card-header--mobile">
+          <div class="plan-card-header-left">
+            <span class="plan-card-badge" aria-hidden="true">${escapeHtml(number)}</span>
+            <div class="plan-card-meta">
+              <h3 class="plan-card-title">${escapeHtml(title)}</h3>
+              <p class="plan-card-subtitle">${escapeHtml(subtitle)}</p>
+            </div>
+          </div>
+          ${planCardProgressRing(done, total)}
+        </header>
+        <h3 class="plan-card-title plan-card-title--desktop">${escapeHtml(title)}</h3>
+        <div class="plan-card-body">
+          ${listHtml ? `<ul class="plan-card-list">${listHtml}</ul>` : ""}
+        </div>
       </div>
     </article>`;
 }
@@ -2543,7 +2622,7 @@ function renderHomePriorities() {
   if (progress) progress.classList.add("hidden");
   empty.classList.add("hidden");
 
-  const cardsHtml = [1, 2, 3, 4]
+  const cardsHtml = [1, 2, 3]
     .map((tier, index) => {
       const tasks = getTasksByTierForHome(tier, 3);
       const done = tasks.filter((t) => t.done).length;
@@ -2551,7 +2630,7 @@ function renderHomePriorities() {
       return figmaPlanCardHtml({
         number: String(index + 1).padStart(2, "0"),
         variant: PRIORITY_CARD_VARIANTS[index],
-        title: TIER_NAMES[tier - 1],
+        title: PRESENCE_TIER_LABELS[tier - 1] || TIER_NAMES[tier - 1],
         subtitle: `${total} task${total === 1 ? "" : "s"}`,
         tasks,
         done,
@@ -2591,7 +2670,7 @@ function renderHomePlan135() {
     return figmaPlanCardHtml({
       number: String(index + 1).padStart(2, "0"),
       variant: section.group,
-      title: section.label,
+      title: PRESENCE_PLAN_LABELS[section.group] || section.label,
       subtitle: `${total} task${total === 1 ? "" : "s"}`,
       tasks,
       done,
