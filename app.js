@@ -10,7 +10,9 @@ const MODE_135_KEY = "priority-grid-135-mode";
 const VISIBLE_TIERS_KEY = "priority-grid-visible-tiers";
 const SIDEBAR_TAB_KEY = "priority-grid-sidebar-tab";
 const PLAN_135_PREFIX = "priority-grid-135-";
+const NEXT_WEEK_PREFIX = "priority-grid-next-week-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
+const REPEAT_RESET_KEY = "priority-grid-repeat-last-reset";
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
 const SYNC_API = "/api/sync";
@@ -58,8 +60,8 @@ const TIME_PREVIEW_OPTIONS = [
 
 const HOME_HERO_WALLPAPERS = {
   morning: {
-    mobile: "assets/home-hero-morning.png?v=1",
-    desktop: "assets/home-hero-morning-wide.png?v=1",
+    mobile: "assets/home-hero-morning.png?v=2",
+    desktop: "assets/home-hero-morning-wide.png?v=2",
   },
   afternoon: {
     mobile: "assets/home-hero-afternoon.png?v=1",
@@ -244,8 +246,13 @@ function saveBrainDump(ctx, list, options = {}) {
   if (!options.skipSync) markSyncDirty();
 }
 
+function isTaskDeferred(task) {
+  if (!task?.deferredUntil) return false;
+  return task.deferredUntil > todayKey();
+}
+
 function getVisibleTasks() {
-  const include = (t) => !t.archived;
+  const include = (t) => !t.archived && !isTaskDeferred(t);
   if (filter === "all") {
     return CONTEXTS.flatMap((ctx) =>
       loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
@@ -289,7 +296,7 @@ function updateBoardHint() {
   if (!hint) return;
   hint.textContent = isTouchDevice()
     ? "Press and drag the grip icon to reorder tasks or move them between priorities."
-    : "Drag tasks between priorities, or drop them into 1-3-5 slots and the Forget It box in the sidebar.";
+    : "Drag tasks between priorities, or drop them into 1-3-5 slots and the Next Week box in the sidebar.";
 }
 
 function exportAllData() {
@@ -378,19 +385,30 @@ function collectPlan135FromStorage() {
   return plans;
 }
 
-function collectForgetItFromStorage() {
-  const forgetIt = {};
+function collectNextWeekFromStorage() {
+  const nextWeek = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key?.startsWith(FORGET_IT_PREFIX)) continue;
+    if (!key) continue;
+    let date = null;
+    if (key.startsWith(NEXT_WEEK_PREFIX)) {
+      date = key.slice(NEXT_WEEK_PREFIX.length);
+    } else if (key.startsWith(FORGET_IT_PREFIX)) {
+      date = key.slice(FORGET_IT_PREFIX.length);
+    } else {
+      continue;
+    }
+    if (nextWeek[date]) continue;
     try {
-      forgetIt[key.slice(FORGET_IT_PREFIX.length)] = JSON.parse(localStorage.getItem(key));
+      nextWeek[date] = JSON.parse(localStorage.getItem(key));
     } catch {
       /* ignore */
     }
   }
-  return forgetIt;
+  return nextWeek;
 }
+
+const collectForgetItFromStorage = collectNextWeekFromStorage;
 
 function buildSyncPayload() {
   return {
@@ -401,7 +419,8 @@ function buildSyncPayload() {
     brainDumpWork: loadBrainDump("work"),
     brainDumpHome: loadBrainDump("home"),
     plans: collectPlan135FromStorage(),
-    forgetIt: collectForgetItFromStorage(),
+    nextWeek: collectNextWeekFromStorage(),
+    forgetIt: collectNextWeekFromStorage(),
   };
 }
 
@@ -480,14 +499,18 @@ function applySyncPayload(payload, options = {}) {
     if (plan) localStorage.setItem(plan135StorageKey(date), JSON.stringify(plan));
   });
 
-  const localForget = collectForgetItFromStorage();
-  const remoteForget = payload.forgetIt || {};
-  const forgetDates = new Set([...Object.keys(localForget), ...Object.keys(remoteForget)]);
-  forgetDates.forEach((date) => {
-    const ref = preferRemote ? remoteForget[date] ?? localForget[date] : localForget[date] ?? remoteForget[date];
+  const localNextWeek = collectNextWeekFromStorage();
+  const remoteNextWeek = payload.nextWeek || payload.forgetIt || {};
+  const nextWeekDates = new Set([...Object.keys(localNextWeek), ...Object.keys(remoteNextWeek)]);
+  nextWeekDates.forEach((date) => {
+    const ref = preferRemote
+      ? remoteNextWeek[date] ?? localNextWeek[date]
+      : localNextWeek[date] ?? remoteNextWeek[date];
     if (ref) {
-      localStorage.setItem(forgetItStorageKey(date), JSON.stringify(ref));
+      localStorage.setItem(nextWeekStorageKey(date), JSON.stringify(ref));
+      localStorage.removeItem(forgetItStorageKey(date));
     } else {
+      localStorage.removeItem(nextWeekStorageKey(date));
       localStorage.removeItem(forgetItStorageKey(date));
     }
   });
@@ -892,6 +915,7 @@ function setVisibleTiers(next) {
   localStorage.setItem(VISIBLE_TIERS_KEY, JSON.stringify(next));
   syncPriorityVisibilityTags();
   renderGrid();
+  if (page === "home") renderHome();
 }
 
 function isTierVisible(tier) {
@@ -970,7 +994,9 @@ function getMode135() {
 
 function getSidebarTab() {
   try {
-    return localStorage.getItem(SIDEBAR_TAB_KEY) || "brain";
+    const stored = localStorage.getItem(SIDEBAR_TAB_KEY) || "brain";
+    if (stored === "forget") return "nextweek";
+    return stored;
   } catch {
     return "brain";
   }
@@ -1050,13 +1076,18 @@ function savePlan135(plan, date = todayKey(), options = {}) {
   if (!options.skipSync) markSyncDirty();
 }
 
+function nextWeekStorageKey(date = todayKey()) {
+  return `${NEXT_WEEK_PREFIX}${date}`;
+}
+
 function forgetItStorageKey(date = todayKey()) {
   return `${FORGET_IT_PREFIX}${date}`;
 }
 
-function loadForgetIt(date = todayKey()) {
+function loadNextWeek(date = todayKey()) {
   try {
-    const saved = localStorage.getItem(forgetItStorageKey(date));
+    const saved =
+      localStorage.getItem(nextWeekStorageKey(date)) || localStorage.getItem(forgetItStorageKey(date));
     if (!saved) return null;
     const parsed = JSON.parse(saved);
     if (parsed?.id && parsed?.context) return { id: parsed.id, context: parsed.context };
@@ -1066,22 +1097,120 @@ function loadForgetIt(date = todayKey()) {
   return null;
 }
 
-function saveForgetIt(ref, date = todayKey(), options = {}) {
+const loadForgetIt = loadNextWeek;
+
+function saveNextWeek(ref, date = todayKey(), options = {}) {
   if (ref) {
-    localStorage.setItem(forgetItStorageKey(date), JSON.stringify(ref));
+    localStorage.setItem(nextWeekStorageKey(date), JSON.stringify(ref));
+    localStorage.removeItem(forgetItStorageKey(date));
   } else {
+    localStorage.removeItem(nextWeekStorageKey(date));
     localStorage.removeItem(forgetItStorageKey(date));
   }
   if (!options.skipSync) markSyncDirty();
 }
 
-function setForgetIt(ref) {
-  saveForgetIt(ref);
+const saveForgetIt = saveNextWeek;
+
+function setNextWeek(ref) {
+  saveNextWeek(ref);
   if (ref) removeTaskRefFromPlan135(ref);
 }
 
-function clearForgetIt() {
-  saveForgetIt(null);
+const setForgetIt = setNextWeek;
+
+function clearNextWeek() {
+  saveNextWeek(null);
+}
+
+const clearForgetIt = clearNextWeek;
+
+function getNextMondayKey(fromDate = new Date()) {
+  const d = new Date(fromDate);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  let daysToAdd = (8 - day) % 7;
+  if (daysToAdd === 0) daysToAdd = 7;
+  d.setDate(d.getDate() + daysToAdd);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dayNum = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dayNum}`;
+}
+
+function clearExpiredDeferredTasks() {
+  const today = todayKey();
+  CONTEXTS.forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let changed = false;
+    const next = list.map((t) => {
+      if (!t.deferredUntil || t.deferredUntil > today) return t;
+      changed = true;
+      const { deferredUntil: _removed, ...rest } = t;
+      return rest;
+    });
+    if (changed) saveTasks(ctx, next);
+  });
+}
+
+function resetRepeatDailyTasksIfNeeded() {
+  const today = todayKey();
+  let lastReset = null;
+  try {
+    lastReset = localStorage.getItem(REPEAT_RESET_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (lastReset === today) return;
+
+  CONTEXTS.forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let changed = false;
+    const next = list.map((t) => {
+      if (!t.repeatDaily) return t;
+      changed = true;
+      const updated = { ...t, done: false, repeatLastReset: today };
+      delete updated.completedAt;
+      return updated;
+    });
+    if (changed) saveTasks(ctx, next);
+  });
+
+  try {
+    localStorage.setItem(REPEAT_RESET_KEY, today);
+  } catch {
+    /* ignore */
+  }
+}
+
+function getRepeatDailyTasks() {
+  const include = (t) => !t.archived && t.repeatDaily && !isTaskDeferred(t);
+  if (filter === "all") {
+    return CONTEXTS.flatMap((ctx) =>
+      loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
+    );
+  }
+  return loadTasks(filter).filter(include).map((t) => ({ ...t, context: filter }));
+}
+
+function addRepeatDailyTask(text, tier, ctx) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  const targetCtx = ctx || (filter === "all" ? "work" : filter);
+  saveTasks(targetCtx, [
+    ...loadTasks(targetCtx),
+    { id: createId(), text: trimmed, tier, done: false, repeatDaily: true },
+  ]);
+}
+
+function removeRepeatDailyTask(id, ctx) {
+  updateTaskInContext(ctx, (list) =>
+    list.map((t) => {
+      if (t.id !== id) return t;
+      const { repeatDaily: _removed, repeatLastReset: _reset, ...rest } = t;
+      return rest;
+    })
+  );
 }
 
 function removeTaskRefFromPlan135(ref) {
@@ -1106,8 +1235,8 @@ function removeTaskRefFromPlan135(ref) {
   if (changed) savePlan135(plan);
 }
 
-function getForgetItPickerTasks() {
-  const current = loadForgetIt();
+function getNextWeekPickerTasks() {
+  const current = loadNextWeek();
   return getVisibleTasks().filter((t) => {
     if (t.done) return false;
     if (current && t.id === current.id && t.context === current.context) return false;
@@ -1115,12 +1244,20 @@ function getForgetItPickerTasks() {
   });
 }
 
-function tossForgetItTask() {
-  const ref = loadForgetIt();
+const getForgetItPickerTasks = getNextWeekPickerTasks;
+
+function deferNextWeekTask() {
+  const ref = loadNextWeek();
   if (!ref) return;
-  archiveTask(ref.id, ref.context);
-  clearForgetIt();
+  const deferredUntil = getNextMondayKey();
+  updateTaskInContext(ref.context, (list) =>
+    list.map((t) => (t.id === ref.id ? { ...t, deferredUntil } : t))
+  );
+  clearNextWeek();
+  renderAll();
 }
+
+const tossForgetItTask = deferNextWeekTask;
 
 function getPlan135Ref(group, index = 0) {
   const plan = loadPlan135();
@@ -1145,10 +1282,12 @@ function findTaskByRef(ref) {
   return { ...task, context: ref.context };
 }
 
-function isTaskForgetIt(task) {
-  const forgetRef = loadForgetIt();
-  return forgetRef?.id === task.id && forgetRef.context === task.context;
+function isTaskNextWeek(task) {
+  const nextWeekRef = loadNextWeek();
+  return nextWeekRef?.id === task.id && nextWeekRef.context === task.context;
 }
+
+const isTaskForgetIt = isTaskNextWeek;
 
 function getPickerTasks() {
   const plan = loadPlan135();
@@ -1160,7 +1299,7 @@ function getPickerTasks() {
   plan.small.forEach((ref) => {
     if (ref) assigned.add(`${ref.context}:${ref.id}`);
   });
-  const forgetRef = loadForgetIt();
+  const forgetRef = loadNextWeek();
   if (forgetRef) assigned.add(`${forgetRef.context}:${forgetRef.id}`);
 
   const tasks = getVisibleTasks().filter((t) => !t.done);
@@ -1784,7 +1923,7 @@ function updateTaskInContext(ctx, updater) {
 function clearTaskRefs(id, ctx) {
   const ref = { id, context: ctx };
   removeTaskRefFromPlan135(ref);
-  const forgetRef = loadForgetIt();
+  const forgetRef = loadNextWeek();
   if (forgetRef && forgetRef.id === id && forgetRef.context === ctx) {
     clearForgetIt();
   }
@@ -1862,7 +2001,7 @@ function assignTaskToPlan135Slot(group, index, ref) {
 
   savePlan135(next);
 
-  const forgetRef = loadForgetIt();
+  const forgetRef = loadNextWeek();
   if (forgetRef?.id === ref.id && forgetRef?.context === ref.context) {
     clearForgetIt();
   }
@@ -1922,7 +2061,7 @@ function taskCardHtml(task) {
         </div>
       </div>
       <div class="task-card-actions">
-        ${inForgetIt ? `<span class="forget-it-indicator" title="In Forget It box today" aria-label="In Forget It box today"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
+        ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         <span class="task-dot task-dot-tier-${task.tier}" title="${tierLabel}" aria-label="${tierLabel}"></span>
         ${contextBadge}
         <button type="button" class="edit-btn" aria-label="Edit task">✎</button>
@@ -2277,7 +2416,7 @@ function forgetItTaskHtml(task, { compact = false } = {}) {
       </p>
       <div class="forget-it-actions">
         <button type="button" class="forget-it-change-btn">Change</button>
-        <button type="button" class="forget-it-toss-btn">Toss it away</button>
+        <button type="button" class="forget-it-toss-btn">Move to next week</button>
       </div>
     </div>`;
 }
@@ -2285,7 +2424,7 @@ function forgetItTaskHtml(task, { compact = false } = {}) {
 function forgetItEmptyHtml() {
   return `
     <div class="forget-it-empty forget-it-drop-zone">
-      <p>Pick one task you're ready to let go of today.</p>
+      <p>Pick one task to push to next week.</p>
       <p class="forget-it-drop-hint">Or drag a task here from the grid.</p>
       <button type="button" class="forget-it-pick-btn">+ Choose task</button>
     </div>`;
@@ -2294,18 +2433,18 @@ function forgetItEmptyHtml() {
 function bindForgetItActions(container) {
   container.querySelector(".forget-it-pick-btn")?.addEventListener("click", openForgetItPicker);
   container.querySelector(".forget-it-change-btn")?.addEventListener("click", openForgetItPicker);
-  container.querySelector(".forget-it-toss-btn")?.addEventListener("click", tossForgetItTask);
+  container.querySelector(".forget-it-toss-btn")?.addEventListener("click", deferNextWeekTask);
 }
 
 function renderForgetItPanel() {
   const body = document.getElementById("forget-it-body");
   if (!body) return;
 
-  const ref = loadForgetIt();
+  const ref = loadNextWeek();
   const task = findTaskByRef(ref);
 
   if (!task) {
-    if (ref) clearForgetIt();
+    if (ref) clearNextWeek();
     body.innerHTML = forgetItEmptyHtml();
     bindForgetItActions(body);
     return;
@@ -2391,8 +2530,8 @@ function setupSidebarDragAssist() {
     if (!document.querySelector(".task-card.dragging")) return;
     if (e.target.closest("#plan-135-sections, #sidebar-tab-panel-135")) {
       setSidebarTab("135");
-    } else if (e.target.closest("#forget-it-body, #sidebar-tab-panel-forget")) {
-      setSidebarTab("forget");
+    } else if (e.target.closest("#forget-it-body, #sidebar-tab-panel-nextweek")) {
+      setSidebarTab("nextweek");
     }
   });
 }
@@ -2467,7 +2606,7 @@ function tasksFlatRowHtml(task) {
         <span class="history-meta tasks-flat-meta">
           <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
           ${contextBadge}
-          ${inForgetIt ? `<span class="forget-it-indicator" title="In Forget It box today" aria-label="In Forget It box today"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
+          ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         </span>
       </div>
       <div class="task-card-actions">
@@ -2570,14 +2709,6 @@ function planCardTaskHtml(task) {
       </span>
     </li>`;
 }
-
-const PRESENCE_PLAN_LABELS = {
-  big: "Personal",
-  medium: "Work",
-  small: "Wellness",
-};
-
-const PRESENCE_TIER_LABELS = ["Personal", "Work", "Wellness", "Focus"];
 
 const PRIORITY_CARD_VARIANTS = ["p1", "p2", "p3", "p4"];
 
@@ -2683,10 +2814,11 @@ function countPlan135Filled(plan) {
 }
 
 function getTasksByTierForHome(tier, limit) {
+  if (!isTierVisible(tier)) return [];
   const tasks = [];
   CONTEXTS.forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (!t.archived && t.tier === tier) tasks.push({ ...t, context: ctx });
+      if (!t.archived && !isTaskDeferred(t) && t.tier === tier) tasks.push({ ...t, context: ctx });
     });
   });
   tasks.sort((a, b) => {
@@ -2700,7 +2832,9 @@ function getOpenTasksForTiers(tiers, limit) {
   const tasks = [];
   CONTEXTS.forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (!t.archived && !t.done && tiers.includes(t.tier)) tasks.push({ ...t, context: ctx });
+      if (!t.archived && !t.done && !isTaskDeferred(t) && tiers.includes(t.tier)) {
+        tasks.push({ ...t, context: ctx });
+      }
     });
   });
   tasks.sort((a, b) => a.tier - b.tier);
@@ -2719,14 +2853,15 @@ function renderHomePriorities() {
   empty.classList.add("hidden");
 
   const cardsHtml = [1, 2, 3, 4]
-    .map((tier, index) => {
+    .filter((tier) => isTierVisible(tier))
+    .map((tier) => {
       const tasks = getTasksByTierForHome(tier, 3);
       const done = tasks.filter((t) => t.done).length;
       const total = tasks.length;
       return figmaPlanCardHtml({
-        number: String(index + 1).padStart(2, "0"),
-        variant: PRIORITY_CARD_VARIANTS[index],
-        title: PRESENCE_TIER_LABELS[tier - 1] || TIER_NAMES[tier - 1],
+        number: String(tier).padStart(2, "0"),
+        variant: PRIORITY_CARD_VARIANTS[tier - 1],
+        title: TIER_NAMES[tier - 1],
         subtitle: `${total} task${total === 1 ? "" : "s"}`,
         tasks,
         done,
@@ -2758,7 +2893,10 @@ function renderHomePlan135() {
 
   const cardsHtml = PLAN_135_SLOTS.map((section, index) => {
     const slots = section.group === "big" ? [plan.big] : plan[section.group];
-    const resolved = slots.map((ref) => findTaskByRef(ref)).filter(Boolean);
+    const resolved = slots
+      .map((ref) => findTaskByRef(ref))
+      .filter(Boolean)
+      .filter((t) => isTierVisible(t.tier));
     const tasks = section.group === "big" ? (resolved[0] ? [resolved[0]] : []) : resolved;
     const done = tasks.filter((t) => t.done).length;
     const total = tasks.length;
@@ -2766,7 +2904,7 @@ function renderHomePlan135() {
     return figmaPlanCardHtml({
       number: String(index + 1).padStart(2, "0"),
       variant: section.group,
-      title: PRESENCE_PLAN_LABELS[section.group] || section.label,
+      title: TIER_NAMES[index],
       subtitle: `${total} task${total === 1 ? "" : "s"}`,
       tasks,
       done,
@@ -2800,12 +2938,91 @@ function bindHomeTaskEvents(row) {
   });
 }
 
+function formatCompletionTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function getCompletedTodayTasks() {
+  const today = archiveDayKey(new Date().toISOString());
+  const seen = new Set();
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.done || !t.completedAt || t.archived) return;
+      if (archiveDayKey(t.completedAt) !== today) return;
+      const key = `${ctx}:${t.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks.sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+}
+
+function completedTodayEmptyCardHtml() {
+  return `
+    <article class="plan-card plan-card--p1 plan-card--empty">
+      <div class="plan-card-inner">
+        <div class="plan-card-top-row">
+          <span class="plan-card-badge plan-card-badge--top" aria-hidden="true">—</span>
+        </div>
+        <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
+        <div class="plan-card-body">
+          <p class="plan-card-empty-msg">Nothing crossed off yet — your first win of the day is still ahead.</p>
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderHomeCompletedToday() {
+  const content = document.getElementById("home-completed-content");
+  const section = document.querySelector(".presence-completed-today");
+  if (!content) return;
+
+  const tasks = getCompletedTodayTasks();
+
+  if (tasks.length === 0) {
+    content.innerHTML = `<div class="plan-card-grid plan-card-grid--completed">${completedTodayEmptyCardHtml()}</div>`;
+    section?.classList.add("presence-completed-today--empty");
+    return;
+  }
+
+  section?.classList.remove("presence-completed-today--empty");
+  const cardsHtml = [1, 2, 3, 4]
+    .filter((tier) => isTierVisible(tier))
+    .map((tier) => {
+      const tierTasks = tasks.filter((t) => t.tier === tier);
+      if (tierTasks.length === 0) return "";
+      const total = tierTasks.length;
+      return figmaPlanCardHtml({
+        number: String(tier).padStart(2, "0"),
+        variant: PRIORITY_CARD_VARIANTS[tier - 1],
+        title: TIER_NAMES[tier - 1],
+        subtitle: `${total} task${total === 1 ? "" : "s"}`,
+        tasks: tierTasks,
+        done: total,
+        total,
+      });
+    })
+    .filter(Boolean)
+    .join("");
+
+  content.innerHTML = `<div class="plan-card-grid plan-card-grid--completed">${cardsHtml}</div>`;
+  bindHomeCardTasks(content);
+}
+
 function renderHome() {
   if (mode135) {
     renderHomePlan135();
   } else {
     renderHomePriorities();
   }
+  renderHomeCompletedToday();
 }
 
 function openTierExpand(tier) {
@@ -3015,7 +3232,7 @@ function updateGripDragHighlights(x, y) {
   dropEl?.closest(".plan-135-drop-zone")?.classList.add("drop-target-active");
   dropEl?.closest(".forget-it-drop-zone")?.classList.add("drop-target-active");
   if (dropEl?.closest(".plan-135-drop-zone, #plan-135-sections")) setSidebarTab("135");
-  else if (dropEl?.closest(".forget-it-drop-zone, #forget-it-body")) setSidebarTab("forget");
+  else if (dropEl?.closest(".forget-it-drop-zone, #forget-it-body")) setSidebarTab("nextweek");
 }
 
 function finishGripListDrag(x, y) {
@@ -3351,6 +3568,67 @@ function setupTaskDialog() {
   });
 }
 
+function renderDailyRepeatPanel() {
+  const list = document.getElementById("daily-repeat-list");
+  const empty = document.getElementById("daily-repeat-empty");
+  if (!list || !empty) return;
+
+  const ctxSelect = document.getElementById("daily-repeat-context");
+  if (ctxSelect) {
+    ctxSelect.classList.toggle("hidden", filter !== "all");
+    if (filter !== "all") ctxSelect.value = filter;
+  }
+
+  const tasks = getRepeatDailyTasks();
+
+  if (tasks.length === 0) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  list.innerHTML = tasks
+    .map(
+      (task) => `
+    <li class="daily-repeat-item" data-id="${task.id}" data-context="${task.context}">
+      <span class="daily-repeat-tier">${TIER_LABELS[task.tier - 1]}</span>
+      <span class="daily-repeat-text">${escapeHtml(task.text)}</span>
+      <div class="daily-repeat-actions">
+        ${filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : ""}
+        <button type="button" class="daily-repeat-remove" aria-label="Remove from daily repeat">×</button>
+      </div>
+    </li>`
+    )
+    .join("");
+
+  list.querySelectorAll(".daily-repeat-remove").forEach((btn) => {
+    const item = btn.closest(".daily-repeat-item");
+    btn.addEventListener("click", () => {
+      removeRepeatDailyTask(item.dataset.id, item.dataset.context);
+      renderAll();
+    });
+  });
+}
+
+function setupDailyRepeatForm() {
+  const form = document.getElementById("daily-repeat-form");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "1";
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("daily-repeat-input");
+    const tier = Number(document.getElementById("daily-repeat-tier").value);
+    const ctxSelect = document.getElementById("daily-repeat-context");
+    const ctx = ctxSelect ? ctxSelect.value : filter === "all" ? "work" : filter;
+    addRepeatDailyTask(input.value, tier, ctx);
+    input.value = "";
+    input.focus();
+    renderAll();
+  });
+}
+
 function renderBrainPanel() {
   const list = document.getElementById("brain-panel-list");
   const empty = document.getElementById("brain-panel-empty");
@@ -3665,6 +3943,7 @@ function renderAll() {
     renderGrid();
     renderPlan135();
     renderBrainPanel();
+    renderDailyRepeatPanel();
     renderForgetItPanel();
     renderArchivePanel();
     syncSidebarTabs();
@@ -3702,6 +3981,8 @@ function seedHomeFromNotebook() {
 }
 
 migrateLegacyData();
+clearExpiredDeferredTasks();
+resetRepeatDailyTasksIfNeeded();
 ensureAppStartedDay();
 
 document.documentElement.dataset.font = getFont();
@@ -3719,6 +4000,7 @@ setupTouchListDrag();
 setupSidebarTabs();
 setupTaskDialog();
 setupBrainDumpForms();
+setupDailyRepeatForm();
 setupDataSync();
 setupTierExpand();
 setupReflection();

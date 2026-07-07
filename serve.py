@@ -71,7 +71,11 @@ def merge_payload(existing, incoming):
         "brainDumpWork": merge_lists_by_id(older.get("brainDumpWork"), newer.get("brainDumpWork")),
         "brainDumpHome": merge_lists_by_id(older.get("brainDumpHome"), newer.get("brainDumpHome")),
         "plans": merge_dicts(older.get("plans"), newer.get("plans")),
-        "forgetIt": merge_dicts(older.get("forgetIt"), newer.get("forgetIt")),
+        "nextWeek": merge_dicts(older.get("nextWeek"), newer.get("nextWeek")),
+        "forgetIt": merge_dicts(
+            older.get("forgetIt") or older.get("nextWeek"),
+            newer.get("forgetIt") or newer.get("nextWeek"),
+        ),
     }
     return merged
 

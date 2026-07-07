@@ -415,6 +415,39 @@ body[data-page="home"] .presence-plan-header {
   align-items: center;
 }
 
+/* Completed today */
+body[data-page="home"] .presence-completed-today {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+}
+
+body[data-page="home"] .presence-completed-header {
+  align-items: center;
+}
+
+body[data-page="home"] .plan-card-empty-msg {
+  margin: 0;
+  font-family: "Manrope", var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #11302c;
+  opacity: 0.55;
+}
+
+body[data-page="home"] .plan-card--empty {
+  min-height: 220px;
+}
+
+body[data-page="home"] .plan-card--empty .plan-card-inner {
+  min-height: 220px;
+}
+
+body[data-page="home"] .plan-card--empty .plan-card-top-row {
+  margin-bottom: 0;
+}
+
 /* ── Mobile ── */
 @media (max-width: 768px) {
   body[data-page="home"] .sidebar {
@@ -478,6 +511,25 @@ body[data-page="home"] .presence-plan-header {
   body[data-page="home"] .presence-plan-header {
     padding: 0 clamp(0.75rem, 3vw, 1rem);
     margin-bottom: 1.5rem;
+  }
+
+  body[data-page="home"] .presence-completed-today {
+    margin-top: 1.5rem;
+    padding: 1.5rem 0 clamp(1.5rem, 5vw, 2rem);
+    border-top: 1px solid rgba(113, 120, 120, 0.12);
+  }
+
+  body[data-page="home"] .presence-completed-header {
+    padding: 0 clamp(0.75rem, 3vw, 1rem);
+    margin-bottom: 1.5rem;
+  }
+
+  body[data-page="home"] #home-completed-content {
+    padding: 0 clamp(0.25rem, 2vw, 0.5rem);
+  }
+
+  body[data-page="home"] .plan-card-grid--completed {
+    grid-template-columns: 1fr;
   }
 
   body[data-page="home"] .plan-card-grid,
@@ -801,6 +853,17 @@ body[data-page="home"] .section-link--plan svg {
   body[data-page="home"] .presence-plan {
     margin-top: -3rem;
     padding: 0 clamp(2rem, 4vw, 3rem) 2rem;
+  }
+
+  body[data-page="home"] .presence-completed-today {
+    margin-top: 2.5rem;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  body[data-page="home"] .presence-completed-header {
+    margin-bottom: 2rem;
+    align-items: flex-end;
   }
 
   body[data-page="home"] .presence-plan-sheet {
