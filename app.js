@@ -2282,6 +2282,78 @@ function updateReflectionCharCount() {
   countEl.textContent = `${textarea.value.length} / 500`;
 }
 
+function getCompletedYesterdayTasks() {
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = archiveDayKey(yesterdayDate.toISOString());
+  const seen = new Set();
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.done || !t.completedAt || t.archived) return;
+      if (archiveDayKey(t.completedAt) !== yesterday) return;
+      const key = `${ctx}:${t.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks.sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+}
+
+function reflectionReviewItemHtml(task) {
+  const time = formatCompletionTime(task.completedAt);
+  return `
+    <li class="reflection-review-item">
+      <span class="reflection-review-check" aria-hidden="true">✓</span>
+      <span class="reflection-review-text">${escapeHtml(task.text)}</span>
+      <span class="reflection-review-tier">${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""}</span>
+    </li>`;
+}
+
+function renderReflectionReview() {
+  const list = document.getElementById("reflection-review-list");
+  const empty = document.getElementById("reflection-review-empty");
+  const subtitle = document.getElementById("reflection-review-subtitle");
+  if (!list || !empty) return;
+
+  const tasks = getCompletedYesterdayTasks();
+
+  if (subtitle) {
+    subtitle.textContent =
+      tasks.length === 0
+        ? "Nothing was completed yesterday — you can still reflect on your day."
+        : `${tasks.length} task${tasks.length === 1 ? "" : "s"} completed yesterday.`;
+  }
+
+  if (tasks.length === 0) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  list.innerHTML = tasks.map(reflectionReviewItemHtml).join("");
+}
+
+function setReflectionTab(tab) {
+  const nextTab = tab === "thoughts" ? "thoughts" : "review";
+  document.querySelectorAll(".reflection-tab").forEach((btn) => {
+    const active = btn.dataset.tab === nextTab;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
+    panel.classList.toggle("active", panel.dataset.tab === nextTab);
+  });
+  if (nextTab === "thoughts") {
+    document.getElementById("reflection-text")?.focus();
+  }
+}
+
 function openReflectionDialog() {
   const dialog = document.getElementById("reflection-dialog");
   const textarea = document.getElementById("reflection-text");
@@ -2291,8 +2363,23 @@ function openReflectionDialog() {
   textarea.value = journal[reflectionTodayKey()] || "";
   updateReflectionCharCount();
   renderReflectionPrompts(shuffleReflectionPrompts());
+  renderReflectionReview();
+  setReflectionTab("review");
   dialog.showModal();
-  textarea.focus();
+}
+
+function getActiveReflectionTab() {
+  const active = document.querySelector(".reflection-tab.active");
+  return active?.dataset.tab || "review";
+}
+
+function handleReflectionBack() {
+  const dialog = document.getElementById("reflection-dialog");
+  if (getActiveReflectionTab() === "thoughts") {
+    setReflectionTab("review");
+    return;
+  }
+  dialog?.close();
 }
 
 function setupReflection() {
@@ -2300,9 +2387,19 @@ function setupReflection() {
   const textarea = document.getElementById("reflection-text");
   const refreshBtn = document.getElementById("reflection-prompts-refresh");
   const continueBtn = document.getElementById("reflection-continue");
+  const reviewContinueBtn = document.getElementById("reflection-review-continue");
+  const backBtn = document.getElementById("reflection-back");
   const promptsList = document.getElementById("reflection-prompts-list");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
+
+  backBtn?.addEventListener("click", handleReflectionBack);
+
+  document.querySelectorAll(".reflection-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setReflectionTab(btn.dataset.tab);
+    });
+  });
 
   textarea?.addEventListener("input", updateReflectionCharCount);
 
@@ -2319,6 +2416,10 @@ function setupReflection() {
     textarea.value = `${prefix}${prompt}: `;
     updateReflectionCharCount();
     textarea.focus();
+  });
+
+  reviewContinueBtn?.addEventListener("click", () => {
+    setReflectionTab("thoughts");
   });
 
   continueBtn?.addEventListener("click", () => {

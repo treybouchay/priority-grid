@@ -64,7 +64,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=100" />
+    <link rel="stylesheet" href="styles.css?v=103" />
     <link rel="stylesheet" href="design/home-presence.css?v=14" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -724,17 +724,45 @@
 
     <dialog class="reflection-dialog" id="reflection-dialog">
       <div class="reflection-screen">
+        <button type="button" class="reflection-back-btn" id="reflection-back" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M19 12H5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Back</span>
+        </button>
         <header class="reflection-screen-header">
-          <span class="reflection-screen-label">Reflection</span>
-          <div class="reflection-progress" aria-hidden="true">
-            <span class="reflection-progress-step"></span>
-            <span class="reflection-progress-step reflection-progress-step--active">
-              <span class="reflection-progress-dot"></span>
-            </span>
-            <span class="reflection-progress-step"></span>
+          <div class="reflection-tabs" role="tablist" aria-label="Reflection steps">
+            <button type="button" class="reflection-tab active" role="tab" data-tab="review" aria-selected="true" id="reflection-tab-review">
+              Review of the tasks completed yesterday
+            </button>
+            <button type="button" class="reflection-tab" role="tab" data-tab="thoughts" aria-selected="false" id="reflection-tab-thoughts">
+              Thoughts about those tasks
+            </button>
           </div>
         </header>
 
+        <div class="reflection-tab-panels">
+          <section class="reflection-tab-panel active" id="reflection-panel-review" role="tabpanel" data-tab="review" aria-labelledby="reflection-tab-review">
+            <section class="reflection-hero reflection-hero--review">
+              <h1 class="reflection-hero-title">Yesterday's<br>completed tasks</h1>
+              <p class="reflection-hero-subtitle" id="reflection-review-subtitle">Review what you finished before reflecting.</p>
+            </section>
+            <section class="reflection-review">
+              <ul class="reflection-review-list" id="reflection-review-list"></ul>
+              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were completed yesterday.</p>
+            </section>
+            <footer class="reflection-footer">
+              <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
+                <span>Continue to thoughts</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </footer>
+          </section>
+
+          <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="tabpanel" data-tab="thoughts" aria-labelledby="reflection-tab-thoughts">
         <section class="reflection-hero">
           <h1 class="reflection-hero-title">Take care of<br>what sparks joy.</h1>
           <p class="reflection-hero-subtitle">What brought you joy today?</p>
@@ -783,6 +811,8 @@
             </svg>
           </button>
         </footer>
+          </section>
+        </div>
       </div>
     </dialog>
 
@@ -800,6 +830,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=112"></script>
+    <script src="app.js?v=114"></script>
   </body>
 </html>
