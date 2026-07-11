@@ -64,7 +64,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=103" />
+    <link rel="stylesheet" href="styles.css?v=104" />
     <link rel="stylesheet" href="design/home-presence.css?v=14" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -732,12 +732,31 @@
           <span>Back</span>
         </button>
         <header class="reflection-screen-header">
+          <span class="reflection-screen-label">Reflection</span>
           <div class="reflection-tabs" role="tablist" aria-label="Reflection steps">
-            <button type="button" class="reflection-tab active" role="tab" data-tab="review" aria-selected="true" id="reflection-tab-review">
-              Review of the tasks completed yesterday
+            <button
+              type="button"
+              class="reflection-tab active"
+              role="tab"
+              data-tab="review"
+              aria-selected="true"
+              id="reflection-tab-review"
+              aria-label="Review of the tasks completed yesterday"
+            >
+              <span class="reflection-progress-step reflection-progress-step--active">
+                <span class="reflection-progress-dot"></span>
+              </span>
             </button>
-            <button type="button" class="reflection-tab" role="tab" data-tab="thoughts" aria-selected="false" id="reflection-tab-thoughts">
-              Thoughts about those tasks
+            <button
+              type="button"
+              class="reflection-tab"
+              role="tab"
+              data-tab="thoughts"
+              aria-selected="false"
+              id="reflection-tab-thoughts"
+              aria-label="Thoughts about those tasks"
+            >
+              <span class="reflection-progress-step"></span>
             </button>
           </div>
         </header>
@@ -830,6 +849,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=114"></script>
+    <script src="app.js?v=115"></script>
   </body>
 </html>

@@ -5252,63 +5252,59 @@ dialog {
 .reflection-screen-header {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   margin-bottom: 1.5rem;
   flex-shrink: 0;
+  padding-top: 0.25rem;
+}
+
+.reflection-screen-label {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  color: #023030;
+  opacity: 0.9;
+  margin-bottom: 1rem;
 }
 
 .reflection-tabs {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .reflection-tab {
-  flex: 1;
-  min-width: 0;
-  padding: 0 0 0.85rem;
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 0;
   border: none;
   background: transparent;
-  font-family: var(--font-body);
-  font-size: 0.6875rem;
-  font-weight: var(--font-weight-medium);
-  line-height: 1.35;
-  letter-spacing: 0.02em;
-  color: rgba(2, 48, 48, 0.55);
-  text-align: center;
   cursor: pointer;
+}
+
+.reflection-progress-step {
+  display: block;
+  width: 2.75rem;
+  height: 2px;
+  background: rgba(2, 48, 48, 0.35);
+  border-radius: 1px;
   position: relative;
 }
 
-.reflection-tab.active {
-  color: #023030;
-}
-
-.reflection-tab::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  border-radius: 1px;
-  background: rgba(2, 48, 48, 0.35);
-}
-
-.reflection-tab.active::after {
+.reflection-progress-step--active {
   background: #023030;
 }
 
-.reflection-tab.active::before {
-  content: "";
-  position: absolute;
-  right: -3px;
-  bottom: -2px;
+.reflection-progress-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
   background: #023030;
+  border-radius: 50%;
+  position: absolute;
+  right: -3px;
+  top: -2px;
 }
 
 .reflection-tab-panels {

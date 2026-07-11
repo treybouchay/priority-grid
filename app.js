@@ -2344,6 +2344,20 @@ function setReflectionTab(tab) {
     const active = btn.dataset.tab === nextTab;
     btn.classList.toggle("active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
+    const step = btn.querySelector(".reflection-progress-step");
+    if (!step) return;
+    step.classList.toggle("reflection-progress-step--active", active);
+    let dot = step.querySelector(".reflection-progress-dot");
+    if (active) {
+      if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "reflection-progress-dot";
+        dot.setAttribute("aria-hidden", "true");
+        step.appendChild(dot);
+      }
+    } else if (dot) {
+      dot.remove();
+    }
   });
   document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
