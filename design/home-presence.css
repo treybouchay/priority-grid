@@ -445,13 +445,13 @@ body[data-page="home"] .presence-focus-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 999px;
   background: #11302c;
   color: #ffffff;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -462,6 +462,105 @@ body[data-page="home"] .presence-focus-btn svg {
   height: 1rem;
 }
 
+body[data-page="home"] .focus-timer {
+  margin-top: 1.25rem;
+  max-width: 18rem;
+}
+
+body[data-page="home"] .focus-timer-display {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-heading);
+  font-size: clamp(2.25rem, 7vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #11302c;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-page="home"] .focus-timer.is-running .focus-timer-display {
+  color: #0e3030;
+}
+
+body[data-page="home"] .focus-timer.is-done .focus-timer-display {
+  color: #c76b4d;
+}
+
+body[data-page="home"] .focus-timer-presets,
+body[data-page="home"] .focus-timer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+body[data-page="home"] .focus-timer-preset,
+body[data-page="home"] .focus-timer-set,
+body[data-page="home"] .focus-timer-toggle,
+body[data-page="home"] .focus-timer-reset {
+  border: 1px solid rgba(17, 48, 44, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #11302c;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body[data-page="home"] .focus-timer-preset.active,
+body[data-page="home"] .focus-timer-toggle {
+  background: #11302c;
+  border-color: #11302c;
+  color: #ffffff;
+}
+
+body[data-page="home"] .focus-timer-toggle.is-pause {
+  background: #c76b4d;
+  border-color: #c76b4d;
+}
+
+body[data-page="home"] .focus-timer-actions {
+  margin-top: 0.75rem;
+}
+
+body[data-page="home"] .focus-timer-custom {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+body[data-page="home"] .focus-timer-custom.hidden {
+  display: none;
+}
+
+body[data-page="home"] .focus-timer-custom-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+body[data-page="home"] .focus-timer-minutes {
+  width: 4.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(17, 48, 44, 0.14);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.7);
+  color: #11302c;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 body[data-page="home"] .presence-plan {
   position: relative;
   z-index: 20;
@@ -470,6 +569,62 @@ body[data-page="home"] .presence-plan {
 
 body[data-page="home"] .presence-plan-header {
   align-items: center;
+}
+
+body[data-page="home"] .priority-visibility-tags--home {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0 clamp(0.75rem, 3vw, 1rem);
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  font-family: "Manrope", var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.55);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag.active {
+  background: #ffedd5;
+  border-color: rgba(199, 107, 77, 0.28);
+  color: #c76b4d;
+  opacity: 1;
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag:not(.active) {
+  opacity: 0.55;
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag[data-tier="2"].active {
+  background: #0e3030;
+  border-color: #0e3030;
+  color: #ffffff;
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag[data-tier="3"].active {
+  background: #e2e8f0;
+  border-color: rgba(51, 65, 85, 0.18);
+  color: #334155;
+}
+
+body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag[data-tier="4"].active {
+  background: #ffedd5;
+  border-color: rgba(199, 107, 77, 0.28);
+  color: #c76b4d;
 }
 
 /* Completed today */
@@ -994,8 +1149,13 @@ body[data-page="home"] .section-link--plan svg {
 
   body[data-page="home"] .presence-plan-header {
     padding: 0;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     align-items: flex-end;
+  }
+
+  body[data-page="home"] .priority-visibility-tags--home {
+    padding: 0;
+    margin-bottom: 1.75rem;
   }
 
   body[data-page="home"] .presence-plan-accent {

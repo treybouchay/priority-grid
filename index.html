@@ -64,9 +64,9 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=121" />
-    <link rel="stylesheet" href="design/home-presence.css?v=23" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=9" />
+    <link rel="stylesheet" href="styles.css?v=125" />
+    <link rel="stylesheet" href="design/home-presence.css?v=25" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=12" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -217,7 +217,14 @@
             <img class="sidebar-avatar-img" src="assets/sidebar-avatar.png?v=39" alt="" width="24" height="24" decoding="async" />
             <span class="sidebar-identity-name">presence</span>
           </div>
-          <button type="button" class="sidebar-menu-btn" id="sidebar-menu-btn" aria-label="More options">
+          <button
+            type="button"
+            class="sidebar-menu-btn"
+            id="sidebar-menu-btn"
+            aria-label="Collapse sidebar"
+            aria-controls="sidebar"
+            aria-expanded="true"
+          >
             <svg class="icon icon-sidebar-more" aria-hidden="true"><use href="#icon-more"></use></svg>
           </button>
         </header>
@@ -225,31 +232,31 @@
         <nav class="sidebar-nav" aria-label="Main">
           <button type="button" class="nav-item" data-page="home">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-home"></use></svg>
-            Home
+            <span class="nav-item-label">Home</span>
           </button>
           <button type="button" class="nav-item" data-page="tasks" data-filter="all" data-focus-brain="true">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-cloud"></use></svg>
-            Brain Dump
+            <span class="nav-item-label">Brain Dump</span>
           </button>
           <button type="button" class="nav-item" data-page="tasks" data-filter="all">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-tasks"></use></svg>
-            All Tasks
+            <span class="nav-item-label">All Tasks</span>
           </button>
           <button type="button" class="nav-item" data-page="tasks" data-filter="work">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-briefcase"></use></svg>
-            Work
+            <span class="nav-item-label">Work</span>
           </button>
           <button type="button" class="nav-item" data-page="tasks" data-filter="home">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-house"></use></svg>
-            Home
+            <span class="nav-item-label">Home</span>
           </button>
           <button type="button" class="nav-item" data-page="history">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-            History
+            <span class="nav-item-label">History</span>
           </button>
           <button type="button" class="nav-item" data-nav="settings">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-user"></use></svg>
-            Settings
+            <span class="nav-item-label">Settings</span>
           </button>
         </nav>
 
@@ -374,6 +381,31 @@
               <div class="presence-focus">
                 <p class="presence-focus-label">FOCUS</p>
                 <h2 class="presence-focus-title">Take care of what sparks joy.</h2>
+                <div class="focus-timer" id="focus-timer" aria-label="Focus timer">
+                  <p class="focus-timer-display" id="focus-timer-display" aria-live="polite">20:00</p>
+                  <div class="focus-timer-presets" role="group" aria-label="Timer length">
+                    <button type="button" class="focus-timer-preset active" data-minutes="20">20 min</button>
+                    <button type="button" class="focus-timer-preset" data-minutes="10">10 min</button>
+                    <button type="button" class="focus-timer-preset" data-minutes="custom" id="focus-timer-custom-toggle">Custom</button>
+                  </div>
+                  <div class="focus-timer-custom hidden" id="focus-timer-custom">
+                    <label class="focus-timer-custom-label" for="focus-timer-minutes">Minutes</label>
+                    <input
+                      type="number"
+                      class="focus-timer-minutes"
+                      id="focus-timer-minutes"
+                      min="1"
+                      max="180"
+                      value="25"
+                      inputmode="numeric"
+                    />
+                    <button type="button" class="focus-timer-set" id="focus-timer-set">Set</button>
+                  </div>
+                  <div class="focus-timer-actions">
+                    <button type="button" class="focus-timer-toggle" id="focus-timer-toggle">Start</button>
+                    <button type="button" class="focus-timer-reset" id="focus-timer-reset">Reset</button>
+                  </div>
+                </div>
                 <button type="button" class="presence-focus-btn" id="focus-reflection-btn">
                   <span>View Reflection</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -401,6 +433,16 @@
                   </svg>
                 </button>
               </header>
+              <div
+                class="priority-visibility-tags priority-visibility-tags--home"
+                role="group"
+                aria-label="Show priority cards"
+              >
+                <button type="button" class="priority-visibility-tag active" data-tier="1" aria-pressed="true" disabled>1st</button>
+                <button type="button" class="priority-visibility-tag active" data-tier="2" aria-pressed="true">2nd</button>
+                <button type="button" class="priority-visibility-tag active" data-tier="3" aria-pressed="true">3rd</button>
+                <button type="button" class="priority-visibility-tag active" data-tier="4" aria-pressed="true">4th</button>
+              </div>
               <p class="home-priority-progress hidden" id="home-priority-progress"></p>
               <div id="home-priority-content">
                 <ul class="priority-preview-list" id="home-priority-list"></ul>
@@ -596,7 +638,7 @@
                           <h3 class="plan-135-title">Today's 1-3-5</h3>
                           <p class="plan-135-sub">Drag tasks from the grid or pick from your priorities.</p>
                         </div>
-                        <div class="plan-135-header-actions">
+                        <div class="plan-135-status" aria-label="Plan status">
                           <button
                             type="button"
                             class="plan-135-home-toggle"
@@ -604,7 +646,7 @@
                             aria-pressed="false"
                             aria-label="Show 1-3-5 on Home page"
                           >Show on Home</button>
-                          <p class="plan-135-progress" id="plan-135-progress"></p>
+                          <p class="plan-135-progress" id="plan-135-progress">0 of 9 tasks planned</p>
                         </div>
                       </header>
                       <div class="plan-135-sections" id="plan-135-sections"></div>
@@ -899,6 +941,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=129"></script>
+    <script src="app.js?v=137"></script>
   </body>
 </html>

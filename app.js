@@ -9,6 +9,7 @@ const SYNC_BANNER_KEY = "priority-grid-sync-banner-dismissed";
 const MODE_135_KEY = "priority-grid-135-mode";
 const VISIBLE_TIERS_KEY = "priority-grid-visible-tiers";
 const SIDEBAR_TAB_KEY = "priority-grid-sidebar-tab";
+const SIDEBAR_COLLAPSED_KEY = "priority-grid-sidebar-collapsed";
 const PLAN_135_PREFIX = "priority-grid-135-";
 const NEXT_WEEK_PREFIX = "priority-grid-next-week-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
@@ -27,9 +28,9 @@ const HOME_DESIGNS = [
 ];
 
 const PLAN_135_SLOTS = [
-  { group: "big", label: "Big Task", count: 1 },
-  { group: "medium", label: "Medium Tasks", count: 3 },
-  { group: "small", label: "Small Tasks", count: 5 },
+  { group: "big", label: "Big Task", number: "01", count: 1 },
+  { group: "medium", label: "Medium Tasks", number: "02", count: 3 },
+  { group: "small", label: "Small Tasks", number: "03", count: 5 },
 ];
 
 const CONTEXTS = ["work", "home"];
@@ -943,6 +944,10 @@ function isTierVisible(tier) {
   return tier === 1 || visibleTiers[tier] !== false;
 }
 
+function getVisibleTierList() {
+  return [1, 2, 3, 4].filter((tier) => isTierVisible(tier));
+}
+
 function syncPriorityVisibilityTags() {
   document.querySelectorAll(".priority-visibility-tag").forEach((btn) => {
     const tier = Number(btn.dataset.tier);
@@ -953,14 +958,15 @@ function syncPriorityVisibilityTags() {
 }
 
 function setupPriorityVisibilityTags() {
-  const container = document.getElementById("priority-visibility-tags");
-  if (!container || container.dataset.bound) return;
-  container.dataset.bound = "1";
+  document.querySelectorAll(".priority-visibility-tags").forEach((container) => {
+    if (container.dataset.bound) return;
+    container.dataset.bound = "1";
 
-  container.querySelectorAll(".priority-visibility-tag").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tier = Number(btn.dataset.tier);
-      setVisibleTiers({ ...visibleTiers, [tier]: !isTierVisible(tier) });
+    container.querySelectorAll(".priority-visibility-tag").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tier = Number(btn.dataset.tier);
+        setVisibleTiers({ ...visibleTiers, [tier]: !isTierVisible(tier) });
+      });
     });
   });
   syncPriorityVisibilityTags();
@@ -1055,6 +1061,37 @@ function setupSidebarTabs() {
     btn.addEventListener("click", () => setSidebarTab(btn.dataset.tab));
   });
   syncSidebarTabs();
+}
+
+function getSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function syncSidebarCollapsed() {
+  const collapsed = document.body.classList.contains("sidebar-collapsed");
+  const btn = document.getElementById("sidebar-menu-btn");
+  const sidebar = document.getElementById("sidebar");
+  if (btn) {
+    btn.setAttribute("aria-expanded", String(!collapsed));
+    btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+  }
+  if (sidebar) {
+    sidebar.classList.toggle("is-collapsed", collapsed);
+  }
+}
+
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle("sidebar-collapsed", Boolean(collapsed));
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+  syncSidebarCollapsed();
 }
 
 function setMode135(enabled) {
@@ -1771,7 +1808,9 @@ function setupNavigation() {
 
   const sidebarMenuBtn = document.getElementById("sidebar-menu-btn");
   if (sidebarMenuBtn) {
-    sidebarMenuBtn.addEventListener("click", openAppearancePanel);
+    sidebarMenuBtn.addEventListener("click", () => {
+      setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"));
+    });
   }
 
   const sidebarProfileBtn = document.getElementById("sidebar-profile-btn");
@@ -2122,10 +2161,7 @@ function plan135SlotHtml(group, index, ref, task) {
         </label>
         <div class="plan-135-slot-body">
           <span class="plan-135-slot-text">${escapeHtml(task.text)}</span>
-          <span class="plan-135-slot-meta">
-            <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier, group)}">${TIER_LABELS[task.tier - 1]} Priority</span>
-            ${filter === "all" ? contextIconHtml(task.context, "plan-135-ctx") : ""}
-          </span>
+          ${filter === "all" ? `<span class="plan-135-slot-meta">${contextIconHtml(task.context, "plan-135-ctx")}</span>` : ""}
         </div>
         <div class="plan-135-slot-actions">
           <button type="button" class="plan-135-change-btn" data-slot="${slotKey}">Change</button>
@@ -2135,10 +2171,15 @@ function plan135SlotHtml(group, index, ref, task) {
   }
 
   return `
-    <li class="plan-135-slot plan-135-slot-empty plan-135-drop-zone${isBig ? " plan-135-slot-big" : ""}"
+    <li class="plan-135-slot plan-135-slot-empty plan-135-drop-zone plan-135-slot--${group}${isBig ? " plan-135-slot-big" : ""}"
       data-slot-group="${group}" data-slot-index="${index}">
       <button type="button" class="plan-135-pick-btn" data-slot="${slotKey}">
-        <span class="plan-135-pick-icon" aria-hidden="true">+</span>
+        <span class="plan-135-pick-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="12" x2="12" y1="5" y2="19" stroke-linecap="round" />
+            <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+          </svg>
+        </span>
         <span class="plan-135-pick-label">Pick a task</span>
       </button>
     </li>`;
@@ -2197,7 +2238,12 @@ function renderPlan135() {
 
     return `
       <section class="plan-135-section" data-group="${section.group}">
-        <h4 class="plan-135-section-title">${section.label}</h4>
+        <header class="plan-135-section-header">
+          <span class="plan-135-section-badge" aria-hidden="true">${section.number}</span>
+          <div class="plan-135-section-copy">
+            <h4 class="plan-135-section-title">${section.label}</h4>
+          </div>
+        </header>
         <ul class="plan-135-slots">${slotHtml}</ul>
       </section>`;
   }).join("");
@@ -2431,6 +2477,145 @@ function handleReflectionBack() {
   dialog?.close();
 }
 
+function setupFocusTimer() {
+  const root = document.getElementById("focus-timer");
+  const display = document.getElementById("focus-timer-display");
+  const toggleBtn = document.getElementById("focus-timer-toggle");
+  const resetBtn = document.getElementById("focus-timer-reset");
+  const customWrap = document.getElementById("focus-timer-custom");
+  const customInput = document.getElementById("focus-timer-minutes");
+  const setCustomBtn = document.getElementById("focus-timer-set");
+  if (!root || !display || !toggleBtn || !resetBtn) return;
+
+  let durationMs = 20 * 60 * 1000;
+  let remainingMs = durationMs;
+  let endsAt = 0;
+  let intervalId = null;
+  let running = false;
+
+  function formatTime(ms) {
+    const totalSec = Math.max(0, Math.ceil(ms / 1000));
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+
+  function render() {
+    display.textContent = formatTime(remainingMs);
+    root.classList.toggle("is-running", running);
+    root.classList.toggle("is-done", !running && remainingMs === 0 && durationMs > 0);
+    toggleBtn.textContent = running ? "Pause" : remainingMs === 0 ? "Restart" : "Start";
+    toggleBtn.classList.toggle("is-pause", running);
+  }
+
+  function clearTick() {
+    if (intervalId) {
+      window.clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function completeTimer() {
+    running = false;
+    remainingMs = 0;
+    clearTick();
+    render();
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification("Focus complete", { body: "Your focus session is done." });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function tick() {
+    remainingMs = Math.max(0, endsAt - Date.now());
+    if (remainingMs <= 0) {
+      completeTimer();
+      return;
+    }
+    render();
+  }
+
+  function start() {
+    if (remainingMs <= 0) remainingMs = durationMs;
+    endsAt = Date.now() + remainingMs;
+    running = true;
+    clearTick();
+    intervalId = window.setInterval(tick, 250);
+    render();
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function pause() {
+    if (!running) return;
+    remainingMs = Math.max(0, endsAt - Date.now());
+    running = false;
+    clearTick();
+    render();
+  }
+
+  function reset() {
+    running = false;
+    remainingMs = durationMs;
+    clearTick();
+    render();
+  }
+
+  function setDurationMinutes(mins) {
+    const safe = Math.min(180, Math.max(1, Math.round(Number(mins) || 20)));
+    durationMs = safe * 60 * 1000;
+    remainingMs = durationMs;
+    running = false;
+    clearTick();
+    render();
+  }
+
+  document.querySelectorAll(".focus-timer-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const value = btn.dataset.minutes;
+      document.querySelectorAll(".focus-timer-preset").forEach((preset) => {
+        preset.classList.toggle("active", preset === btn);
+      });
+      if (value === "custom") {
+        customWrap?.classList.remove("hidden");
+        customInput?.focus();
+        return;
+      }
+      customWrap?.classList.add("hidden");
+      setDurationMinutes(value);
+    });
+  });
+
+  setCustomBtn?.addEventListener("click", () => {
+    setDurationMinutes(customInput?.value);
+    customWrap?.classList.add("hidden");
+  });
+
+  customInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setDurationMinutes(customInput.value);
+      customWrap?.classList.add("hidden");
+    }
+  });
+
+  toggleBtn.addEventListener("click", () => {
+    if (running) pause();
+    else start();
+  });
+
+  resetBtn.addEventListener("click", reset);
+  render();
+}
+
 function setupReflection() {
   const dialog = document.getElementById("reflection-dialog");
   const textarea = document.getElementById("reflection-text");
@@ -2441,6 +2626,8 @@ function setupReflection() {
   const promptsList = document.getElementById("reflection-prompts-list");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
+
+  setupFocusTimer();
 
   backBtn?.addEventListener("click", handleReflectionBack);
 
@@ -2803,8 +2990,14 @@ function renderGrid() {
     const countEl = document.querySelector(`[data-tier-count="${tier}"]`);
     const seeAllBtn = document.querySelector(`.column-see-all[data-tier="${tier}"]`);
     const visible = isTierVisible(tier);
+    const badgeNumber = String(tier).padStart(2, "0");
 
-    if (column) column.classList.toggle("hidden", !visible);
+    if (column) {
+      column.classList.toggle("hidden", !visible);
+      const badge = column.querySelector(".column-badge");
+      // Always keep the fixed priority number/color (01–04), even when other tiers are hidden.
+      if (badge) badge.textContent = badgeNumber;
+    }
     if (!visible || !list) continue;
 
     countEl.textContent = `${tierTasks.length} task${tierTasks.length === 1 ? "" : "s"}`;
@@ -3009,8 +3202,7 @@ function renderHomePriorities() {
   if (progress) progress.classList.add("hidden");
   empty.classList.add("hidden");
 
-  const cardsHtml = [1, 2, 3, 4]
-    .filter((tier) => isTierVisible(tier))
+  const cardsHtml = getVisibleTierList()
     .map((tier) => {
       const allTasks = getTasksByTierForHome(tier);
       const tasks = allTasks.slice(0, 5);
@@ -3151,8 +3343,7 @@ function renderHomeCompletedToday() {
   }
 
   section?.classList.remove("presence-completed-today--empty");
-  const cardsHtml = [1, 2, 3, 4]
-    .filter((tier) => isTierVisible(tier))
+  const cardsHtml = getVisibleTierList()
     .map((tier) => {
       const tierTasks = tasks.filter((t) => t.tier === tier);
       if (tierTasks.length === 0) return "";
@@ -4153,6 +4344,7 @@ setupNavigation();
 setupDropZones();
 setupTouchListDrag();
 setupSidebarTabs();
+setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
 setupBrainDumpForms();
 setupDailyRepeatForm();
