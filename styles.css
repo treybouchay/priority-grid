@@ -5034,59 +5034,22 @@ dialog {
   }
 
   .main {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
-  .mobile-nav {
+  .mobile-nav-shell .mobile-nav {
     display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: var(--mobile-nav-bg, var(--sidebar-bg));
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
-    justify-content: space-around;
-    align-items: flex-end;
-    gap: 0.15rem;
-    z-index: 100;
-    box-shadow: none;
   }
 
-  .mobile-nav-item {
+  .mobile-nav-shell .mobile-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.2rem;
-    min-width: 56px;
-    padding: 0.35rem 0.5rem;
     border: none;
     border-radius: 12px;
-    background: transparent;
     cursor: pointer;
-    color: rgba(255, 255, 255, 0.55);
-    opacity: 1;
-  }
-
-  .mobile-nav-label {
-    font-size: 0.625rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1;
-    letter-spacing: 0.01em;
-  }
-
-  .mobile-nav-item .icon-mobile {
-    color: rgba(255, 255, 255, 0.55);
-  }
-
-  .mobile-nav-item.active {
-    background: transparent;
-    color: #df7a65;
-  }
-
-  .mobile-nav-item.active .icon-mobile {
-    color: #df7a65;
   }
 
   .filter-pills {

@@ -146,16 +146,174 @@ body[data-page="tasks"] .column-top {
   }
 
   body[data-page="tasks"] #tasks-page.page-panel {
-    padding: 0 1rem calc(7rem + env(safe-area-inset-bottom));
+    padding: 0 1rem calc(8rem + env(safe-area-inset-bottom));
     background: #fdf9f4;
+    overflow-x: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   body[data-page="tasks"] .tasks-workspace {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body[data-page="tasks"] .tasks-board-area,
+  body[data-page="tasks"] .tasks-sidebar-col {
+    min-width: 0;
+    max-width: 100%;
   }
 
   body[data-page="tasks"] .tasks-sidebar-col {
+    display: block;
+    margin-top: 0.5rem;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  body[data-page="tasks"] .sidebar-tabs-panel {
+    position: static;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  body[data-page="tasks"] .sidebar-tabs {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(14, 48, 48, 0.08);
+    border-radius: 1rem 1rem 0 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+
+  body[data-page="tasks"] .sidebar-tabs::-webkit-scrollbar {
     display: none;
+  }
+
+  body[data-page="tasks"] .sidebar-tab {
+    flex: 0 0 auto;
+    padding: 0.5rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(14, 48, 48, 0.55);
+    white-space: nowrap;
+  }
+
+  body[data-page="tasks"] .sidebar-tab.active {
+    background: #0e3030;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  body[data-page="tasks"] .sidebar-tab-panels {
+    border: 1px solid rgba(14, 48, 48, 0.08);
+    border-top: none;
+    border-radius: 0 0 1.5rem 1.5rem;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  body[data-page="tasks"] .sidebar-tab-panel {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  body[data-page="tasks"] .sidebar-tab-panel .brain-panel,
+  body[data-page="tasks"] .sidebar-tab-panel .daily-repeat-panel,
+  body[data-page="tasks"] .sidebar-tab-panel .forget-it-panel,
+  body[data-page="tasks"] .sidebar-tab-panel .plan-135,
+  body[data-page="tasks"] .sidebar-tab-panel .archive-panel {
+    max-height: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 1rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    position: static;
+    top: auto;
+  }
+
+  body[data-page="tasks"] .plan-135-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  body[data-page="tasks"] .plan-135-header-actions {
+    align-items: flex-start;
+  }
+
+  body[data-page="tasks"] .plan-135-sub,
+  body[data-page="tasks"] .daily-repeat-sub,
+  body[data-page="tasks"] .forget-it-sub,
+  body[data-page="tasks"] .brain-panel-sub,
+  body[data-page="tasks"] .archive-panel-sub {
+    max-width: none;
+  }
+
+  body[data-page="tasks"] .daily-repeat-form,
+  body[data-page="tasks"] .brain-panel-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  body[data-page="tasks"] .daily-repeat-form input,
+  body[data-page="tasks"] .daily-repeat-form select,
+  body[data-page="tasks"] .brain-panel-form input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  body[data-page="tasks"] .daily-repeat-item,
+  body[data-page="tasks"] .plan-135-slot-filled,
+  body[data-page="tasks"] .forget-it-task,
+  body[data-page="tasks"] .brain-panel-list li {
+    min-width: 0;
+  }
+
+  body[data-page="tasks"] .daily-repeat-text,
+  body[data-page="tasks"] .plan-135-slot-text,
+  body[data-page="tasks"] .forget-it-task-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  body[data-page="tasks"] .daily-repeat-add,
+  body[data-page="tasks"] .brain-panel-add {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   body[data-page="tasks"] .board-toolbar {
@@ -314,7 +472,7 @@ body[data-page="tasks"] .column-top {
   }
 
   body[data-page="tasks"] .board-hint {
-    margin: 2rem auto 0;
+    margin: 1.5rem auto 0;
     padding: 0 1.5rem;
     max-width: 22rem;
     font-size: 0.75rem;
@@ -324,67 +482,6 @@ body[data-page="tasks"] .column-top {
     text-align: center;
   }
 
-  body[data-page="tasks"] .mobile-nav-shell {
-    display: block;
-  }
-
-  body[data-page="tasks"] .mobile-nav-fab-wrap {
-    display: flex;
-    justify-content: center;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: calc(3.25rem + env(safe-area-inset-bottom));
-    z-index: 101;
-    pointer-events: none;
-  }
-
-  body[data-page="tasks"] .mobile-nav-fab {
-    pointer-events: auto;
-    width: 4rem;
-    height: 4rem;
-    border-radius: 999px;
-    background: #0e3030;
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 8px 24px rgba(14, 48, 48, 0.28);
-  }
-
-  body[data-page="tasks"] .mobile-nav-fab svg {
-    width: 1.75rem;
-    height: 1.75rem;
-  }
-
-  body[data-page="tasks"] .mobile-nav {
-    justify-content: space-between;
-    padding: 1rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
-    background: #0e3030;
-    border-top: none;
-    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05);
-  }
-
-  body[data-page="tasks"] .mobile-nav-item {
-    min-width: 0;
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  body[data-page="tasks"] .mobile-nav-item .icon-mobile,
-  body[data-page="tasks"] .mobile-nav-label {
-    color: inherit;
-  }
-
-  body[data-page="tasks"] .mobile-nav-item.active,
-  body[data-page="tasks"] .mobile-nav-item.active .icon-mobile,
-  body[data-page="tasks"] .mobile-nav-item.active .mobile-nav-label {
-    color: #ffffff;
-    opacity: 1;
-  }
-
-  body[data-page="tasks"] .mobile-nav-spacer {
-    display: block;
-    width: 4rem;
-    flex-shrink: 0;
-  }
 }
 
 @media (min-width: 769px) {
