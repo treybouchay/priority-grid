@@ -86,11 +86,68 @@ body[data-page="home"] .plan-card-task-pill {
   color: #ffffff;
 }
 
+body[data-page="home"] .plan-card-heading {
+  margin: 0 0 1rem;
+}
+
 body[data-page="home"] .plan-card-title--featured {
   display: block;
-  margin: 0 0 1rem;
+  margin: 0;
   font-family: var(--font-heading);
   font-size: 1.25rem;
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="home"] .plan-card-subtitle {
+  margin: 0.25rem 0 0;
+  font-family: "Manrope", var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="home"] .plan-card-progress {
+  width: 3rem;
+  height: 3rem;
+}
+
+body[data-page="home"] .plan-card-progress-ring {
+  width: 3rem;
+  height: 3rem;
+}
+
+body[data-page="home"] .plan-card-progress-track {
+  stroke: rgba(17, 48, 44, 0.12);
+  stroke-width: 3.5;
+}
+
+body[data-page="home"] .plan-card-progress-fill {
+  stroke-width: 3.5;
+}
+
+body[data-page="home"] .plan-card--p1 .plan-card-progress-fill,
+body[data-page="home"] .plan-card--big .plan-card-progress-fill {
+  stroke: #c76b4d;
+}
+
+body[data-page="home"] .plan-card--p2 .plan-card-progress-fill,
+body[data-page="home"] .plan-card--medium .plan-card-progress-fill {
+  stroke: #0e3030;
+}
+
+body[data-page="home"] .plan-card--p3 .plan-card-progress-fill,
+body[data-page="home"] .plan-card--small .plan-card-progress-fill {
+  stroke: #64748b;
+}
+
+body[data-page="home"] .plan-card--p4 .plan-card-progress-fill {
+  stroke: #c76b4d;
+}
+
+body[data-page="home"] .plan-card-progress-label {
+  font-family: "Manrope", var(--font-body);
+  font-size: 0.6875rem;
   font-weight: 700;
   color: #11302c;
 }

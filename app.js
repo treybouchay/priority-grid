@@ -2883,16 +2883,19 @@ function planCardProgressRing(done, total) {
 
 function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done = 0, total = 0 }) {
   const listHtml = tasks.map((task) => planCardTaskHtml(task)).join("");
-  const taskLabel = `${total} task${total === 1 ? "" : "s"}`;
+  const taskLabel = subtitle || `${total} task${total === 1 ? "" : "s"}`;
 
   return `
     <article class="plan-card plan-card--${variant}">
       <div class="plan-card-inner">
         <div class="plan-card-top-row">
           <span class="plan-card-badge plan-card-badge--top" aria-hidden="true">${escapeHtml(number)}</span>
-          <span class="plan-card-task-pill">${escapeHtml(taskLabel)}</span>
+          ${planCardProgressRing(done, total)}
         </div>
-        <h3 class="plan-card-title plan-card-title--featured">${escapeHtml(title)}</h3>
+        <div class="plan-card-heading">
+          <h3 class="plan-card-title plan-card-title--featured">${escapeHtml(title)}</h3>
+          <p class="plan-card-subtitle">${escapeHtml(taskLabel)}</p>
+        </div>
         <div class="plan-card-body">
           ${listHtml ? `<ul class="plan-card-list">${listHtml}</ul>` : ""}
         </div>
