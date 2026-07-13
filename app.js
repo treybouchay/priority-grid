@@ -1779,7 +1779,14 @@ function setupNavigation() {
     sidebarProfileBtn.addEventListener("click", openAppearancePanel);
   }
 
-  document.getElementById("mobile-nav-fab")?.addEventListener("click", () => {
+  document.getElementById("mobile-nav-fab")?.addEventListener("click", (e) => {
+    const fab = e.currentTarget;
+    fab.classList.remove("is-sparkling");
+    void fab.offsetWidth;
+    fab.classList.add("is-sparkling");
+    const clearSparkle = () => fab.classList.remove("is-sparkling");
+    fab.addEventListener("animationend", clearSparkle, { once: true });
+    window.setTimeout(clearSparkle, 700);
     openTaskDialog(1);
   });
 
@@ -2971,6 +2978,7 @@ function getTasksByTierForHome(tier, limit) {
     if (a.done !== b.done) return a.done ? 1 : -1;
     return 0;
   });
+  if (limit == null) return tasks;
   return tasks.slice(0, limit);
 }
 
@@ -3001,9 +3009,10 @@ function renderHomePriorities() {
   const cardsHtml = [1, 2, 3, 4]
     .filter((tier) => isTierVisible(tier))
     .map((tier) => {
-      const tasks = getTasksByTierForHome(tier, 3);
-      const done = tasks.filter((t) => t.done).length;
-      const total = tasks.length;
+      const allTasks = getTasksByTierForHome(tier);
+      const tasks = allTasks.slice(0, 5);
+      const done = allTasks.filter((t) => t.done).length;
+      const total = allTasks.length;
       return figmaPlanCardHtml({
         number: String(tier).padStart(2, "0"),
         variant: PRIORITY_CARD_VARIANTS[tier - 1],
@@ -3163,11 +3172,8 @@ function renderHomeCompletedToday() {
 }
 
 function renderHome() {
-  if (mode135) {
-    renderHomePlan135();
-  } else {
-    renderHomePriorities();
-  }
+  // Always show all four priority columns with their tasks — not the 1-3-5 slot plan.
+  renderHomePriorities();
   renderHomeCompletedToday();
 }
 

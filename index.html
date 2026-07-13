@@ -65,7 +65,7 @@
       } catch {}
     </script>
     <link rel="stylesheet" href="styles.css?v=121" />
-    <link rel="stylesheet" href="design/home-presence.css?v=15" />
+    <link rel="stylesheet" href="design/home-presence.css?v=22" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=9" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -683,10 +683,20 @@
 
     <div class="mobile-nav-shell">
       <div class="mobile-nav-fab-wrap">
-        <button type="button" class="mobile-nav-fab" id="mobile-nav-fab" aria-label="Add task">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-            <line x1="12" x2="12" y1="5" y2="19" stroke-linecap="round" />
-            <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+        <button type="button" class="mobile-nav-fab" id="mobile-nav-fab" aria-label="Capture a task">
+          <svg class="mobile-nav-fab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 3.5l1.15 4.1 4.1 1.15-4.1 1.15L12 14l-1.15-4.1-4.1-1.15 4.1-1.15L12 3.5Z"
+              fill="currentColor"
+            />
+            <path
+              d="M18.25 14.25l0.7 2.45 2.45 0.7-2.45 0.7-0.7 2.45-0.7-2.45-2.45-0.7 2.45-0.7 0.7-2.45Z"
+              fill="currentColor"
+            />
+            <path
+              d="M6.4 15.1l0.55 1.9 1.9 0.55-1.9 0.55-0.55 1.9-0.55-1.9-1.9-0.55 1.9-0.55 0.55-1.9Z"
+              fill="currentColor"
+            />
           </svg>
         </button>
       </div>
@@ -889,6 +899,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=126"></script>
+    <script src="app.js?v=128"></script>
   </body>
 </html>
