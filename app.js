@@ -80,6 +80,22 @@ function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
   return "morning";
 }
 
+const REFLECTION_TEAL_SHIFT_REVIEW = 25;
+
+function getActiveReflectionTab() {
+  return document.querySelector(".reflection-tab.active")?.dataset.tab || "review";
+}
+
+function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
+  const shiftPx = tab === "review" ? REFLECTION_TEAL_SHIFT_REVIEW : 0;
+  reflectionScreen.style.backgroundColor = "#f3eee4";
+  reflectionScreen.style.backgroundImage = `linear-gradient(to bottom, rgba(13, 43, 43, 0) 0%, rgba(13, 43, 43, 0.1) 20%, rgb(13, 43, 43) 55%), url("${assets.mobile}")`;
+  reflectionScreen.style.backgroundSize = "100% 100%, 100% auto";
+  reflectionScreen.style.backgroundRepeat = "no-repeat";
+  reflectionScreen.style.backgroundPosition = `center ${shiftPx}px, center ${shiftPx}px`;
+  reflectionScreen.dataset.tealOffset = String(shiftPx);
+}
+
 function applyHomeHeroWallpaper(hour = new Date().getHours()) {
   const period = getHomeHeroWallpaperPeriod(hour);
   const assets = HOME_HERO_WALLPAPERS[period];
@@ -90,6 +106,11 @@ function applyHomeHeroWallpaper(hour = new Date().getHours()) {
   if (img && img.getAttribute("src") !== assets.mobile) img.src = assets.mobile;
   if (source && source.getAttribute("srcset") !== assets.desktop) {
     source.setAttribute("srcset", assets.desktop);
+  }
+
+  const reflectionScreen = document.querySelector(".reflection-screen");
+  if (reflectionScreen) {
+    applyReflectionScreenBackground(reflectionScreen, assets, getActiveReflectionTab());
   }
 }
 
@@ -177,7 +198,7 @@ let listDragState = null;
 let visibleTiers = getVisibleTiers();
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
-const PREVIEW_TASK_LIMIT = 3;
+const PREVIEW_TASK_LIMIT = 2;
 
 function tasksKey(ctx) {
   return `priority-grid-tasks-${ctx}`;
@@ -962,12 +983,19 @@ function setupDateHeader() {
   const now = new Date();
   const slot = getActiveTimeSlot(now.getHours());
   const greeting = getGreetingForTimeSlot(slot);
+  const dateText = formatHomeDate(now);
 
   const greetingEl = document.getElementById("home-greeting-line");
   if (greetingEl) greetingEl.textContent = `${greeting},`;
 
   const dateEl = document.getElementById("home-date");
-  if (dateEl) dateEl.textContent = formatHomeDate(now);
+  if (dateEl) dateEl.textContent = dateText;
+
+  const tasksGreetingEl = document.getElementById("tasks-greeting-line");
+  if (tasksGreetingEl) tasksGreetingEl.textContent = `${greeting},`;
+
+  const tasksDateEl = document.getElementById("tasks-date");
+  if (tasksDateEl) tasksDateEl.textContent = dateText;
 }
 
 function todayKey() {
@@ -1615,10 +1643,13 @@ function updatePageTitle() {
     history: { all: "History", work: "History", home: "History" },
   };
   document.getElementById("page-title").textContent = titles[page][filter];
-  document.getElementById("page-title").classList.toggle("hidden", page === "home");
+  document.getElementById("page-title").classList.toggle("hidden", page === "home" || page === "tasks");
   document.getElementById("page-header").classList.toggle("hidden", page === "home");
   document.getElementById("page-header").classList.toggle("page-header--home", page === "home");
+  document.getElementById("page-header").classList.toggle("page-header--tasks", page === "tasks");
   document.getElementById("page-header-actions").classList.toggle("hidden", page !== "home");
+  document.getElementById("tasks-page-intro")?.classList.toggle("hidden", page !== "tasks");
+  document.getElementById("tasks-page-notify")?.classList.toggle("hidden", page !== "tasks");
 
   const isHome = page === "home";
   const isTasks = page === "tasks";
@@ -2366,6 +2397,7 @@ function setReflectionTab(tab) {
   if (nextTab === "thoughts") {
     document.getElementById("reflection-text")?.focus();
   }
+  applyHomeHeroWallpaper();
 }
 
 function openReflectionDialog() {
@@ -2379,12 +2411,8 @@ function openReflectionDialog() {
   renderReflectionPrompts(shuffleReflectionPrompts());
   renderReflectionReview();
   setReflectionTab("review");
+  applyHomeHeroWallpaper();
   dialog.showModal();
-}
-
-function getActiveReflectionTab() {
-  const active = document.querySelector(".reflection-tab.active");
-  return active?.dataset.tab || "review";
 }
 
 function handleReflectionBack() {
@@ -2782,7 +2810,10 @@ function renderGrid() {
     if (seeAllBtn) {
       const hasMore = tierTasks.length > PREVIEW_TASK_LIMIT;
       seeAllBtn.classList.toggle("hidden", !hasMore);
-      seeAllBtn.textContent = hasMore ? `See all ${tierTasks.length} tasks →` : "See all tasks →";
+      const textEl = seeAllBtn.querySelector(".column-see-all-text");
+      const label = hasMore ? `See all ${tierTasks.length} tasks` : "See all tasks";
+      if (textEl) textEl.textContent = label;
+      else seeAllBtn.textContent = label;
     }
     const addBtn = document.querySelector(`.column-add[data-tier="${tier}"]`);
     if (addBtn) addBtn.classList.toggle("hidden", tierTasks.length > PREVIEW_TASK_LIMIT);

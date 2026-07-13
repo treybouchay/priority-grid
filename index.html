@@ -64,8 +64,9 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=104" />
+    <link rel="stylesheet" href="styles.css?v=120" />
     <link rel="stylesheet" href="design/home-presence.css?v=14" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=6" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -271,8 +272,19 @@
 
       <div class="main">
         <header class="page-header" id="page-header">
-          <div class="page-header-left">
-            <h2 class="page-title" id="page-title">Home</h2>
+          <div class="page-header-tasks-top">
+            <div class="page-header-left">
+              <h2 class="page-title" id="page-title">Home</h2>
+              <div class="tasks-page-intro hidden" id="tasks-page-intro">
+                <p class="tasks-page-greeting" id="tasks-greeting-line">Good afternoon,</p>
+                <h1 class="tasks-page-name">Trey <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
+                <p class="tasks-page-date" id="tasks-date"></p>
+              </div>
+            </div>
+            <button type="button" class="tasks-page-notify header-icon-btn header-icon-btn-bell hidden" id="tasks-page-notify" aria-label="Notifications">
+              <svg class="icon icon-header" aria-hidden="true"><use href="#icon-bell"></use></svg>
+              <span class="header-notify-dot" aria-hidden="true"></span>
+            </button>
           </div>
           <div class="page-header-right">
             <div class="page-header-actions hidden" id="page-header-actions">
@@ -455,67 +467,95 @@
               <div class="board" id="board">
                 <section class="column" data-tier="1">
                   <header class="column-header">
-                    <span class="column-badge">1</span>
+                    <div class="column-top">
+                      <span class="column-badge">01</span>
+                      <button type="button" class="column-menu-btn" data-tier="1" aria-label="Open 1st Priority">
+                        <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                      </button>
+                    </div>
                     <div class="column-header-main">
                       <h3 class="column-title">1st Priority</h3>
                       <p class="column-count" data-tier-count="1">0 tasks</p>
                     </div>
-                    <button type="button" class="column-menu-btn" data-tier="1" aria-label="Open 1st Priority">
-                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
-                    </button>
                   </header>
                   <ul class="task-list" data-tier="1"></ul>
-                  <button type="button" class="column-see-all hidden" data-tier="1">See all tasks</button>
+                  <button type="button" class="column-see-all hidden" data-tier="1">
+                    <span class="column-see-all-text">See all tasks</span>
+                    <svg class="column-see-all-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
                   <button type="button" class="column-add" data-tier="1">+ Add task</button>
                 </section>
                 <section class="column" data-tier="2">
                   <header class="column-header">
-                    <span class="column-badge">2</span>
+                    <div class="column-top">
+                      <span class="column-badge">02</span>
+                      <button type="button" class="column-menu-btn" data-tier="2" aria-label="Open 2nd Priority">
+                        <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                      </button>
+                    </div>
                     <div class="column-header-main">
                       <h3 class="column-title">2nd Priority</h3>
                       <p class="column-count" data-tier-count="2">0 tasks</p>
                     </div>
-                    <button type="button" class="column-menu-btn" data-tier="2" aria-label="Open 2nd Priority">
-                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
-                    </button>
                   </header>
                   <ul class="task-list" data-tier="2"></ul>
-                  <button type="button" class="column-see-all hidden" data-tier="2">See all tasks</button>
+                  <button type="button" class="column-see-all hidden" data-tier="2">
+                    <span class="column-see-all-text">See all tasks</span>
+                    <svg class="column-see-all-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
                   <button type="button" class="column-add" data-tier="2">+ Add task</button>
                 </section>
                 <section class="column" data-tier="3">
                   <header class="column-header">
-                    <span class="column-badge">3</span>
+                    <div class="column-top">
+                      <span class="column-badge">03</span>
+                      <button type="button" class="column-menu-btn" data-tier="3" aria-label="Open 3rd Priority">
+                        <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                      </button>
+                    </div>
                     <div class="column-header-main">
                       <h3 class="column-title">3rd Priority</h3>
                       <p class="column-count" data-tier-count="3">0 tasks</p>
                     </div>
-                    <button type="button" class="column-menu-btn" data-tier="3" aria-label="Open 3rd Priority">
-                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
-                    </button>
                   </header>
                   <ul class="task-list" data-tier="3"></ul>
-                  <button type="button" class="column-see-all hidden" data-tier="3">See all tasks</button>
+                  <button type="button" class="column-see-all hidden" data-tier="3">
+                    <span class="column-see-all-text">See all tasks</span>
+                    <svg class="column-see-all-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
                   <button type="button" class="column-add" data-tier="3">+ Add task</button>
                 </section>
                 <section class="column" data-tier="4">
                   <header class="column-header">
-                    <span class="column-badge">4</span>
+                    <div class="column-top">
+                      <span class="column-badge">04</span>
+                      <button type="button" class="column-menu-btn" data-tier="4" aria-label="Open 4th Priority">
+                        <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
+                      </button>
+                    </div>
                     <div class="column-header-main">
                       <h3 class="column-title">4th Priority</h3>
                       <p class="column-count" data-tier-count="4">0 tasks</p>
                     </div>
-                    <button type="button" class="column-menu-btn" data-tier="4" aria-label="Open 4th Priority">
-                      <svg class="icon icon-menu" aria-hidden="true"><use href="#icon-menu"></use></svg>
-                    </button>
                   </header>
                   <ul class="task-list" data-tier="4"></ul>
-                  <button type="button" class="column-see-all hidden" data-tier="4">See all tasks</button>
+                  <button type="button" class="column-see-all hidden" data-tier="4">
+                    <span class="column-see-all-text">See all tasks</span>
+                    <svg class="column-see-all-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
                   <button type="button" class="column-add" data-tier="4">+ Add task</button>
                 </section>
               </div>
               <ul class="tasks-flat-list" id="tasks-flat-list"></ul>
-              <p class="board-hint" id="board-hint">Drag tasks between priorities. Click a priority title to see all tasks.</p>
+              <p class="board-hint" id="board-hint">Drag tasks between priorities, or drop them into 1-3-5 slots and the Next Week box in the sidebar.</p>
             </div>
 
             <div class="tasks-sidebar-col">
@@ -849,6 +889,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=115"></script>
+    <script src="app.js?v=126"></script>
   </body>
 </html>
