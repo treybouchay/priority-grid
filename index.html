@@ -39,18 +39,19 @@
           );
         }
         const fontMigration = {
-          "playfair-inter": "pairing-playfair",
+          "playfair-inter": "pairing-presence",
           "pairing-3": "pairing-playfair",
-          "lora-inter": "pairing-playfair-serif",
-          "pairing-1": "pairing-playfair-serif",
+          "lora-inter": "pairing-presence",
+          "pairing-1": "pairing-presence",
           "pairing-2": "pairing-playfair-sans",
           "pairing-4": "pairing-playfair-sans",
           "pairing-5": "pairing-playfair-sans",
           "pairing-source-sans": "pairing-playfair-sans",
+          "pairing-playfair-serif": "pairing-presence",
         };
         const resolvedFont = fontMigration[font] || font;
         if (resolvedFont) document.documentElement.dataset.font = resolvedFont;
-        else document.documentElement.dataset.font = "pairing-playfair-serif";
+        else document.documentElement.dataset.font = "pairing-presence";
         if (font && fontMigration[font]) {
           localStorage.setItem("priority-grid-font", fontMigration[font]);
         }
@@ -64,9 +65,9 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=129" />
-    <link rel="stylesheet" href="design/home-presence.css?v=52" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=16" />
+    <link rel="stylesheet" href="styles.css?v=134" />
+    <link rel="stylesheet" href="design/home-presence.css?v=58" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=17" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -990,6 +991,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=156"></script>
+    <script src="app.js?v=157"></script>
   </body>
 </html>

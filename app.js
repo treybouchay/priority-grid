@@ -149,7 +149,14 @@ const THEME_META_COLORS = {
 
 const FONTS = [
   {
-    id: "pairing-playfair-serif",
+    id: "pairing-presence",
+    name: "Source Serif 4 + Manrope",
+    heading: "Source Serif 4",
+    body: "Manrope",
+    bodyWeight: 500,
+  },
+  {
+    id: "pairing-playfair-source",
     name: "Playfair Display + Source Serif 4",
     heading: "Playfair Display",
     body: "Source Serif 4",
@@ -172,14 +179,16 @@ const FONTS = [
 ];
 
 const FONT_MIGRATION = {
-  "playfair-inter": "pairing-playfair",
+  "playfair-inter": "pairing-presence",
   "pairing-3": "pairing-playfair",
-  "lora-inter": "pairing-playfair-serif",
-  "pairing-1": "pairing-playfair-serif",
+  "lora-inter": "pairing-presence",
+  "pairing-1": "pairing-presence",
   "pairing-2": "pairing-playfair-sans",
   "pairing-4": "pairing-playfair-sans",
   "pairing-5": "pairing-playfair-sans",
   "pairing-source-sans": "pairing-playfair-sans",
+  // Former default / id → Presence type system
+  "pairing-playfair-serif": "pairing-presence",
 };
 
 let page = getPage();
@@ -1273,7 +1282,7 @@ function getFont() {
   } catch {
     /* ignore */
   }
-  return "pairing-playfair-serif";
+  return "pairing-presence";
 }
 
 function escapeHtml(text) {
@@ -2301,8 +2310,8 @@ function setupFontPicker() {
     <button type="button" class="font-option${font.id === current ? " active" : ""}"
       data-font="${font.id}" role="radio" aria-checked="${font.id === current}"
       aria-label="${font.name}">
-      <span class="font-option-name" style="font-family:'${font.heading}',serif;font-weight:600">${font.name}</span>
-      <span class="font-option-sample" style="font-family:'${font.body}',serif;font-weight:${font.bodyWeight || 400}">Aa Bb Cc</span>
+      <span class="font-option-name" style="font-family:'${font.heading}',Georgia,serif;font-weight:600">${font.name}</span>
+      <span class="font-option-sample" style="font-family:'${font.body}',system-ui,sans-serif;font-weight:${font.bodyWeight || 400}">Aa Bb Cc</span>
     </button>`
   ).join("");
 

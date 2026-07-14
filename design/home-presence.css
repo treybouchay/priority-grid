@@ -1,16 +1,41 @@
-/* Presence home — mobile + desktop */
+/* Presence home — mobile + desktop
+ *
+ * Colour tokens (refer by name):
+ *   --cream            page / sheet background
+ *   --forest           deep teal-green surfaces (cards, nav, badges)
+ *   --forest-ink       primary body text on cream
+ *   --peach-soft       light peach on forest (labels, accents on dark)
+ *   --peach-bright     saturated peach CTAs / hero accent
+ *   --sea-green        FAB / secondary green accent
+ *   --progress-done    progress ring completed arc (= forest)
+ *   --progress-todo    progress ring remaining track (soft grey)
+ *
+ * Font guide:
+ *   --font-heading     Source Serif 4 — titles, timer, display numbers
+ *   --font-body        Manrope — UI labels, tasks, nav, captions
+ *   Weights: 400 regular · 500 medium · 600 semibold · 700 bold
+ *   (Playfair Display / Source Sans 3 remain available via appearance fonts)
+ */
 
 body[data-page="home"] {
-  background: #fdf9f4;
-  color: #11302c;
-  --font-heading: "Source Serif 4", Georgia, serif;
+  background: var(--cream);
+  color: var(--forest-ink);
+  --cream: #fdf9f4;
   --forest: #0e3030;
   --forest-ink: #11302c;
-  --peach-on-forest: #ffdbd2;
+  --peach-soft: #ffdbd2;
+  --peach-bright: #fc9174;
+  --sea-green: #3d8b74;
+  --peach-on-forest: var(--peach-soft);
+  --peach-ring: var(--peach-bright);
+  --progress-done: var(--forest);
+  --progress-todo: rgba(17, 48, 44, 0.12);
+  --font-heading: "Source Serif 4", Georgia, serif;
+  --font-body: "Manrope", system-ui, sans-serif;
 }
 
 body[data-page="home"] .shell {
-  background: #fdf9f4;
+  background: var(--cream);
 }
 
 body[data-page="home"] .page-header.page-header--home {
@@ -79,7 +104,7 @@ body[data-page="home"] .plan-card-badge--top {
 }
 
 body[data-page="home"] .plan-card-task-pill {
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -104,7 +129,7 @@ body[data-page="home"] .plan-card-title--featured {
 
 body[data-page="home"] .plan-card-subtitle {
   margin: 0.25rem 0 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.8125rem;
   font-weight: 500;
   color: rgba(17, 48, 44, 0.5);
@@ -126,6 +151,7 @@ body[data-page="home"] .plan-card-progress-track {
 }
 
 body[data-page="home"] .plan-card-progress-fill {
+  stroke: var(--progress-done);
   stroke-width: 3.5;
 }
 
@@ -136,11 +162,11 @@ body[data-page="home"] .plan-card--medium .plan-card-progress-fill,
 body[data-page="home"] .plan-card--p3 .plan-card-progress-fill,
 body[data-page="home"] .plan-card--small .plan-card-progress-fill,
 body[data-page="home"] .plan-card--p4 .plan-card-progress-fill {
-  stroke: #0e3030;
+  stroke: var(--progress-done);
 }
 
 body[data-page="home"] .plan-card-progress-label {
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.6875rem;
   font-weight: 700;
   color: #11302c;
@@ -253,7 +279,7 @@ body[data-page="home"] .plan-card--p2 .plan-card-check input:checked {
 }
 
 body[data-page="home"] .plan-card-task-text {
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 500;
   color: #11302c;
@@ -311,7 +337,7 @@ body[data-page="home"] .section-title--plan {
 }
 
 body[data-page="home"] .section-link--plan {
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 600;
   color: #c76b4d;
@@ -373,7 +399,7 @@ body[data-page="home"] .presence-greeting-name {
 
 body[data-page="home"] .presence-greeting-date {
   margin: 0.25rem 0 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-weight: 500;
   color: #11302c;
   opacity: 0.6;
@@ -416,7 +442,7 @@ body[data-page="home"] .presence-focus {
 
 body[data-page="home"] .presence-focus-label {
   margin: 0 0 0.5rem;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -465,12 +491,7 @@ body[data-page="home"] #home-completed-content {
   min-width: 0;
 }
 
-body[data-page="home"] .completed-wins-card {
-  min-height: 0;
-}
-
 body[data-page="home"] .completed-wins-card .plan-card-inner {
-  min-height: 0;
   gap: 0;
 }
 
@@ -488,7 +509,7 @@ body[data-page="home"] .completed-wins-card--empty .plan-card-inner {
 
 body[data-page="home"] .completed-wins-empty-msg {
   margin: 1rem 0 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.5;
@@ -531,7 +552,7 @@ body[data-page="home"] .completed-wins-group--p4 .completed-wins-badge {
 
 body[data-page="home"] .completed-wins-group-title {
   margin: 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -541,7 +562,7 @@ body[data-page="home"] .completed-wins-group-title {
 
 body[data-page="home"] .completed-wins-group-count {
   margin-left: auto;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
   color: rgba(17, 48, 44, 0.45);
@@ -569,7 +590,7 @@ body[data-page="home"] .completed-wins-item .plan-card-task-text {
 }
 
 body[data-page="home"] .completed-wins-time {
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 500;
   color: rgba(17, 48, 44, 0.4);
@@ -667,7 +688,7 @@ body[data-page="home"] .focus-timer-attach-head {
 
 body[data-page="home"] .focus-timer-attach-label {
   margin: 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -680,7 +701,7 @@ body[data-page="home"] .focus-timer-attach-add {
   border-radius: 999px;
   background: transparent;
   color: var(--peach-on-forest);
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.4rem 0.75rem;
@@ -706,7 +727,7 @@ body[data-page="home"] .focus-timer-mini-tasks {
 
 body[data-page="home"] .focus-timer-attach-empty {
   margin: 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.8125rem;
   color: rgba(255, 219, 210, 0.55);
 }
@@ -743,7 +764,7 @@ body[data-page="home"] .focus-timer-session-item {
 
 body[data-page="home"] .focus-timer-attach-text,
 body[data-page="home"] .focus-timer-session-text {
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--peach-on-forest);
@@ -858,7 +879,7 @@ body[data-page="home"] .focus-timer-mini-toggle {
   padding: 0.45rem 0.9rem;
   background: var(--peach-on-forest);
   color: #11302c;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -873,7 +894,7 @@ body[data-page="home"] .focus-timer-mini-reset {
   border: none;
   background: transparent;
   color: var(--peach-on-forest);
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.35rem 0.15rem;
@@ -886,7 +907,7 @@ body[data-page="home"] .focus-timer-mini-task {
   grid-template-columns: 2rem minmax(0, 1fr);
   align-items: center;
   column-gap: 0.75rem;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.8125rem;
   font-weight: 500;
   color: rgba(255, 219, 210, 0.85);
@@ -944,7 +965,7 @@ body[data-page="home"] .focus-timer-set {
   border-radius: 999px;
   background: rgba(255, 219, 210, 0.06);
   color: var(--peach-on-forest);
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
@@ -989,7 +1010,7 @@ body[data-page="home"] .focus-timer-minutes {
   border-radius: 0.75rem;
   background: rgba(255, 219, 210, 0.08);
   color: var(--peach-on-forest);
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -1016,7 +1037,7 @@ body[data-page="home"] .focus-timer-reset {
   border: none;
   background: transparent;
   color: var(--peach-on-forest);
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 600;
   padding: 0.5rem 0.25rem;
@@ -1047,7 +1068,7 @@ body[data-page="home"] .priority-visibility-tags--home .priority-visibility-tag 
   border: 1px solid #0e3030;
   border-radius: 999px;
   background: #ffffff;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
   color: #0e3030;
@@ -1088,7 +1109,7 @@ body[data-page="home"] .presence-completed-header {
 
 body[data-page="home"] .plan-card-empty-msg {
   margin: 0;
-  font-family: "Manrope", var(--font-body);
+  font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.5;
@@ -1353,7 +1374,7 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
   }
 
   .mobile-nav-shell .mobile-nav-label {
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 0.625rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -1493,7 +1514,7 @@ body[data-page="home"] .section-link--plan svg {
     border: none;
     background: transparent;
     color: #0e3030;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
@@ -1717,7 +1738,7 @@ body[data-page="home"] .section-link--plan svg {
     border: none;
     border-radius: 999px;
     padding: 0.5rem 1rem;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 500;
     letter-spacing: 0.04em;
@@ -1763,14 +1784,14 @@ body[data-page="home"] .section-link--plan svg {
   }
 
   body[data-page="home"] .presence-flow-bar span {
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 0.75rem;
     color: #414848;
   }
 
   body[data-page="home"] .presence-insight-quote {
     margin: 0.75rem 0 0;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 1rem;
     line-height: 1.5;
     color: rgba(255, 219, 210, 0.72);
@@ -1787,7 +1808,7 @@ body[data-page="home"] .section-link--plan svg {
 
   body[data-page="home"] .presence-insight-label {
     margin: 0 0 0.5rem;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     color: rgba(255, 219, 210, 0.6);
@@ -1795,14 +1816,14 @@ body[data-page="home"] .section-link--plan svg {
 
   body[data-page="home"] .presence-insight-event {
     margin: 0 0 0.5rem;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 1.125rem;
     font-weight: 700;
   }
 
   body[data-page="home"] .presence-insight-time {
     margin: 0;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 1rem;
     color: rgba(255, 219, 210, 0.85);
   }
@@ -1815,7 +1836,7 @@ body[data-page="home"] .section-link--plan svg {
     border-radius: 0.75rem;
     background: #fc9174;
     color: #0e3030;
-    font-family: "Manrope", var(--font-body);
+    font-family: var(--font-body);
     font-size: 0.875rem;
     font-weight: 700;
     cursor: pointer;

@@ -351,19 +351,31 @@
 }
 
 :root,
-[data-font="pairing-playfair-serif"] {
+[data-font="pairing-presence"] {
+  --font-heading: "Source Serif 4", Georgia, serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+  --font-display: var(--font-heading);
+  --font-body-weight: 500;
+}
+
+[data-font="pairing-playfair-source"] {
   --font-heading: "Playfair Display", Georgia, serif;
   --font-body: "Source Serif 4", Georgia, serif;
+  --font-display: var(--font-heading);
+  --font-body-weight: 400;
 }
 
 [data-font="pairing-playfair-sans"] {
   --font-heading: "Playfair Display", Georgia, serif;
   --font-body: "Source Sans 3", system-ui, sans-serif;
+  --font-display: var(--font-heading);
+  --font-body-weight: 400;
 }
 
 [data-font="pairing-playfair"] {
   --font-heading: "Playfair Display", Georgia, serif;
   --font-body: "Playfair Display", Georgia, serif;
+  --font-display: var(--font-heading);
   --font-body-weight: 400;
 }
 
@@ -394,12 +406,13 @@
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
-  --font-weight-body: 600;
+  --font-weight-body: 500;
   --font-weight-heading: 600;
   --font-weight-medium: 600;
-  --font-weight-bold: 600;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   --font-weight-task: 500;
-  --font-body-weight: var(--font-weight-body);
+  --font-display: var(--font-heading);
   --type-display-size: 2.25rem;
   --type-display-lh: 2.75rem;
   --type-display-tracking: -0.01em;
@@ -1698,7 +1711,7 @@ body[data-page="home"] .appearance-panel[open] {
 
 .plan-card-progress-fill {
   fill: none;
-  stroke: #094345;
+  stroke: #0e3030;
   stroke-width: 4;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.25s ease;
@@ -1706,24 +1719,24 @@ body[data-page="home"] .appearance-panel[open] {
 
 .plan-card--big .plan-card-progress-fill,
 .plan-card--p1 .plan-card-progress-fill {
-  stroke: #e07a5f;
+  stroke: #0e3030;
 }
 
 .plan-card--medium .plan-card-progress-fill {
-  stroke: #df7a65;
+  stroke: #0e3030;
 }
 
 .plan-card--small .plan-card-progress-fill,
 .plan-card--p2 .plan-card-progress-fill {
-  stroke: #3b5f5a;
+  stroke: #0e3030;
 }
 
 .plan-card--p3 .plan-card-progress-fill {
-  stroke: #7b8ec4;
+  stroke: #0e3030;
 }
 
 .plan-card--p4 .plan-card-progress-fill {
-  stroke: #df7a65;
+  stroke: #0e3030;
 }
 
 .plan-card-progress-label {
@@ -2098,7 +2111,7 @@ body[data-page="home"] .appearance-panel[open] {
 
 .progress-ring-fill {
   fill: none;
-  stroke: var(--ds-deep-teal);
+  stroke: #0e3030;
   stroke-width: 6;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.25s ease;
