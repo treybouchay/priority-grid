@@ -704,10 +704,6 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
   min-height: 220px;
 }
 
-body[data-page="home"] .plan-card--empty .plan-card-top-row {
-  margin-bottom: 0;
-}
-
 /* ── Mobile ── */
 @media (max-width: 768px) {
   body[data-page="home"] .sidebar {
