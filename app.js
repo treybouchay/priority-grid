@@ -343,12 +343,6 @@ function setupFocusTimer() {
             <label class="plan-card-check focus-timer-session-check">
               <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
             </label>
-            <button type="button" class="focus-timer-session-edit" aria-label="Edit task">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 20h9" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
-                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
           </li>`
           )
           .join("");
@@ -357,10 +351,6 @@ function setupFocusTimer() {
           input?.addEventListener("change", (e) => {
             toggleTaskDone(row.dataset.id, row.dataset.context, e.target.checked);
             renderAttachedSurfaces();
-          });
-          row.querySelector(".focus-timer-session-edit")?.addEventListener("click", () => {
-            const task = loadTasks(row.dataset.context).find((t) => t.id === row.dataset.id);
-            if (task) openEditTaskDialog(task, row.dataset.context);
           });
         });
       }
@@ -492,6 +482,13 @@ function setupFocusTimer() {
     render();
   }
 
+  function scrollToMiniBubble() {
+    if (!mini) return;
+    requestAnimationFrame(() => {
+      mini.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   function start() {
     if (remainingMs <= 0) remainingMs = durationMs;
     endsAt = Date.now() + remainingMs;
@@ -499,6 +496,7 @@ function setupFocusTimer() {
     clearTick();
     intervalId = window.setInterval(tick, 250);
     render();
+    scrollToMiniBubble();
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         Notification.requestPermission();
