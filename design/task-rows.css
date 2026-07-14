@@ -1,0 +1,314 @@
+/* Shared task-row visual language — matches priority card rows
+ *
+ * Tokens and row/check/text patterns reused across home, tasks, and history.
+ * Page-specific layout (grid vs flex, drag handles) stays in page stylesheets.
+ */
+
+body[data-page="home"],
+body[data-page="tasks"],
+body[data-page="history"] {
+  --task-row-gap: 0.65rem;
+  --task-row-radius: 0.75rem;
+  --task-row-radius-card: 1.25rem;
+  --task-row-bg: rgba(255, 255, 255, 0.5);
+  --task-row-bg-done: rgba(255, 255, 255, 0.4);
+  --task-row-border: 1px solid rgba(255, 255, 255, 0.4);
+  --task-row-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --task-row-padding: 0.5rem 0.75rem;
+  --task-row-padding-card: 0.85rem 1rem;
+  --task-check-size: 1.25rem;
+  --task-text-size: 0.875rem;
+  --task-text-muted: rgba(17, 48, 44, 0.55);
+  --task-check-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Frosted cream row surface — checkbox task lists */
+body[data-page="home"] .plan-card-task,
+body[data-page="history"] .completed-wins-item,
+body[data-page="tasks"] .tasks-board-area .task-card:not(.tasks-flat-item),
+body[data-page="tasks"] .tier-expand-list .task-card,
+body[data-page="tasks"] .tasks-flat-item,
+body[data-page="tasks"] .plan-card-task,
+body[data-page="home"] .tier-expand-list .task-card {
+  background: var(--task-row-bg);
+  border: var(--task-row-border);
+  border-radius: var(--task-row-radius);
+  box-shadow: var(--task-row-shadow);
+  padding: var(--task-row-padding);
+}
+
+body[data-page="home"] .plan-card-task.done,
+body[data-page="history"] .completed-wins-item,
+body[data-page="tasks"] .task-card.done:not(.tasks-flat-item),
+body[data-page="tasks"] .tasks-flat-item.done,
+body[data-page="tasks"] .plan-card-task.done,
+body[data-page="home"] .tier-expand-list .task-card.done,
+body[data-page="tasks"] .tier-expand-list .task-card.done {
+  background: var(--task-row-bg-done);
+}
+
+/* Frosted card rows — sidebar panels (larger radius) */
+body[data-page="tasks"] .daily-repeat-item,
+body[data-page="tasks"] .forget-it-task,
+body[data-page="tasks"] .plan-135-slot-filled {
+  background: var(--task-row-bg);
+  border: var(--task-row-border);
+  border-radius: var(--task-row-radius-card);
+  box-shadow: var(--task-row-shadow);
+}
+
+body[data-page="tasks"] .plan-135-slot-filled {
+  padding: var(--task-row-padding-card);
+}
+
+/* Circular forest checks */
+body[data-page="home"] .plan-card-check input,
+body[data-page="tasks"] .task-check input,
+body[data-page="tasks"] .plan-card-check input,
+body[data-page="tasks"] .plan-135-check input,
+body[data-page="history"] .plan-card-check input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: var(--task-check-size);
+  height: var(--task-check-size);
+  margin: 0;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+  background: #ffffff;
+  cursor: pointer;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* Context line icons — sidebar panel rows (Work / Home) */
+body[data-page="tasks"] .sidebar-row-context-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--task-check-size);
+  height: var(--task-check-size);
+  color: rgba(17, 48, 44, 0.42);
+  pointer-events: none;
+}
+
+body[data-page="tasks"] .sidebar-row-context-icon .icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* Trailing cluster — context icon + row actions (Brain Dump, Archive) */
+body[data-page="tasks"] .sidebar-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+}
+
+/* Sidebar panel rows — circular trailing icon buttons */
+body[data-page="tasks"] .brain-panel-item .brain-dump-delete,
+body[data-page="tasks"] .archive-panel-item .archive-delete-btn,
+body[data-page="tasks"] .archive-panel-item .archive-restore-btn,
+body[data-page="tasks"] .sidebar-row-delete,
+body[data-page="tasks"] .sidebar-row-restore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.55);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+body[data-page="tasks"] .archive-panel-item .archive-restore-btn,
+body[data-page="tasks"] .sidebar-row-restore {
+  font-size: 1rem;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="tasks"] .archive-panel-item .archive-restore-btn:hover,
+body[data-page="tasks"] .sidebar-row-restore:hover {
+  color: var(--forest, #0e3030);
+  background: rgba(17, 48, 44, 0.06);
+}
+
+body[data-page="tasks"] .brain-panel-item .brain-dump-delete:hover,
+body[data-page="tasks"] .archive-panel-item .archive-delete-btn:hover,
+body[data-page="tasks"] .sidebar-row-delete:hover {
+  color: #a04040;
+  background: rgba(17, 48, 44, 0.06);
+}
+
+
+body[data-page="home"] .plan-card-check input:checked,
+body[data-page="tasks"] .task-check input:checked,
+body[data-page="tasks"] .plan-card-check input:checked,
+body[data-page="tasks"] .plan-135-check input:checked,
+body[data-page="history"] .plan-card-check input {
+  background-color: #0e3030;
+  border-color: #0e3030;
+  background-image: var(--task-check-svg);
+}
+
+/* Task text typography */
+body[data-page="home"] .plan-card-task-text,
+body[data-page="tasks"] .task-text-btn,
+body[data-page="tasks"] .plan-card-task-text,
+body[data-page="tasks"] .plan-135-slot-text,
+body[data-page="history"] .plan-card-task-text {
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: var(--task-text-size);
+  font-weight: 500;
+  line-height: 1.4;
+  color: #11302c;
+}
+
+body[data-page="home"] .plan-card-task.done .plan-card-task-text,
+body[data-page="tasks"] .task-card.done .task-text-btn,
+body[data-page="tasks"] .tasks-flat-item.done .task-text-btn,
+body[data-page="tasks"] .plan-card-task.done .plan-card-task-text,
+body[data-page="tasks"] .plan-135-slot.done .plan-135-slot-text,
+body[data-page="history"] .plan-card-task-text {
+  text-decoration: line-through;
+  opacity: var(--task-text-muted);
+}
+
+/* plan-card-task row layout on tasks page */
+body[data-page="tasks"] .plan-card-task {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  list-style: none;
+}
+
+body[data-page="tasks"] .plan-card-task-text {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+body[data-page="tasks"] .archive-panel-item .plan-card-task-text {
+  cursor: default;
+}
+
+body[data-page="tasks"] .plan-card-check {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+body[data-page="tasks"] .plan-card-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  opacity: 0.35;
+  color: #11302c;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body[data-page="tasks"] .plan-card-task:hover .plan-card-drag,
+body[data-page="tasks"] .plan-card-drag.dragging-active {
+  opacity: 1;
+}
+
+body[data-page="tasks"] .plan-card-drag.dragging-active {
+  color: #0e3030;
+  background: rgba(14, 48, 48, 0.08);
+  cursor: grabbing;
+}
+
+/* List spacing */
+body[data-page="home"] .plan-card-list,
+body[data-page="tasks"] .tasks-board-area .task-list,
+body[data-page="tasks"] .tier-expand-list,
+body[data-page="tasks"] .tasks-flat-tier-list,
+body[data-page="tasks"] .brain-panel-list,
+body[data-page="tasks"] .archive-panel-list,
+body[data-page="home"] .tier-expand-list {
+  gap: var(--task-row-gap);
+}
+
+/* Archive / restore / delete — quiet trailing actions */
+body[data-page="tasks"] .tasks-board-area .archive-btn,
+body[data-page="tasks"] .tier-expand-list .archive-btn,
+body[data-page="tasks"] .tasks-flat-item .archive-btn,
+body[data-page="tasks"] .plan-card-task .archive-btn,
+body[data-page="home"] .tier-expand-list .archive-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body[data-page="tasks"] .tasks-board-area .archive-btn:hover,
+body[data-page="tasks"] .tier-expand-list .archive-btn:hover,
+body[data-page="tasks"] .tasks-flat-item .archive-btn:hover,
+body[data-page="tasks"] .plan-card-task .archive-btn:hover,
+body[data-page="home"] .tier-expand-list .archive-btn:hover {
+  color: #11302c;
+  background: rgba(17, 48, 44, 0.06);
+}
+
+@media (min-width: 769px) {
+  body[data-page="home"] .plan-card-task-text,
+  body[data-page="tasks"] .task-text-btn,
+  body[data-page="tasks"] .plan-card-task-text,
+  body[data-page="history"] .plan-card-task-text {
+    font-size: 1rem;
+  }
+
+  body[data-page="tasks"] .plan-card-drag {
+    width: 1.75rem;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    opacity: 0.45;
+  }
+
+  body[data-page="tasks"] .plan-card-task:hover .plan-card-drag,
+  body[data-page="tasks"] .plan-card-drag.dragging-active {
+    opacity: 1;
+  }
+}

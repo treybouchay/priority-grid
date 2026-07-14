@@ -66,9 +66,10 @@
       } catch {}
     </script>
     <link rel="stylesheet" href="styles.css?v=134" />
-    <link rel="stylesheet" href="design/home-presence.css?v=60" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=17" />
-    <link rel="stylesheet" href="design/history-wins.css?v=2" />
+    <link rel="stylesheet" href="design/task-rows.css?v=7" />
+    <link rel="stylesheet" href="design/home-presence.css?v=62" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=26" />
+    <link rel="stylesheet" href="design/history-wins.css?v=3" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -668,6 +669,7 @@
                       </header>
                       <form class="brain-panel-form" id="brain-panel-form">
                         <input type="text" id="brain-panel-input" placeholder="Quick note…" autocomplete="off" />
+                        <button type="submit" class="brain-panel-save">Add</button>
                       </form>
                       <ul class="brain-panel-list" id="brain-panel-list"></ul>
                       <div class="brain-panel-empty hidden" id="brain-panel-empty">
@@ -719,6 +721,7 @@
                           <option value="work">Work</option>
                           <option value="home">Home</option>
                         </select>
+                        <button type="submit" class="daily-repeat-save">Add</button>
                       </form>
                       <ul class="daily-repeat-list" id="daily-repeat-list"></ul>
                       <div class="daily-repeat-empty hidden" id="daily-repeat-empty">
@@ -845,6 +848,8 @@
         </select>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
+        <input type="hidden" id="dialog-brain-id" value="" />
+        <input type="hidden" id="dialog-brain-context" value="" />
         <div class="dialog-actions">
           <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
           <button type="submit" class="btn-primary">Save</button>
@@ -1005,6 +1010,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=161"></script>
+    <script src="app.js?v=169"></script>
   </body>
 </html>

@@ -1301,6 +1301,20 @@ function contextIconHtml(ctx, className = "context-icon") {
   return `<span class="${className}" title="${label}" aria-label="${label}"><svg class="icon ${className}-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
 }
 
+function sidebarContextIconHtml(ctx) {
+  return filter === "all" ? contextIconHtml(ctx, "context-icon sidebar-row-context-icon") : "";
+}
+
+const TIER_ICON_IDS = ["icon-star", "icon-sun", "icon-leaf", "icon-box"];
+const TIER_UNCATEGORIZED_ICON = "icon-cloud";
+
+function tierIconHtml(tier, className = "tier-icon") {
+  const hasTier = Number.isFinite(tier) && tier >= 1 && tier <= 4;
+  const iconId = hasTier ? TIER_ICON_IDS[tier - 1] : TIER_UNCATEGORIZED_ICON;
+  const label = hasTier ? TIER_NAMES[tier - 1] : "Uncategorized";
+  return `<span class="${className}" title="${label}" aria-label="${label}"><svg class="icon tier-icon-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
+}
+
 function taskDragHandleHtml() {
   return `<div class="task-drag-handle" role="button" tabindex="-1" aria-label="Drag to reorder"><svg class="icon icon-grip" aria-hidden="true"><use href="#icon-grip"></use></svg></div>`;
 }
@@ -1835,8 +1849,32 @@ function removeDragGhost() {
   dragGrabOffset = { x: 0, y: 0 };
 }
 
+const GRIP_DRAG_CARD_SELECTOR =
+  ".task-card, .plan-card-task:not(.completed-wins-item):not(.history-wins-item)";
+const GRIP_DRAG_LIST_SELECTOR =
+  "#tier-expand-list, .task-list[data-tier], .plan-card-list[data-tier]";
+
+function queryGripDragCards(listEl) {
+  return [...listEl.querySelectorAll(GRIP_DRAG_CARD_SELECTOR)];
+}
+
+function gripDragCardFromHandle(handle) {
+  return handle?.closest(GRIP_DRAG_CARD_SELECTOR) || null;
+}
+
+function gripDragListFromCard(card) {
+  return card?.closest(GRIP_DRAG_LIST_SELECTOR) || null;
+}
+
+function isHomePriorityDragCard(card) {
+  return Boolean(
+    card?.matches?.(".plan-card-task:not(.completed-wins-item):not(.history-wins-item)") &&
+      card.closest(".plan-card-list[data-tier]")
+  );
+}
+
 function computeListReorder(listEl, draggedId, clientY) {
-  const cards = [...listEl.querySelectorAll(".task-card")];
+  const cards = queryGripDragCards(listEl);
   const fromIndex = cards.findIndex((c) => c.dataset.id === draggedId);
   if (fromIndex === -1) return { fromIndex: 0, toIndex: 0, entries: [] };
 
@@ -1886,6 +1924,42 @@ function sortTasksByTierDisplayOrder(tasks, tier) {
   }
 }
 
+function sortTierTasksForDisplay(tasks, tier) {
+  const ordered = sortTasksByTierDisplayOrder(tasks, tier);
+  const incomplete = [];
+  const complete = [];
+  for (const task of ordered) {
+    (task.done ? complete : incomplete).push(task);
+  }
+  return [...incomplete, ...complete];
+}
+
+function getTierTasksAllContexts(tier) {
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.archived && !isTaskDeferred(t) && t.tier === tier) {
+        tasks.push({ ...t, context: ctx });
+      }
+    });
+  });
+  return tasks;
+}
+
+function persistTierOrderAfterToggle(tier) {
+  const tasks = sortTierTasksForDisplay(getTierTasksAllContexts(tier), tier);
+  saveTierDisplayOrder(
+    tier,
+    tasks.map(({ id, context }) => ({ id, context }))
+  );
+  const byCtx = new Map();
+  tasks.forEach(({ id, context }) => {
+    if (!byCtx.has(context)) byCtx.set(context, []);
+    byCtx.get(context).push(id);
+  });
+  byCtx.forEach((ids, ctx) => reorderTierTasksInContext(ctx, tier, ids));
+}
+
 function saveTierDisplayOrder(tier, entries) {
   try {
     localStorage.setItem(
@@ -1930,7 +2004,7 @@ function getListDragTier(listEl) {
 }
 
 function startListDragSession(card, listEl, clientX, clientY) {
-  const cards = [...listEl.querySelectorAll(".task-card")];
+  const cards = queryGripDragCards(listEl);
   const fromIndex = cards.indexOf(card);
   const gap = parseFloat(getComputedStyle(listEl).gap) || 0;
   const rowHeight = card.offsetHeight + gap;
@@ -1963,7 +2037,7 @@ function updateListDragSession(clientX, clientY) {
   listDragState.lastX = clientX;
   listDragState.lastY = clientY;
 
-  const cards = [...listEl.querySelectorAll(".task-card")];
+  const cards = queryGripDragCards(listEl);
   cards.forEach((c, i) => {
     if (c === card) return;
     let shift = 0;
@@ -1984,7 +2058,7 @@ function clearListDragSession() {
   const { card, listEl } = listDragState;
 
   listEl.classList.remove("list-drag-active");
-  listEl.querySelectorAll(".task-card").forEach((c) => {
+  listEl.querySelectorAll(GRIP_DRAG_CARD_SELECTOR).forEach((c) => {
     c.style.transform = "";
     c.style.transition = "";
     c.classList.remove("dragging");
@@ -2007,7 +2081,7 @@ function commitListDragSession() {
 }
 
 function resolveListInsert(clientY, listEl, draggedId) {
-  const cards = [...listEl.querySelectorAll(".task-card")];
+  const cards = queryGripDragCards(listEl);
   const others = cards.filter((item) => item.dataset.id !== draggedId);
   for (let i = 0; i < others.length; i++) {
     const rect = others[i].getBoundingClientRect();
@@ -2032,7 +2106,7 @@ function removeTouchDragGhost() {
 }
 
 function isDropAtListStart(listEl, clientY) {
-  const firstCard = listEl.querySelector(".task-card");
+  const firstCard = listEl.querySelector(GRIP_DRAG_CARD_SELECTOR);
   if (!firstCard) return true;
   const rect = firstCard.getBoundingClientRect();
   return clientY < rect.top + rect.height / 2;
@@ -2378,7 +2452,7 @@ function setupHomeDesignPicker() {
 
 function getTasksForTier(tier) {
   const tasks = getVisibleTasks().filter((t) => t.tier === tier);
-  return sortTasksByTierDisplayOrder(tasks, tier);
+  return sortTierTasksForDisplay(tasks, tier);
 }
 
 function updateTaskInContext(ctx, updater) {
@@ -2397,6 +2471,19 @@ function clearTaskRefs(id, ctx) {
 }
 
 let lastWinsArchiveBatch = null;
+
+const HISTORY_ARCHIVE_UNDO_MS = 24 * 60 * 60 * 1000;
+
+function getTaskArchiveTimestamp(task) {
+  if (!task?.archived) return null;
+  return task.archivedAt || task.completedAt || null;
+}
+
+function canUndoHistoryArchive(task) {
+  const archivedAt = getTaskArchiveTimestamp(task);
+  if (!archivedAt) return false;
+  return Date.now() - new Date(archivedAt).getTime() <= HISTORY_ARCHIVE_UNDO_MS;
+}
 
 function archiveTask(id, ctx) {
   clearTaskRefs(id, ctx);
@@ -2446,7 +2533,11 @@ function archiveCompletedTodayWins() {
   renderAll();
 }
 
-function restoreTask(id, ctx, skipRender = false) {
+function restoreTask(id, ctx, skipRender = false, { requireRecentArchive = false } = {}) {
+  if (requireRecentArchive) {
+    const task = loadTasks(ctx).find((t) => t.id === id);
+    if (!task || !canUndoHistoryArchive(task)) return;
+  }
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
@@ -2966,15 +3057,18 @@ function setupReflection() {
 }
 
 function toggleTaskDone(id, ctx, markingDone) {
+  let tier = null;
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
+      tier = t.tier;
       const next = { ...t, done: markingDone };
       if (markingDone) next.completedAt = new Date().toISOString();
       else delete next.completedAt;
       return next;
     })
   );
+  if (tier != null) persistTierOrderAfterToggle(tier);
   renderAll();
 }
 
@@ -3347,13 +3441,13 @@ function planCardTaskHtml(task) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
-      <span class="plan-card-drag" aria-hidden="true">
-        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+      <button type="button" class="plan-card-drag task-drag-handle" tabindex="-1" aria-label="Drag to reorder">
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
           <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
           <circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/>
           <circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
         </svg>
-      </span>
+      </button>
     </li>`;
 }
 
@@ -3375,12 +3469,13 @@ function planCardProgressRing(done, total) {
     </div>`;
 }
 
-function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done = 0, total = 0 }) {
+function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done = 0, total = 0, tier = null }) {
   const listHtml = tasks.map((task) => planCardTaskHtml(task)).join("");
   const taskLabel = subtitle || `${total} task${total === 1 ? "" : "s"}`;
+  const tierAttr = tier != null ? ` data-tier="${tier}"` : "";
 
   return `
-    <article class="plan-card plan-card--${variant}">
+    <article class="plan-card plan-card--${variant}"${tierAttr}>
       <div class="plan-card-inner">
         <div class="plan-card-top-row">
           <span class="plan-card-badge plan-card-badge--top" aria-hidden="true">${escapeHtml(number)}</span>
@@ -3391,7 +3486,7 @@ function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done 
           <p class="plan-card-subtitle">${escapeHtml(taskLabel)}</p>
         </div>
         <div class="plan-card-body">
-          ${listHtml ? `<ul class="plan-card-list">${listHtml}</ul>` : ""}
+          <ul class="plan-card-list"${tierAttr}>${listHtml}</ul>
         </div>
       </div>
     </article>`;
@@ -3465,18 +3560,9 @@ function countPlan135Filled(plan) {
 
 function getTasksByTierForHome(tier, limit) {
   if (!isTierVisible(tier)) return [];
-  const tasks = [];
-  CONTEXTS.forEach((ctx) => {
-    loadTasks(ctx).forEach((t) => {
-      if (!t.archived && !isTaskDeferred(t) && t.tier === tier) tasks.push({ ...t, context: ctx });
-    });
-  });
-  tasks.sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    return 0;
-  });
-  if (limit == null) return tasks;
-  return tasks.slice(0, limit);
+  const sorted = sortTierTasksForDisplay(getTierTasksAllContexts(tier), tier);
+  if (limit == null) return sorted;
+  return sorted.slice(0, limit);
 }
 
 function getOpenTasksForTiers(tiers, limit) {
@@ -3517,6 +3603,7 @@ function renderHomePriorities() {
         tasks,
         done,
         total,
+        tier,
       });
     })
     .join("");
@@ -3587,6 +3674,10 @@ function bindHomeTaskEvents(row) {
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
   });
+
+  if (isHomePriorityDragCard(row) && !isTouchDevice()) {
+    bindMouseGripDrag(row);
+  }
 }
 
 function formatCompletionTime(iso) {
@@ -3786,7 +3877,7 @@ function isTierExpandCard(card) {
 
 function getCardTier(card) {
   if (isTierExpandCard(card)) return expandedTier;
-  const list = card.closest(".task-list[data-tier]");
+  const list = card.closest(".task-list[data-tier], .plan-card-list[data-tier]");
   if (list) return Number(list.dataset.tier);
   const column = card.closest(".column");
   return column ? Number(column.dataset.tier) : null;
@@ -3855,7 +3946,7 @@ function setupTierExpand() {
 
 function taskCardAtPoint(card, x, y) {
   const el = document.elementFromPoint(x, y);
-  const target = el?.closest(".task-card");
+  const target = el?.closest(GRIP_DRAG_CARD_SELECTOR);
   if (!target || target === card) return null;
   return target;
 }
@@ -3867,10 +3958,12 @@ function columnAtPoint(x, y) {
 
 function listAtPoint(x, y) {
   const el = document.elementFromPoint(x, y);
-  const list = el?.closest("#tier-expand-list, .task-list[data-tier]");
+  const list = el?.closest(GRIP_DRAG_LIST_SELECTOR);
   if (list) return list;
   const section = el?.closest(".tasks-flat-section");
   if (section) return section.querySelector(".task-list[data-tier]");
+  const planCard = el?.closest(".plan-card[data-tier]:not(.completed-wins-card)");
+  if (planCard) return planCard.querySelector(".plan-card-list[data-tier]");
   return null;
 }
 
@@ -3943,7 +4036,9 @@ function applyGripDragDrop(card, x, y) {
 }
 
 function clearGripDragHighlights() {
-  document.querySelectorAll(".column, .tasks-flat-section").forEach((c) => c.classList.remove("drag-over"));
+  document.querySelectorAll(".column, .tasks-flat-section, .plan-card[data-tier]").forEach((c) =>
+    c.classList.remove("drag-over")
+  );
   document.querySelectorAll(".plan-135-drop-zone, .forget-it-drop-zone").forEach((z) =>
     z.classList.remove("drop-target-active")
   );
@@ -3957,6 +4052,9 @@ function updateGripDragHighlights(x, y) {
   if (list?.classList.contains("tasks-flat-tier-list")) {
     list.closest(".tasks-flat-section")?.classList.add("drag-over");
   }
+  if (list?.classList.contains("plan-card-list")) {
+    list.closest(".plan-card[data-tier]")?.classList.add("drag-over");
+  }
   const dropEl = document.elementFromPoint(x, y);
   dropEl?.closest(".plan-135-drop-zone")?.classList.add("drop-target-active");
   dropEl?.closest(".forget-it-drop-zone")?.classList.add("drop-target-active");
@@ -3968,14 +4066,14 @@ function finishGripListDrag(x, y) {
   if (!listDragState) return;
   const { card, listEl } = listDragState;
   const dropEl = document.elementFromPoint(x, y);
-  const dropList = dropEl?.closest("#tier-expand-list, .task-list[data-tier]");
+  const dropList = dropEl?.closest(GRIP_DRAG_LIST_SELECTOR);
   const isSidebarDrop = Boolean(dropEl?.closest(".plan-135-drop-zone, .forget-it-drop-zone"));
   const isCrossListDrop = Boolean(dropList && dropList !== listEl);
 
   if (isSidebarDrop || isCrossListDrop) {
     applyGripDragDrop(card, x, y);
     listEl.classList.remove("list-drag-active");
-    listEl.querySelectorAll(".task-card").forEach((c) => {
+    listEl.querySelectorAll(GRIP_DRAG_CARD_SELECTOR).forEach((c) => {
       c.style.transform = "";
       c.style.transition = "";
       c.classList.remove("dragging");
@@ -3994,7 +4092,7 @@ function bindMouseGripDrag(card) {
   const handle = card.querySelector(".task-drag-handle");
   if (!handle) return;
 
-  const listEl = card.closest("#tier-expand-list, .task-list[data-tier]");
+  const listEl = gripDragListFromCard(card);
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -4143,8 +4241,8 @@ function setupTouchListDrag() {
       if (!e.isPrimary || e.button !== 0) return;
       const handle = e.target.closest(".task-drag-handle");
       if (!handle) return;
-      const card = handle.closest(".task-card");
-      const list = card?.closest("#tier-expand-list, .task-list[data-tier]");
+      const card = gripDragCardFromHandle(handle);
+      const list = gripDragListFromCard(card);
       if (!card || !list) return;
 
       e.preventDefault();
@@ -4212,16 +4310,28 @@ function setupDropZones() {
   });
 }
 
+function clearDialogBrainFields() {
+  document.getElementById("dialog-brain-id").value = "";
+  document.getElementById("dialog-brain-context").value = "";
+}
+
+function setTaskDialogSubmitLabel(label) {
+  const btn = document.querySelector("#task-dialog-form button[type='submit']");
+  if (btn) btn.textContent = label;
+}
+
 function openTaskDialog(tier = 1) {
   const dialog = document.getElementById("task-dialog");
   const defaultCtx = filter === "all" ? "work" : filter;
 
+  clearDialogBrainFields();
   document.getElementById("dialog-title").textContent = "Add Task";
   document.getElementById("dialog-input").value = "";
   document.getElementById("dialog-tier-select").value = String(tier);
   document.getElementById("dialog-context").value = defaultCtx;
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
+  setTaskDialogSubmitLabel("Save");
 
   dialog.showModal();
   document.getElementById("dialog-input").focus();
@@ -4230,15 +4340,50 @@ function openTaskDialog(tier = 1) {
 function openEditTaskDialog(task, ctx) {
   const dialog = document.getElementById("task-dialog");
 
+  clearDialogBrainFields();
   document.getElementById("dialog-title").textContent = "Edit Task";
   document.getElementById("dialog-input").value = task.text;
   document.getElementById("dialog-tier-select").value = String(task.tier);
   document.getElementById("dialog-context").value = ctx;
   document.getElementById("dialog-edit-id").value = task.id;
   document.getElementById("dialog-original-context").value = ctx;
+  setTaskDialogSubmitLabel("Save");
 
   dialog.showModal();
   document.getElementById("dialog-input").focus();
+}
+
+function openBrainDumpSendDialog(item, ctx) {
+  const dialog = document.getElementById("task-dialog");
+
+  clearDialogBrainFields();
+  document.getElementById("dialog-title").textContent = "Send to Priority";
+  document.getElementById("dialog-input").value = item.text;
+  document.getElementById("dialog-tier-select").value = "1";
+  document.getElementById("dialog-context").value = ctx;
+  document.getElementById("dialog-edit-id").value = "";
+  document.getElementById("dialog-original-context").value = "";
+  document.getElementById("dialog-brain-id").value = item.id;
+  document.getElementById("dialog-brain-context").value = ctx;
+  setTaskDialogSubmitLabel("Send");
+
+  dialog.showModal();
+  document.getElementById("dialog-input").focus();
+}
+
+function sendBrainDumpToTier(id, ctx, tier, textOverride) {
+  const items = loadBrainDump(ctx);
+  const item = items.find((i) => i.id === id);
+  if (!item) return;
+
+  const text = (textOverride ?? item.text).trim();
+  if (!text) return;
+
+  updateTaskInContext(ctx, (list) => [...list, { id: createId(), text, tier, done: false }]);
+  saveBrainDump(
+    ctx,
+    items.filter((i) => i.id !== id)
+  );
 }
 
 function saveTaskFromDialog() {
@@ -4249,6 +4394,15 @@ function saveTaskFromDialog() {
   const newCtx = document.getElementById("dialog-context").value;
   const editId = document.getElementById("dialog-edit-id").value;
   const oldCtx = document.getElementById("dialog-original-context").value;
+  const brainId = document.getElementById("dialog-brain-id").value;
+  const brainCtx = document.getElementById("dialog-brain-context").value;
+
+  if (brainId) {
+    saveTasks(newCtx, [...loadTasks(newCtx), { id: createId(), text, tier, done: false }]);
+    saveBrainDump(brainCtx, loadBrainDump(brainCtx).filter((i) => i.id !== brainId));
+    clearDialogBrainFields();
+    return;
+  }
 
   if (editId) {
     const oldList = loadTasks(oldCtx);
@@ -4287,7 +4441,15 @@ function setupTaskDialog() {
     btn.addEventListener("click", () => openTierExpand(Number(btn.dataset.tier)));
   });
 
-  document.getElementById("dialog-cancel").addEventListener("click", () => dialog.close());
+  document.getElementById("dialog-cancel").addEventListener("click", () => {
+    clearDialogBrainFields();
+    dialog.close();
+  });
+
+  dialog.addEventListener("close", () => {
+    clearDialogBrainFields();
+    setTaskDialogSubmitLabel("Save");
+  });
 
   document.getElementById("task-dialog-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -4373,15 +4535,11 @@ function renderBrainPanel() {
   list.innerHTML = items
     .map(
       (item) => `
-    <li class="brain-panel-item" data-id="${item.id}" data-context="${item.context}">
-      <span class="brain-panel-check" aria-hidden="true"></span>
-      <span class="brain-panel-text">${escapeHtml(item.text)}</span>
-      <div class="brain-panel-actions">
-        ${filter === "all" ? contextIconHtml(item.context, "brain-ctx-tag") : ""}
-        ${[1, 2, 3, 4]
-          .map((t) => `<button type="button" class="tier-send-btn" data-tier="${t}">${TIER_LABELS[t - 1]}</button>`)
-          .join("")}
-        <button type="button" class="brain-dump-delete" aria-label="Delete">×</button>
+    <li class="plan-card-task brain-panel-item${filter === "all" ? " brain-panel-item--all" : ""}" data-id="${item.id}" data-context="${item.context}">
+      <button type="button" class="plan-card-task-text">${escapeHtml(item.text)}</button>
+      <div class="sidebar-row-actions">
+        ${sidebarContextIconHtml(item.context)}
+        <button type="button" class="brain-dump-delete sidebar-row-delete" aria-label="Delete note" title="Delete note">×</button>
       </div>
     </li>`
     )
@@ -4395,23 +4553,12 @@ function bindBrainDumpItems(listEl, itemClass) {
     const id = el.dataset.id;
     const ctx = el.dataset.context;
 
-    el.querySelectorAll(".tier-send-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const items = loadBrainDump(ctx);
-        const item = items.find((i) => i.id === id);
-        if (!item) return;
-
-        const tier = Number(btn.dataset.tier);
-        updateTaskInContext(ctx, (list) => [...list, { id: createId(), text: item.text, tier, done: false }]);
-        saveBrainDump(
-          ctx,
-          items.filter((i) => i.id !== id)
-        );
-        renderAll();
-      });
+    el.querySelector(".plan-card-task-text")?.addEventListener("click", () => {
+      const item = loadBrainDump(ctx).find((i) => i.id === id);
+      if (item) openBrainDumpSendDialog(item, ctx);
     });
 
-    el.querySelector(".brain-dump-delete").addEventListener("click", () => {
+    el.querySelector(".brain-dump-delete")?.addEventListener("click", () => {
       saveBrainDump(
         ctx,
         loadBrainDump(ctx).filter((i) => i.id !== id)
@@ -4499,11 +4646,12 @@ function getCompletedTasksForHistory() {
 
 function historyWinsItemHtml(task) {
   const time = formatCompletionTime(task.completedAt);
-  const restoreBtn = task.archived
-    ? `<button type="button" class="history-wins-restore" aria-label="Undo archive" title="Undo archive">
+  const restoreBtn =
+    task.archived && canUndoHistoryArchive(task)
+      ? `<button type="button" class="history-wins-restore" aria-label="Undo archive" title="Undo archive">
         <span>Undo</span>
       </button>`
-    : "";
+      : "";
   return `
     <li class="plan-card-task done completed-wins-item history-wins-item${task.archived ? " is-archived" : ""}" data-id="${task.id}" data-context="${task.context}">
       <label class="plan-card-check">
@@ -4615,27 +4763,37 @@ function renderHistory() {
       e.stopPropagation();
       const row = btn.closest(".history-wins-item");
       if (!row) return;
-      restoreTask(row.dataset.id, row.dataset.context);
+      restoreTask(row.dataset.id, row.dataset.context, false, { requireRecentArchive: true });
     });
   });
 }
 
 function archivePanelItemHtml(task) {
   return `
-    <li class="archive-panel-item" data-id="${task.id}" data-context="${task.context}">
-      <div class="archive-panel-item-body">
-        <span class="archive-panel-text">${escapeHtml(task.text)}</span>
-        <span class="archive-panel-meta">
-          <span class="task-dot task-dot-tier-${task.tier}" title="${TIER_NAMES[task.tier - 1]}" aria-label="${TIER_NAMES[task.tier - 1]}"></span>
-          <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
-          ${filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : ""}
-        </span>
-      </div>
-      <div class="archive-panel-actions">
-        <button type="button" class="archive-restore-btn">Restore</button>
-        <button type="button" class="archive-delete-btn" aria-label="Delete permanently">Delete</button>
+    <li class="plan-card-task archive-panel-item${task.done ? " done" : ""}${filter === "all" ? " archive-panel-item--all" : ""}" data-id="${task.id}" data-context="${task.context}">
+      <span class="plan-card-task-text archive-panel-text">${escapeHtml(task.text)}</span>
+      <div class="sidebar-row-actions">
+        ${sidebarContextIconHtml(task.context)}
+        <button type="button" class="archive-restore-btn sidebar-row-restore" aria-label="Restore" title="Restore">↩</button>
+        <button type="button" class="archive-delete-btn sidebar-row-delete" aria-label="Delete permanently" title="Delete permanently">×</button>
       </div>
     </li>`;
+}
+
+function archiveTierGroupHtml(tier, tasks) {
+  const label = ["1st", "2nd", "3rd", "4th"][tier - 1] || `${tier}`;
+  const number = String(tier).padStart(2, "0");
+  return `
+    <section class="completed-wins-group completed-wins-group--p${tier} archive-tier-group" aria-label="${escapeHtml(TIER_NAMES[tier - 1])}">
+      <header class="completed-wins-group-header">
+        <span class="completed-wins-badge" aria-hidden="true">${number}</span>
+        <h4 class="completed-wins-group-title">${escapeHtml(label)}</h4>
+        <span class="completed-wins-group-count">${tasks.length}</span>
+      </header>
+      <ul class="archive-tier-items">
+        ${tasks.map(archivePanelItemHtml).join("")}
+      </ul>
+    </section>`;
 }
 
 function renderArchivePanel() {
@@ -4677,11 +4835,20 @@ function renderArchivePanel() {
   });
 
   list.innerHTML = sortedKeys
-    .map(
-      (dayKey) => `
+    .map((dayKey) => {
+      const dayTasks = groups.get(dayKey);
+      const tierGroupsHtml = [1, 2, 3, 4]
+        .map((tier) => {
+          const tierTasks = dayTasks.filter((t) => t.tier === tier);
+          if (tierTasks.length === 0) return "";
+          return archiveTierGroupHtml(tier, tierTasks);
+        })
+        .filter(Boolean)
+        .join("");
+      return `
     <li class="archive-day-heading">${formatArchiveDayHeading(dayKey)}</li>
-    ${groups.get(dayKey).map((task) => archivePanelItemHtml(task)).join("")}`
-    )
+    <li class="archive-day-body">${tierGroupsHtml}</li>`;
+    })
     .join("");
 
   list.querySelectorAll(".archive-panel-item").forEach((el) => {
@@ -4703,14 +4870,23 @@ function addBrainDumpNote(text, ctx) {
   saveBrainDump(targetCtx, [...loadBrainDump(targetCtx), { id: createId(), text: trimmed }]);
 }
 
+function saveBrainPanelNote() {
+  const input = document.getElementById("brain-panel-input");
+  if (!input) return;
+  addBrainDumpNote(input.value);
+  input.value = "";
+  input.focus();
+  renderAll();
+}
+
 function setupBrainDumpForms() {
-  document.getElementById("brain-panel-form").addEventListener("submit", (e) => {
+  const form = document.getElementById("brain-panel-form");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "1";
+
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const input = document.getElementById("brain-panel-input");
-    addBrainDumpNote(input.value);
-    input.value = "";
-    input.focus();
-    renderAll();
+    saveBrainPanelNote();
   });
 }
 

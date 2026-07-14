@@ -234,19 +234,13 @@ body[data-page="home"] .plan-card-body {
   flex: none;
 }
 
-body[data-page="home"] .plan-card-list {
-  gap: 1rem;
+body[data-page="home"] .plan-card-list:not(.completed-wins-items) {
+  gap: var(--task-row-gap, 0.65rem);
 }
 
-body[data-page="home"] .plan-card-task {
+body[data-page="home"] .plan-card-task:not(.completed-wins-item):not(.history-wins-item) {
   gap: 0.75rem;
-  padding: 0;
-}
-
-body[data-page="home"] .plan-card-task.done {
-  background: rgba(255, 255, 255, 0.4);
-  padding: 0.5rem;
-  border-radius: 0.75rem;
+  align-items: center;
 }
 
 body[data-page="home"] .plan-card-check input {
@@ -291,8 +285,50 @@ body[data-page="home"] .plan-card-task.done .plan-card-task-text {
 }
 
 body[data-page="home"] .plan-card-drag {
-  opacity: 0.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  opacity: 0.35;
   color: #11302c;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body[data-page="home"] .plan-card-task:hover .plan-card-drag,
+body[data-page="home"] .plan-card-drag.dragging-active {
+  opacity: 1;
+}
+
+body[data-page="home"] .plan-card-drag.dragging-active {
+  color: #0e3030;
+  background: rgba(14, 48, 48, 0.08);
+  cursor: grabbing;
+}
+
+body[data-page="home"] .plan-card-task.dragging {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body[data-page="home"] .plan-card-list.list-drag-active .plan-card-task:not(.dragging) {
+  transition: transform 0.12s ease;
+}
+
+body[data-page="home"] .plan-card[data-tier].drag-over .plan-card-inner {
+  outline: 2px dashed rgba(14, 48, 48, 0.45);
+  outline-offset: -4px;
 }
 
 body[data-page="home"] .plan-card-scenery-img--big,
@@ -673,6 +709,38 @@ body[data-page="home"] .completed-wins-items {
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.65rem;
+}
+
+body[data-page="home"] .tier-expand-dialog {
+  border: none;
+  border-radius: 2rem;
+  background: #fdf9f4;
+  box-shadow: 0 16px 40px rgba(14, 48, 48, 0.12);
+}
+
+body[data-page="home"] .tier-expand-title {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="home"] .tier-expand-count {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.45);
+}
+
+body[data-page="home"] .tier-expand-list .task-card {
+  align-items: center;
+  gap: 0.65rem;
+  cursor: grab;
+}
+
+body[data-page="home"] .tier-expand-list .task-card-main {
+  align-items: center;
   gap: 0.65rem;
 }
 
@@ -1754,7 +1822,15 @@ body[data-page="home"] .section-link--plan svg {
   }
 
   body[data-page="home"] .plan-card-drag {
-    display: none;
+    width: 1.75rem;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    opacity: 0.45;
+  }
+
+  body[data-page="home"] .plan-card-task:hover .plan-card-drag,
+  body[data-page="home"] .plan-card-drag.dragging-active {
+    opacity: 1;
   }
 
   body[data-page="home"] .plan-card-check input:checked {
