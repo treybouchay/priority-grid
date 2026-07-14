@@ -4488,7 +4488,7 @@ body.task-dragging-lock .app-main {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 50%;
   background: #073335;
   color: #ffffff;
   font-size: 0.75rem;

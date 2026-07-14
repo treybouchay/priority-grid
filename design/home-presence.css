@@ -725,11 +725,7 @@ body[data-page="home"] .focus-timer-session-tasks {
   margin-top: 1rem;
   margin-inline: 0;
   align-self: flex-start;
-  width: 100%;
   max-width: 100%;
-  padding: 0;
-  padding-inline: 0;
-  list-style: none;
 }
 
 body[data-page="home"] .focus-timer-session-item {
@@ -827,10 +823,6 @@ body[data-page="home"] .focus-timer-attach-remove {
   padding: 0.1rem 0.25rem;
 }
 
-body[data-page="home"] .focus-timer-session-tasks {
-  margin-top: 1rem;
-}
-
 body[data-page="home"] .focus-timer-session-tasks.hidden,
 body[data-page="home"] .focus-timer-mini-tasks.hidden {
   display: none;
@@ -917,10 +909,11 @@ body[data-page="home"] .focus-timer-mini-reset {
 }
 
 body[data-page="home"] .focus-timer-mini-task {
+  /* Match mini-row: badge width + gap so task text aligns with clock */
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 2rem minmax(0, 1fr);
   align-items: center;
-  gap: 0.5rem;
+  column-gap: 0.75rem;
   font-family: "Manrope", var(--font-body);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -928,10 +921,19 @@ body[data-page="home"] .focus-timer-mini-task {
   padding: 0.15rem 0;
 }
 
+body[data-page="home"] .focus-timer-mini-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 body[data-page="home"] .focus-timer-mini-task-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
+  justify-self: start;
+  width: 100%;
 }
 
 body[data-page="home"] .focus-timer-mini-task.done .focus-timer-mini-task-text {
