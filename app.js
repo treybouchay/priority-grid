@@ -2504,7 +2504,10 @@ function setupFocusTimer() {
     display.textContent = formatTime(remainingMs);
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-done", !running && remainingMs === 0 && durationMs > 0);
-    toggleBtn.textContent = running ? "Pause" : remainingMs === 0 ? "Restart" : "Start";
+    const toggleLabel = document.getElementById("focus-timer-toggle-label");
+    if (toggleLabel) {
+      toggleLabel.textContent = running ? "Pause" : remainingMs === 0 ? "Restart Focus" : "Start Focus";
+    }
     toggleBtn.classList.toggle("is-pause", running);
   }
 
@@ -3337,7 +3340,7 @@ function renderHomeCompletedToday() {
   const tasks = getCompletedTodayTasks();
 
   if (tasks.length === 0) {
-    content.innerHTML = `<div class="plan-card-grid plan-card-grid--completed">${completedTodayEmptyCardHtml()}</div>`;
+    content.innerHTML = completedTodayEmptyCardHtml();
     section?.classList.add("presence-completed-today--empty");
     return;
   }
@@ -3361,7 +3364,7 @@ function renderHomeCompletedToday() {
     .filter(Boolean)
     .join("");
 
-  content.innerHTML = `<div class="plan-card-grid plan-card-grid--completed">${cardsHtml}</div>`;
+  content.innerHTML = cardsHtml;
   bindHomeCardTasks(content);
 }
 
