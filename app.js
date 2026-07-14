@@ -2485,6 +2485,10 @@ function setupFocusTimer() {
   const customWrap = document.getElementById("focus-timer-custom");
   const customInput = document.getElementById("focus-timer-minutes");
   const setCustomBtn = document.getElementById("focus-timer-set");
+  const mini = document.getElementById("focus-timer-mini");
+  const miniDisplay = document.getElementById("focus-timer-mini-display");
+  const miniToggle = document.getElementById("focus-timer-mini-toggle");
+  const miniReset = document.getElementById("focus-timer-mini-reset");
   if (!root || !display || !toggleBtn || !resetBtn) return;
 
   let durationMs = 20 * 60 * 1000;
@@ -2501,14 +2505,27 @@ function setupFocusTimer() {
   }
 
   function render() {
-    display.textContent = formatTime(remainingMs);
+    const timeText = formatTime(remainingMs);
+    display.textContent = timeText;
+    if (miniDisplay) miniDisplay.textContent = timeText;
+
+    const done = !running && remainingMs === 0;
+    const active = running || (remainingMs > 0 && remainingMs < durationMs);
     root.classList.toggle("is-running", running);
-    root.classList.toggle("is-done", !running && remainingMs === 0 && durationMs > 0);
+    root.classList.toggle("is-active", active);
+    root.classList.toggle("is-done", done);
+
     const toggleLabel = document.getElementById("focus-timer-toggle-label");
     if (toggleLabel) {
-      toggleLabel.textContent = running ? "Pause" : remainingMs === 0 ? "Restart Focus" : "Start Focus";
+      toggleLabel.textContent = running ? "Pause" : done ? "Restart Focus" : active ? "Resume" : "Start Focus";
     }
     toggleBtn.classList.toggle("is-pause", running);
+
+    if (mini) mini.classList.toggle("hidden", !active);
+    if (miniToggle) {
+      miniToggle.textContent = running ? "Pause" : "Resume";
+      miniToggle.classList.toggle("is-resume", !running && active);
+    }
   }
 
   function clearTick() {
@@ -2572,6 +2589,11 @@ function setupFocusTimer() {
     render();
   }
 
+  function resetFromMini() {
+    reset();
+    root?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   function setDurationMinutes(mins) {
     const safe = Math.min(180, Math.max(1, Math.round(Number(mins) || 20)));
     durationMs = safe * 60 * 1000;
@@ -2616,6 +2638,11 @@ function setupFocusTimer() {
   });
 
   resetBtn.addEventListener("click", reset);
+  miniToggle?.addEventListener("click", () => {
+    if (running) pause();
+    else start();
+  });
+  miniReset?.addEventListener("click", resetFromMini);
   render();
 }
 
@@ -3279,7 +3306,7 @@ function bindHomeTaskEvents(row) {
     toggleTaskDone(id, ctx, e.target.checked);
   });
 
-  row.querySelector(".home-card-task-title, .home-task-title, .plan-card-task-text")?.addEventListener("click", () => {
+  row.querySelector(".home-card-task-title, .home-task-title, .plan-card-task-text, .completed-wins-text")?.addEventListener("click", () => {
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
   });
@@ -3317,19 +3344,42 @@ function getCompletedTodayTasks() {
   );
 }
 
-function completedTodayEmptyCardHtml() {
+function completedTodayEmptyHtml() {
   return `
-    <article class="plan-card plan-card--p1 plan-card--empty">
+    <article class="plan-card completed-wins-card completed-wins-card--empty">
       <div class="plan-card-inner">
-        <div class="plan-card-top-row">
-          <span class="plan-card-badge plan-card-badge--top" aria-hidden="true">—</span>
-        </div>
         <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
-        <div class="plan-card-body">
-          <p class="plan-card-empty-msg">Nothing crossed off yet — your first win of the day is still ahead.</p>
-        </div>
+        <p class="completed-wins-empty-msg">Nothing crossed off yet — your first win of the day is still ahead.</p>
       </div>
     </article>`;
+}
+
+function completedWinsItemHtml(task) {
+  const time = formatCompletionTime(task.completedAt);
+  return `
+    <li class="plan-card-task done completed-wins-item" data-id="${task.id}" data-context="${task.context}">
+      <label class="plan-card-check">
+        <input type="checkbox" checked aria-label="Mark complete" />
+      </label>
+      <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
+      ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : ""}
+    </li>`;
+}
+
+function completedWinsGroupHtml(tier, tasks) {
+  const label = ["1st", "2nd", "3rd", "4th"][tier - 1] || `${tier}`;
+  const number = String(tier).padStart(2, "0");
+  return `
+    <section class="completed-wins-group completed-wins-group--p${tier}" aria-label="${escapeHtml(TIER_NAMES[tier - 1])}">
+      <header class="completed-wins-group-header">
+        <span class="completed-wins-badge" aria-hidden="true">${number}</span>
+        <h4 class="completed-wins-group-title">${escapeHtml(label)}</h4>
+        <span class="completed-wins-group-count">${tasks.length}</span>
+      </header>
+      <ul class="plan-card-list completed-wins-items">
+        ${tasks.map(completedWinsItemHtml).join("")}
+      </ul>
+    </section>`;
 }
 
 function renderHomeCompletedToday() {
@@ -3340,31 +3390,33 @@ function renderHomeCompletedToday() {
   const tasks = getCompletedTodayTasks();
 
   if (tasks.length === 0) {
-    content.innerHTML = completedTodayEmptyCardHtml();
+    content.innerHTML = completedTodayEmptyHtml();
     section?.classList.add("presence-completed-today--empty");
     return;
   }
 
   section?.classList.remove("presence-completed-today--empty");
-  const cardsHtml = getVisibleTierList()
+  const groupsHtml = getVisibleTierList()
     .map((tier) => {
       const tierTasks = tasks.filter((t) => t.tier === tier);
       if (tierTasks.length === 0) return "";
-      const total = tierTasks.length;
-      return figmaPlanCardHtml({
-        number: String(tier).padStart(2, "0"),
-        variant: PRIORITY_CARD_VARIANTS[tier - 1],
-        title: TIER_NAMES[tier - 1],
-        subtitle: `${total} task${total === 1 ? "" : "s"}`,
-        tasks: tierTasks,
-        done: total,
-        total,
-      });
+      return completedWinsGroupHtml(tier, tierTasks);
     })
     .filter(Boolean)
     .join("");
 
-  content.innerHTML = cardsHtml;
+  content.innerHTML = `
+    <article class="plan-card completed-wins-card">
+      <div class="plan-card-inner">
+        <div class="completed-wins-card-header">
+          <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
+          <p class="plan-card-subtitle">${tasks.length} completed</p>
+        </div>
+        <div class="completed-wins-card-body">
+          ${groupsHtml}
+        </div>
+      </div>
+    </article>`;
   bindHomeCardTasks(content);
 }
 

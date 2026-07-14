@@ -64,9 +64,9 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=126" />
-    <link rel="stylesheet" href="design/home-presence.css?v=33" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=13" />
+    <link rel="stylesheet" href="styles.css?v=127" />
+    <link rel="stylesheet" href="design/home-presence.css?v=43" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=14" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -419,6 +419,18 @@
                 <button type="button" class="priority-visibility-tag active" data-tier="4" aria-pressed="true">4th</button>
               </div>
               <p class="home-priority-progress hidden" id="home-priority-progress"></p>
+              <div class="focus-timer-mini hidden" id="focus-timer-mini" aria-label="Focus session">
+                <span class="focus-timer-mini-badge" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2.5 1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M9 3h6" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <p class="focus-timer-mini-display" id="focus-timer-mini-display" aria-live="polite">20:00</p>
+                <button type="button" class="focus-timer-mini-toggle" id="focus-timer-mini-toggle">Pause</button>
+                <button type="button" class="focus-timer-mini-reset" id="focus-timer-mini-reset">Reset</button>
+              </div>
               <div id="home-priority-content">
                 <ul class="priority-preview-list" id="home-priority-list"></ul>
               </div>
@@ -431,53 +443,49 @@
                     <div class="presence-plan-accent" aria-hidden="true"></div>
                   </div>
                 </header>
-                <div class="plan-card-grid plan-card-grid--completed" id="home-completed-grid">
+                <div class="completed-today-layout" id="home-completed-grid">
                   <div id="home-completed-content"></div>
-                  <article class="plan-card plan-card--empty focus-timer-card" id="focus-timer" aria-label="Focus timer">
-                    <div class="plan-card-inner">
-                      <div class="plan-card-top-row">
-                        <span class="plan-card-badge plan-card-badge--top plan-card-badge--timer" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="13" r="8" />
-                            <path d="M12 9v4l2.5 1.5" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M9 3h6" stroke-linecap="round" />
-                          </svg>
-                        </span>
-                      </div>
-                      <h3 class="plan-card-title plan-card-title--featured">Focus Timer</h3>
-                      <div class="plan-card-body focus-timer-body">
-                        <p class="focus-timer-display" id="focus-timer-display" aria-live="polite">20:00</p>
-                        <div class="focus-timer-presets" role="group" aria-label="Timer length">
-                          <button type="button" class="focus-timer-preset active" data-minutes="20">20 min</button>
-                          <button type="button" class="focus-timer-preset" data-minutes="10">10 min</button>
-                          <button type="button" class="focus-timer-preset" data-minutes="custom" id="focus-timer-custom-toggle">Custom</button>
-                        </div>
-                        <div class="focus-timer-custom hidden" id="focus-timer-custom">
-                          <label class="focus-timer-custom-label" for="focus-timer-minutes">Minutes</label>
-                          <input
-                            type="number"
-                            class="focus-timer-minutes"
-                            id="focus-timer-minutes"
-                            min="1"
-                            max="180"
-                            value="25"
-                            inputmode="numeric"
-                          />
-                          <button type="button" class="focus-timer-set" id="focus-timer-set">Set</button>
-                        </div>
-                      </div>
-                      <div class="focus-timer-actions">
-                        <button type="button" class="presence-focus-btn focus-timer-toggle" id="focus-timer-toggle">
-                          <span id="focus-timer-toggle-label">Start Focus</span>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
-                            <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
-                          </svg>
-                        </button>
-                        <button type="button" class="focus-timer-reset" id="focus-timer-reset">Reset</button>
-                      </div>
+                  <aside class="focus-timer-card" id="focus-timer" aria-label="Focus timer">
+                    <div class="focus-timer-top">
+                      <span class="focus-timer-badge" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="13" r="8" />
+                          <path d="M12 9v4l2.5 1.5" stroke-linecap="round" stroke-linejoin="round" />
+                          <path d="M9 3h6" stroke-linecap="round" />
+                        </svg>
+                      </span>
                     </div>
-                  </article>
+                    <h3 class="focus-timer-title">Focus Timer</h3>
+                    <p class="focus-timer-display" id="focus-timer-display" aria-live="polite">20:00</p>
+                    <div class="focus-timer-presets" role="group" aria-label="Timer length">
+                      <button type="button" class="focus-timer-preset active" data-minutes="20">20 min</button>
+                      <button type="button" class="focus-timer-preset" data-minutes="10">10 min</button>
+                      <button type="button" class="focus-timer-preset" data-minutes="custom" id="focus-timer-custom-toggle">Custom</button>
+                    </div>
+                    <div class="focus-timer-custom hidden" id="focus-timer-custom">
+                      <label class="focus-timer-custom-label" for="focus-timer-minutes">Minutes</label>
+                      <input
+                        type="number"
+                        class="focus-timer-minutes"
+                        id="focus-timer-minutes"
+                        min="1"
+                        max="180"
+                        value="25"
+                        inputmode="numeric"
+                      />
+                      <button type="button" class="focus-timer-set" id="focus-timer-set">Set</button>
+                    </div>
+                    <div class="focus-timer-actions">
+                      <button type="button" class="presence-focus-btn focus-timer-toggle" id="focus-timer-toggle">
+                        <span id="focus-timer-toggle-label">Start Focus</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                          <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                      </button>
+                      <button type="button" class="focus-timer-reset" id="focus-timer-reset">Reset</button>
+                    </div>
+                  </aside>
                 </div>
               </section>
             </div>
@@ -963,6 +971,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=140"></script>
+    <script src="app.js?v=148"></script>
   </body>
 </html>

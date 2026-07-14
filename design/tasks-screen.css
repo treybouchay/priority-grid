@@ -116,7 +116,7 @@ body[data-page="tasks"] .filter-pill:hover {
 
 body[data-page="tasks"] .filter-pill.active {
   background: #0e3030;
-  color: #ffffff;
+  color: #ffdbd2;
 }
 
 body[data-page="tasks"] .board-toolbar {
@@ -150,7 +150,7 @@ body[data-page="tasks"] .priority-visibility-tag {
 body[data-page="tasks"] .priority-visibility-tag.active {
   background: #0e3030;
   border-color: #0e3030;
-  color: #ffffff;
+  color: #ffdbd2;
   opacity: 1;
 }
 
@@ -188,24 +188,12 @@ body[data-page="tasks"] .column-badge {
   letter-spacing: -0.02em;
 }
 
-body[data-page="tasks"] .column[data-tier="1"] .column-badge {
-  background: #ffdbd2;
-  color: #9a442d;
-}
-
-body[data-page="tasks"] .column[data-tier="2"] .column-badge {
-  background: #0e3030;
-  color: #ffffff;
-}
-
-body[data-page="tasks"] .column[data-tier="3"] .column-badge {
-  background: #dbf3f2;
-  color: #0e3030;
-}
-
+body[data-page="tasks"] .column[data-tier="1"] .column-badge,
+body[data-page="tasks"] .column[data-tier="2"] .column-badge,
+body[data-page="tasks"] .column[data-tier="3"] .column-badge,
 body[data-page="tasks"] .column[data-tier="4"] .column-badge {
-  background: #9a442d;
-  color: #ffffff;
+  background: #0e3030;
+  color: #ffdbd2;
 }
 
 body[data-page="tasks"] .column-menu-btn {
@@ -337,7 +325,7 @@ body[data-page="tasks"] .sidebar-tab {
 
 body[data-page="tasks"] .sidebar-tab.active {
   background: #0e3030;
-  color: #ffffff;
+  color: #ffdbd2;
   box-shadow: none;
 }
 
