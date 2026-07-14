@@ -137,38 +137,28 @@ body[data-page="tasks"] .priority-visibility-label {
 
 body[data-page="tasks"] .priority-visibility-tag {
   padding: 0.4rem 0.85rem;
-  border: 1px solid rgba(14, 48, 48, 0.12);
+  border: 1px solid #0e3030;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(14, 48, 48, 0.55);
-}
-
-body[data-page="tasks"] .priority-visibility-tag.active {
-  background: #ffedd5;
-  border-color: rgba(199, 107, 77, 0.28);
-  color: #c76b4d;
+  color: #0e3030;
   opacity: 1;
 }
 
-body[data-page="tasks"] .priority-visibility-tag[data-tier="2"].active {
+body[data-page="tasks"] .priority-visibility-tag.active {
   background: #0e3030;
   border-color: #0e3030;
   color: #ffffff;
+  opacity: 1;
 }
 
-body[data-page="tasks"] .priority-visibility-tag[data-tier="3"].active {
-  background: #e2e8f0;
-  border-color: rgba(51, 65, 85, 0.18);
-  color: #334155;
-}
-
-body[data-page="tasks"] .priority-visibility-tag[data-tier="4"].active {
-  background: #ffedd5;
-  border-color: rgba(199, 107, 77, 0.28);
-  color: #c76b4d;
+body[data-page="tasks"] .priority-visibility-tag:not(.active) {
+  background: #ffffff;
+  border-color: #0e3030;
+  color: #0e3030;
+  opacity: 1;
 }
 
 body[data-page="tasks"] .board {
