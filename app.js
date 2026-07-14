@@ -200,6 +200,389 @@ let visibleTiers = getVisibleTiers();
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
 const PREVIEW_TASK_LIMIT = 2;
+const FOCUS_TIMER_MAX_TASKS = 3;
+const FOCUS_TIMER_TASKS_KEY = "priority-grid-focus-timer-tasks";
+let focusTimerAttached = [];
+let refreshFocusTimerUI = () => {};
+
+function loadFocusTimerAttached() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOCUS_TIMER_TASKS_KEY) || "[]");
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((ref) => ref && ref.id && ref.context)
+      .slice(0, FOCUS_TIMER_MAX_TASKS);
+  } catch {
+    return [];
+  }
+}
+
+function saveFocusTimerAttached() {
+  try {
+    localStorage.setItem(FOCUS_TIMER_TASKS_KEY, JSON.stringify(focusTimerAttached));
+  } catch {
+    /* ignore */
+  }
+}
+
+function resolveFocusTimerTasks() {
+  return focusTimerAttached
+    .map((ref) => {
+      const task = loadTasks(ref.context).find((t) => t.id === ref.id);
+      if (!task || task.archived) return null;
+      return { ...task, context: ref.context };
+    })
+    .filter(Boolean);
+}
+
+function getFocusTimerCandidateTasks() {
+  const attachedKeys = new Set(focusTimerAttached.map((r) => `${r.context}:${r.id}`));
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || t.done || isTaskDeferred(t)) return;
+      const key = `${ctx}:${t.id}`;
+      if (attachedKeys.has(key)) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  tasks.sort((a, b) => a.tier - b.tier || a.text.localeCompare(b.text));
+  return tasks;
+}
+
+function setupFocusTimer() {
+  const root = document.getElementById("focus-timer");
+  const display = document.getElementById("focus-timer-display");
+  const toggleBtn = document.getElementById("focus-timer-toggle");
+  const resetBtn = document.getElementById("focus-timer-reset");
+  const customWrap = document.getElementById("focus-timer-custom");
+  const customInput = document.getElementById("focus-timer-minutes");
+  const setCustomBtn = document.getElementById("focus-timer-set");
+  const mini = document.getElementById("focus-timer-mini");
+  const miniDisplay = document.getElementById("focus-timer-mini-display");
+  const miniToggle = document.getElementById("focus-timer-mini-toggle");
+  const miniReset = document.getElementById("focus-timer-mini-reset");
+  const attachWrap = document.getElementById("focus-timer-attach");
+  const attachList = document.getElementById("focus-timer-attach-list");
+  const attachAdd = document.getElementById("focus-timer-attach-add");
+  const sessionTasks = document.getElementById("focus-timer-session-tasks");
+  const miniTasks = document.getElementById("focus-timer-mini-tasks");
+  const pickerDialog = document.getElementById("focus-timer-picker-dialog");
+  const pickerList = document.getElementById("focus-timer-picker-list");
+  const pickerSub = document.getElementById("focus-timer-picker-sub");
+  if (!root || !display || !toggleBtn || !resetBtn) return;
+
+  focusTimerAttached = loadFocusTimerAttached();
+
+  let durationMs = 20 * 60 * 1000;
+  let remainingMs = durationMs;
+  let endsAt = 0;
+  let intervalId = null;
+  let running = false;
+
+  function formatTime(ms) {
+    const totalSec = Math.max(0, Math.ceil(ms / 1000));
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+
+  function isActiveSession() {
+    return running || (remainingMs > 0 && remainingMs < durationMs);
+  }
+
+  function renderAttachList() {
+    if (!attachList) return;
+    const tasks = resolveFocusTimerTasks();
+    if (tasks.length === 0) {
+      attachList.innerHTML = `<li class="focus-timer-attach-empty">None yet — add up to ${FOCUS_TIMER_MAX_TASKS}.</li>`;
+    } else {
+      attachList.innerHTML = tasks
+        .map(
+          (task) => `
+        <li class="focus-timer-attach-item" data-id="${task.id}" data-context="${task.context}">
+          <span class="focus-timer-attach-text">${escapeHtml(task.text)}</span>
+          <button type="button" class="focus-timer-attach-remove" aria-label="Remove task">×</button>
+        </li>`
+        )
+        .join("");
+      attachList.querySelectorAll(".focus-timer-attach-remove").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = btn.closest(".focus-timer-attach-item");
+          if (!item) return;
+          focusTimerAttached = focusTimerAttached.filter(
+            (ref) => !(ref.id === item.dataset.id && ref.context === item.dataset.context)
+          );
+          saveFocusTimerAttached();
+          renderAttachedSurfaces();
+        });
+      });
+    }
+    if (attachAdd) {
+      attachAdd.disabled = focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS;
+      attachAdd.textContent =
+        focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS ? "Full (3)" : "Add task";
+    }
+  }
+
+  function renderSessionTasks() {
+    const tasks = resolveFocusTimerTasks();
+    const active = isActiveSession();
+
+    if (sessionTasks) {
+      if (!active || tasks.length === 0) {
+        sessionTasks.classList.add("hidden");
+        sessionTasks.innerHTML = "";
+      } else {
+        sessionTasks.classList.remove("hidden");
+        sessionTasks.innerHTML = tasks
+          .map(
+            (task) => `
+          <li class="focus-timer-session-item${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
+            <span class="focus-timer-session-text">${escapeHtml(task.text)}</span>
+            <label class="plan-card-check focus-timer-session-check">
+              <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
+            </label>
+            <button type="button" class="focus-timer-session-edit" aria-label="Edit task">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20h9" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </li>`
+          )
+          .join("");
+        sessionTasks.querySelectorAll(".focus-timer-session-item").forEach((row) => {
+          const input = row.querySelector('input[type="checkbox"]');
+          input?.addEventListener("change", (e) => {
+            toggleTaskDone(row.dataset.id, row.dataset.context, e.target.checked);
+            renderAttachedSurfaces();
+          });
+          row.querySelector(".focus-timer-session-edit")?.addEventListener("click", () => {
+            const task = loadTasks(row.dataset.context).find((t) => t.id === row.dataset.id);
+            if (task) openEditTaskDialog(task, row.dataset.context);
+          });
+        });
+      }
+    }
+
+    if (miniTasks) {
+      if (!active || tasks.length === 0) {
+        miniTasks.classList.add("hidden");
+        miniTasks.innerHTML = "";
+      } else {
+        miniTasks.classList.remove("hidden");
+        miniTasks.innerHTML = tasks
+          .map(
+            (task) => `
+          <li class="focus-timer-mini-task${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
+            <label class="plan-card-check focus-timer-mini-check">
+              <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
+            </label>
+            <span class="focus-timer-mini-task-text">${escapeHtml(task.text)}</span>
+          </li>`
+          )
+          .join("");
+        miniTasks.querySelectorAll(".focus-timer-mini-task").forEach((row) => {
+          const input = row.querySelector('input[type="checkbox"]');
+          input?.addEventListener("change", (e) => {
+            toggleTaskDone(row.dataset.id, row.dataset.context, e.target.checked);
+            renderAttachedSurfaces();
+          });
+        });
+      }
+    }
+  }
+
+  function renderAttachedSurfaces() {
+    renderAttachList();
+    renderSessionTasks();
+  }
+
+  refreshFocusTimerUI = renderAttachedSurfaces;
+
+  function openFocusTimerPicker() {
+    if (!pickerDialog || !pickerList) return;
+    const remaining = FOCUS_TIMER_MAX_TASKS - focusTimerAttached.length;
+    if (remaining <= 0) return;
+    const candidates = getFocusTimerCandidateTasks();
+    if (pickerSub) {
+      pickerSub.textContent = `Pick up to ${remaining} more open task${remaining === 1 ? "" : "s"}.`;
+    }
+    if (candidates.length === 0) {
+      pickerList.innerHTML = `<li class="plan-135-picker-empty">No open tasks left to attach.</li>`;
+    } else {
+      pickerList.innerHTML = buildPickerListHtml(candidates);
+      pickerList.querySelectorAll(".plan-135-picker-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS) return;
+          const exists = focusTimerAttached.some(
+            (ref) => ref.id === btn.dataset.id && ref.context === btn.dataset.context
+          );
+          if (!exists) {
+            focusTimerAttached.push({ id: btn.dataset.id, context: btn.dataset.context });
+            saveFocusTimerAttached();
+            renderAttachedSurfaces();
+          }
+          if (focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS) {
+            pickerDialog.close();
+          } else {
+            openFocusTimerPicker();
+          }
+        });
+      });
+    }
+    pickerDialog.showModal();
+  }
+
+  function render() {
+    const timeText = formatTime(remainingMs);
+    display.textContent = timeText;
+    if (miniDisplay) miniDisplay.textContent = timeText;
+
+    const done = !running && remainingMs === 0;
+    const active = isActiveSession();
+    root.classList.toggle("is-running", running);
+    root.classList.toggle("is-active", active);
+    root.classList.toggle("is-done", done);
+
+    const toggleLabel = document.getElementById("focus-timer-toggle-label");
+    if (toggleLabel) {
+      toggleLabel.textContent = running ? "Pause" : done ? "Restart Focus" : active ? "Resume" : "Start Focus";
+    }
+    toggleBtn.classList.toggle("is-pause", running);
+
+    if (mini) mini.classList.toggle("hidden", !active);
+    if (miniToggle) {
+      miniToggle.textContent = running ? "Pause" : "Resume";
+      miniToggle.classList.toggle("is-resume", !running && active);
+    }
+
+    if (attachWrap) attachWrap.classList.toggle("hidden", active);
+    renderAttachedSurfaces();
+  }
+
+  function clearTick() {
+    if (intervalId) {
+      window.clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function completeTimer() {
+    running = false;
+    remainingMs = 0;
+    clearTick();
+    render();
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification("Focus complete", { body: "Your focus session is done." });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function tick() {
+    remainingMs = Math.max(0, endsAt - Date.now());
+    if (remainingMs <= 0) {
+      completeTimer();
+      return;
+    }
+    render();
+  }
+
+  function start() {
+    if (remainingMs <= 0) remainingMs = durationMs;
+    endsAt = Date.now() + remainingMs;
+    running = true;
+    clearTick();
+    intervalId = window.setInterval(tick, 250);
+    render();
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function pause() {
+    if (!running) return;
+    remainingMs = Math.max(0, endsAt - Date.now());
+    running = false;
+    clearTick();
+    render();
+  }
+
+  function reset() {
+    running = false;
+    remainingMs = durationMs;
+    clearTick();
+    render();
+  }
+
+  function resetFromMini() {
+    reset();
+    root?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function setDurationMinutes(mins) {
+    const safe = Math.min(180, Math.max(1, Math.round(Number(mins) || 20)));
+    durationMs = safe * 60 * 1000;
+    remainingMs = durationMs;
+    running = false;
+    clearTick();
+    render();
+  }
+
+  document.querySelectorAll(".focus-timer-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const value = btn.dataset.minutes;
+      document.querySelectorAll(".focus-timer-preset").forEach((preset) => {
+        preset.classList.toggle("active", preset === btn);
+      });
+      if (value === "custom") {
+        customWrap?.classList.remove("hidden");
+        customInput?.focus();
+        return;
+      }
+      customWrap?.classList.add("hidden");
+      setDurationMinutes(value);
+    });
+  });
+
+  setCustomBtn?.addEventListener("click", () => {
+    setDurationMinutes(customInput?.value);
+    customWrap?.classList.add("hidden");
+  });
+
+  customInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setDurationMinutes(customInput.value);
+      customWrap?.classList.add("hidden");
+    }
+  });
+
+  toggleBtn.addEventListener("click", () => {
+    if (running) pause();
+    else start();
+  });
+
+  resetBtn.addEventListener("click", reset);
+  miniToggle?.addEventListener("click", () => {
+    if (running) pause();
+    else start();
+  });
+  miniReset?.addEventListener("click", resetFromMini);
+  attachAdd?.addEventListener("click", openFocusTimerPicker);
+  document.getElementById("focus-timer-picker-close")?.addEventListener("click", () => {
+    pickerDialog?.close();
+  });
+  render();
+}
 
 function tasksKey(ctx) {
   return `priority-grid-tasks-${ctx}`;
@@ -2477,175 +2860,6 @@ function handleReflectionBack() {
   dialog?.close();
 }
 
-function setupFocusTimer() {
-  const root = document.getElementById("focus-timer");
-  const display = document.getElementById("focus-timer-display");
-  const toggleBtn = document.getElementById("focus-timer-toggle");
-  const resetBtn = document.getElementById("focus-timer-reset");
-  const customWrap = document.getElementById("focus-timer-custom");
-  const customInput = document.getElementById("focus-timer-minutes");
-  const setCustomBtn = document.getElementById("focus-timer-set");
-  const mini = document.getElementById("focus-timer-mini");
-  const miniDisplay = document.getElementById("focus-timer-mini-display");
-  const miniToggle = document.getElementById("focus-timer-mini-toggle");
-  const miniReset = document.getElementById("focus-timer-mini-reset");
-  if (!root || !display || !toggleBtn || !resetBtn) return;
-
-  let durationMs = 20 * 60 * 1000;
-  let remainingMs = durationMs;
-  let endsAt = 0;
-  let intervalId = null;
-  let running = false;
-
-  function formatTime(ms) {
-    const totalSec = Math.max(0, Math.ceil(ms / 1000));
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  }
-
-  function render() {
-    const timeText = formatTime(remainingMs);
-    display.textContent = timeText;
-    if (miniDisplay) miniDisplay.textContent = timeText;
-
-    const done = !running && remainingMs === 0;
-    const active = running || (remainingMs > 0 && remainingMs < durationMs);
-    root.classList.toggle("is-running", running);
-    root.classList.toggle("is-active", active);
-    root.classList.toggle("is-done", done);
-
-    const toggleLabel = document.getElementById("focus-timer-toggle-label");
-    if (toggleLabel) {
-      toggleLabel.textContent = running ? "Pause" : done ? "Restart Focus" : active ? "Resume" : "Start Focus";
-    }
-    toggleBtn.classList.toggle("is-pause", running);
-
-    if (mini) mini.classList.toggle("hidden", !active);
-    if (miniToggle) {
-      miniToggle.textContent = running ? "Pause" : "Resume";
-      miniToggle.classList.toggle("is-resume", !running && active);
-    }
-  }
-
-  function clearTick() {
-    if (intervalId) {
-      window.clearInterval(intervalId);
-      intervalId = null;
-    }
-  }
-
-  function completeTimer() {
-    running = false;
-    remainingMs = 0;
-    clearTick();
-    render();
-    try {
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        new Notification("Focus complete", { body: "Your focus session is done." });
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function tick() {
-    remainingMs = Math.max(0, endsAt - Date.now());
-    if (remainingMs <= 0) {
-      completeTimer();
-      return;
-    }
-    render();
-  }
-
-  function start() {
-    if (remainingMs <= 0) remainingMs = durationMs;
-    endsAt = Date.now() + remainingMs;
-    running = true;
-    clearTick();
-    intervalId = window.setInterval(tick, 250);
-    render();
-    try {
-      if (typeof Notification !== "undefined" && Notification.permission === "default") {
-        Notification.requestPermission();
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function pause() {
-    if (!running) return;
-    remainingMs = Math.max(0, endsAt - Date.now());
-    running = false;
-    clearTick();
-    render();
-  }
-
-  function reset() {
-    running = false;
-    remainingMs = durationMs;
-    clearTick();
-    render();
-  }
-
-  function resetFromMini() {
-    reset();
-    root?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  function setDurationMinutes(mins) {
-    const safe = Math.min(180, Math.max(1, Math.round(Number(mins) || 20)));
-    durationMs = safe * 60 * 1000;
-    remainingMs = durationMs;
-    running = false;
-    clearTick();
-    render();
-  }
-
-  document.querySelectorAll(".focus-timer-preset").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const value = btn.dataset.minutes;
-      document.querySelectorAll(".focus-timer-preset").forEach((preset) => {
-        preset.classList.toggle("active", preset === btn);
-      });
-      if (value === "custom") {
-        customWrap?.classList.remove("hidden");
-        customInput?.focus();
-        return;
-      }
-      customWrap?.classList.add("hidden");
-      setDurationMinutes(value);
-    });
-  });
-
-  setCustomBtn?.addEventListener("click", () => {
-    setDurationMinutes(customInput?.value);
-    customWrap?.classList.add("hidden");
-  });
-
-  customInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setDurationMinutes(customInput.value);
-      customWrap?.classList.add("hidden");
-    }
-  });
-
-  toggleBtn.addEventListener("click", () => {
-    if (running) pause();
-    else start();
-  });
-
-  resetBtn.addEventListener("click", reset);
-  miniToggle?.addEventListener("click", () => {
-    if (running) pause();
-    else start();
-  });
-  miniReset?.addEventListener("click", resetFromMini);
-  render();
-}
-
 function setupReflection() {
   const dialog = document.getElementById("reflection-dialog");
   const textarea = document.getElementById("reflection-text");
@@ -3424,6 +3638,7 @@ function renderHome() {
   // Always show all four priority columns with their tasks — not the 1-3-5 slot plan.
   renderHomePriorities();
   renderHomeCompletedToday();
+  refreshFocusTimerUI();
 }
 
 function openTierExpand(tier) {
