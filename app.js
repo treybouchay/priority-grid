@@ -2396,8 +2396,14 @@ function clearTaskRefs(id, ctx) {
   }
 }
 
+let lastWinsArchiveBatch = null;
+
 function archiveTask(id, ctx) {
   clearTaskRefs(id, ctx);
+  focusTimerAttached = focusTimerAttached.filter(
+    (ref) => !(ref.id === id && ref.context === ctx)
+  );
+  saveFocusTimerAttached();
   const archivedAt = new Date().toISOString();
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
@@ -2410,7 +2416,37 @@ function archiveTask(id, ctx) {
   renderAll();
 }
 
-function restoreTask(id, ctx) {
+function archiveCompletedTodayWins() {
+  const tasks = getCompletedTodayTasks();
+  if (tasks.length === 0) return;
+  lastWinsArchiveBatch = tasks.map((task) => ({ id: task.id, context: task.context }));
+  tasks.forEach((task) => {
+    clearTaskRefs(task.id, task.context);
+    focusTimerAttached = focusTimerAttached.filter(
+      (ref) => !(ref.id === task.id && ref.context === task.context)
+    );
+  });
+  saveFocusTimerAttached();
+  const archivedAt = new Date().toISOString();
+  const byContext = new Map();
+  tasks.forEach((task) => {
+    if (!byContext.has(task.context)) byContext.set(task.context, new Set());
+    byContext.get(task.context).add(task.id);
+  });
+  byContext.forEach((ids, ctx) => {
+    updateTaskInContext(ctx, (list) =>
+      list.map((t) => {
+        if (!ids.has(t.id)) return t;
+        const next = { ...t, archived: true, archivedAt, done: true };
+        if (!next.completedAt) next.completedAt = archivedAt;
+        return next;
+      })
+    );
+  });
+  renderAll();
+}
+
+function restoreTask(id, ctx, skipRender = false) {
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
@@ -2418,6 +2454,20 @@ function restoreTask(id, ctx) {
       return { ...rest, archived: false };
     })
   );
+  if (lastWinsArchiveBatch?.length) {
+    lastWinsArchiveBatch = lastWinsArchiveBatch.filter(
+      (ref) => !(ref.id === id && ref.context === ctx)
+    );
+    if (lastWinsArchiveBatch.length === 0) lastWinsArchiveBatch = null;
+  }
+  if (!skipRender) renderAll();
+}
+
+function undoLastWinsArchive() {
+  if (!lastWinsArchiveBatch?.length) return;
+  const batch = lastWinsArchiveBatch;
+  lastWinsArchiveBatch = null;
+  batch.forEach(({ id, context }) => restoreTask(id, context, true));
   renderAll();
 }
 
@@ -2764,7 +2814,7 @@ function getCompletedYesterdayTasks() {
   const tasks = [];
   CONTEXTS.forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (!t.done || !t.completedAt || t.archived) return;
+      if (!t.done || !t.completedAt) return;
       if (archiveDayKey(t.completedAt) !== yesterday) return;
       const key = `${ctx}:${t.id}`;
       if (seen.has(key)) return;
@@ -3566,11 +3616,28 @@ function getCompletedTodayTasks() {
 }
 
 function completedTodayEmptyHtml() {
+  const canUndo = Boolean(lastWinsArchiveBatch?.length);
   return `
     <article class="plan-card completed-wins-card completed-wins-card--empty">
       <div class="plan-card-inner">
-        <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
-        <p class="completed-wins-empty-msg">Nothing crossed off yet — your first win of the day is still ahead.</p>
+        <div class="completed-wins-card-header">
+          <div class="completed-wins-card-heading">
+            <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
+            <p class="plan-card-subtitle">${canUndo ? "Just archived" : "0 completed"}</p>
+          </div>
+          ${
+            canUndo
+              ? `<button type="button" class="completed-wins-undo-all" id="completed-wins-undo-all">
+            <span>Undo archive</span>
+          </button>`
+              : ""
+          }
+        </div>
+        <p class="completed-wins-empty-msg">${
+          canUndo
+            ? "Wins were archived. Undo to bring them back here — they still count in History and Reflection."
+            : "Nothing crossed off yet — your first win of the day is still ahead."
+        }</p>
       </div>
     </article>`;
 }
@@ -3583,7 +3650,10 @@ function completedWinsItemHtml(task) {
         <input type="checkbox" checked aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
-      ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : ""}
+      <button type="button" class="completed-wins-archive" aria-label="Archive task" title="Archive">
+        <svg class="icon" aria-hidden="true"><use href="#icon-archive"></use></svg>
+      </button>
+      ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : `<span class="completed-wins-time" aria-hidden="true"></span>`}
     </li>`;
 }
 
@@ -3613,6 +3683,11 @@ function renderHomeCompletedToday() {
   if (tasks.length === 0) {
     content.innerHTML = completedTodayEmptyHtml();
     section?.classList.add("presence-completed-today--empty");
+    content.querySelector("#completed-wins-undo-all")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      undoLastWinsArchive();
+    });
     return;
   }
 
@@ -3626,12 +3701,24 @@ function renderHomeCompletedToday() {
     .filter(Boolean)
     .join("");
 
+  const undoBtnHtml = lastWinsArchiveBatch?.length
+    ? `<button type="button" class="completed-wins-undo-all" id="completed-wins-undo-all">
+            <span>Undo archive</span>
+          </button>`
+    : `<button type="button" class="completed-wins-archive-all" id="completed-wins-archive-all">
+            <svg class="icon" aria-hidden="true"><use href="#icon-archive"></use></svg>
+            <span>Archive all</span>
+          </button>`;
+
   content.innerHTML = `
     <article class="plan-card completed-wins-card">
       <div class="plan-card-inner">
         <div class="completed-wins-card-header">
-          <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
-          <p class="plan-card-subtitle">${tasks.length} completed</p>
+          <div class="completed-wins-card-heading">
+            <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
+            <p class="plan-card-subtitle">${tasks.length} completed</p>
+          </div>
+          ${undoBtnHtml}
         </div>
         <div class="completed-wins-card-body">
           ${groupsHtml}
@@ -3639,6 +3726,25 @@ function renderHomeCompletedToday() {
       </div>
     </article>`;
   bindHomeCardTasks(content);
+  content.querySelectorAll(".completed-wins-archive").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const row = btn.closest(".completed-wins-item");
+      if (!row) return;
+      archiveTask(row.dataset.id, row.dataset.context);
+    });
+  });
+  content.querySelector("#completed-wins-archive-all")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    archiveCompletedTodayWins();
+  });
+  content.querySelector("#completed-wins-undo-all")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    undoLastWinsArchive();
+  });
 }
 
 function renderHome() {
@@ -4391,25 +4497,71 @@ function getCompletedTasksForHistory() {
   );
 }
 
-function historyItemHtml(task) {
+function historyWinsItemHtml(task) {
+  const time = formatCompletionTime(task.completedAt);
+  const restoreBtn = task.archived
+    ? `<button type="button" class="history-wins-restore" aria-label="Undo archive" title="Undo archive">
+        <span>Undo</span>
+      </button>`
+    : "";
   return `
-    <li class="history-item" data-id="${task.id}" data-context="${task.context}">
-      <span class="history-check" aria-hidden="true">✓</span>
-      <div class="history-item-body">
-        <span class="history-text">${escapeHtml(task.text)}</span>
-        <span class="history-meta">
-          <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
-          ${contextIconHtml(task.context, "brain-ctx-tag")}
-        </span>
-      </div>
+    <li class="plan-card-task done completed-wins-item history-wins-item${task.archived ? " is-archived" : ""}" data-id="${task.id}" data-context="${task.context}">
+      <label class="plan-card-check">
+        <input type="checkbox" checked disabled aria-label="Completed" />
+      </label>
+      <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
+      ${restoreBtn}
+      ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : `<span class="completed-wins-time" aria-hidden="true"></span>`}
     </li>`;
 }
 
+function historyWinsGroupHtml(tier, tasks) {
+  const label = ["1st", "2nd", "3rd", "4th"][tier - 1] || `${tier}`;
+  const number = String(tier).padStart(2, "0");
+  return `
+    <section class="completed-wins-group completed-wins-group--p${tier}" aria-label="${escapeHtml(TIER_NAMES[tier - 1])}">
+      <header class="completed-wins-group-header">
+        <span class="completed-wins-badge" aria-hidden="true">${number}</span>
+        <h4 class="completed-wins-group-title">${escapeHtml(label)}</h4>
+        <span class="completed-wins-group-count">${tasks.length}</span>
+      </header>
+      <ul class="plan-card-list completed-wins-items">
+        ${tasks.map(historyWinsItemHtml).join("")}
+      </ul>
+    </section>`;
+}
+
+function historyDayCardHtml(dayKey, tasks) {
+  const groupsHtml = [1, 2, 3, 4]
+    .map((tier) => {
+      const tierTasks = tasks.filter((t) => t.tier === tier);
+      if (tierTasks.length === 0) return "";
+      return historyWinsGroupHtml(tier, tierTasks);
+    })
+    .filter(Boolean)
+    .join("");
+
+  return `
+    <article class="plan-card completed-wins-card history-wins-card">
+      <div class="plan-card-inner">
+        <div class="completed-wins-card-header">
+          <div class="completed-wins-card-heading">
+            <h3 class="plan-card-title plan-card-title--featured">${escapeHtml(formatArchiveDayHeading(dayKey))}</h3>
+            <p class="plan-card-subtitle">${tasks.length} completed</p>
+          </div>
+        </div>
+        <div class="completed-wins-card-body">
+          ${groupsHtml}
+        </div>
+      </div>
+    </article>`;
+}
+
 function renderHistory() {
-  const list = document.getElementById("history-list");
+  const content = document.getElementById("history-content");
   const empty = document.getElementById("history-empty");
   const subtitle = document.getElementById("history-subtitle");
-  if (!list || !empty) return;
+  if (!content || !empty) return;
 
   const startedDay = getAppStartedDay();
   const tasks = getCompletedTasksForHistory().filter(
@@ -4425,7 +4577,7 @@ function renderHistory() {
   }
 
   if (tasks.length === 0) {
-    list.innerHTML = "";
+    content.innerHTML = "";
     empty.classList.remove("hidden");
     return;
   }
@@ -4445,18 +4597,25 @@ function renderHistory() {
     return b.localeCompare(a);
   });
 
-  list.innerHTML = sortedKeys
-    .map(
-      (dayKey) => `
-    <li class="history-day-heading">${formatArchiveDayHeading(dayKey)}</li>
-    ${groups.get(dayKey).map((task) => historyItemHtml(task)).join("")}`
-    )
+  content.innerHTML = sortedKeys
+    .map((dayKey) => historyDayCardHtml(dayKey, groups.get(dayKey)))
     .join("");
 
-  list.querySelectorAll(".history-item").forEach((el) => {
-    el.addEventListener("click", () => {
-      const task = loadTasks(el.dataset.context).find((t) => t.id === el.dataset.id);
-      if (task) openEditTaskDialog(task, el.dataset.context);
+  content.querySelectorAll(".history-wins-item .plan-card-task-text").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest(".history-wins-item");
+      if (!row) return;
+      const task = loadTasks(row.dataset.context).find((t) => t.id === row.dataset.id);
+      if (task) openEditTaskDialog(task, row.dataset.context);
+    });
+  });
+  content.querySelectorAll(".history-wins-restore").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const row = btn.closest(".history-wins-item");
+      if (!row) return;
+      restoreTask(row.dataset.id, row.dataset.context);
     });
   });
 }

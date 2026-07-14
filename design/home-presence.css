@@ -496,11 +496,110 @@ body[data-page="home"] .completed-wins-card .plan-card-inner {
 }
 
 body[data-page="home"] .completed-wins-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 1.15rem;
+}
+
+body[data-page="home"] .completed-wins-card-heading {
+  min-width: 0;
 }
 
 body[data-page="home"] .completed-wins-card-header .plan-card-subtitle {
   margin-top: 0.35rem;
+}
+
+body[data-page="home"] .completed-wins-archive-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgba(17, 48, 44, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: #11302c;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body[data-page="home"] .completed-wins-undo-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #0e3030;
+  border-radius: 999px;
+  background: #0e3030;
+  color: var(--peach-on-forest);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body[data-page="home"] .completed-wins-undo-all:hover {
+  opacity: 0.92;
+}
+
+body[data-page="home"] .completed-wins-archive-all .icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+body[data-page="home"] .completed-wins-archive-all:hover {
+  background: rgba(17, 48, 44, 0.06);
+}
+
+body[data-page="home"] .completed-wins-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+body[data-page="home"] .completed-wins-item .plan-card-task-text {
+  width: 100%;
+  text-align: left;
+}
+
+body[data-page="home"] .completed-wins-time {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.4);
+  white-space: nowrap;
+}
+
+body[data-page="home"] .completed-wins-archive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  cursor: pointer;
+}
+
+body[data-page="home"] .completed-wins-archive .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+body[data-page="home"] .completed-wins-archive:hover {
+  color: #11302c;
+  background: rgba(17, 48, 44, 0.06);
 }
 
 body[data-page="home"] .completed-wins-card--empty .plan-card-inner {
@@ -575,26 +674,6 @@ body[data-page="home"] .completed-wins-items {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-}
-
-body[data-page="home"] .completed-wins-item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-body[data-page="home"] .completed-wins-item .plan-card-task-text {
-  width: 100%;
-  text-align: left;
-}
-
-body[data-page="home"] .completed-wins-time {
-  font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(17, 48, 44, 0.4);
-  white-space: nowrap;
 }
 
 body[data-page="home"] .focus-timer-card {

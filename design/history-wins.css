@@ -1,0 +1,275 @@
+/* History page — match Today's Wins card language */
+
+body[data-page="history"] {
+  background: #fdf9f4;
+  color: #11302c;
+  --font-heading: "Source Serif 4", Georgia, serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+  --cream: #fdf9f4;
+  --forest: #0e3030;
+  --forest-ink: #11302c;
+  --peach-soft: #ffdbd2;
+  --peach-on-forest: var(--peach-soft);
+}
+
+body[data-page="history"] .shell,
+body[data-page="history"] .main {
+  background: #fdf9f4;
+}
+
+body[data-page="history"] #history-page.page-panel {
+  max-width: none;
+  width: 100%;
+  padding: 1.25rem clamp(0.75rem, 3vw, 1.5rem) 7rem;
+  background: transparent;
+}
+
+body[data-page="history"] .history-wins-section {
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+body[data-page="history"] .history-wins-header {
+  margin-bottom: 0.75rem;
+}
+
+body[data-page="history"] .section-title--plan {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 5vw, 1.75rem);
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="history"] .presence-plan-accent {
+  display: block;
+  width: 3rem;
+  height: 0.25rem;
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: #fc9174;
+}
+
+body[data-page="history"] .history-subtitle {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+body[data-page="history"] #history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+body[data-page="history"] .plan-card {
+  position: relative;
+  min-height: 0;
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 0;
+  overflow: hidden;
+}
+
+body[data-page="history"] .plan-card-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 1.25rem;
+  min-height: 0;
+}
+
+body[data-page="history"] .plan-card-title--featured {
+  display: block;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="history"] .plan-card-subtitle {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="history"] .completed-wins-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.15rem;
+}
+
+body[data-page="history"] .completed-wins-group + .completed-wins-group {
+  margin-top: 1.15rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid rgba(17, 48, 44, 0.08);
+}
+
+body[data-page="history"] .completed-wins-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+body[data-page="history"] .completed-wins-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: #0e3030;
+  color: var(--peach-on-forest);
+}
+
+body[data-page="history"] .completed-wins-group-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #11302c;
+}
+
+body[data-page="history"] .completed-wins-group-count {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.45);
+}
+
+body[data-page="history"] .completed-wins-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+body[data-page="history"] .completed-wins-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+body[data-page="history"] .completed-wins-item.is-archived {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+body[data-page="history"] .history-wins-restore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(17, 48, 44, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: #11302c;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body[data-page="history"] .history-wins-restore:hover {
+  background: rgba(17, 48, 44, 0.06);
+}
+
+body[data-page="history"] .plan-card-check input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  border-radius: 50%;
+  border: 2px solid #0e3030;
+  background: #0e3030;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.75rem;
+  cursor: default;
+}
+
+body[data-page="history"] .plan-card-task-text {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #11302c;
+  text-decoration: line-through;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+body[data-page="history"] .completed-wins-time {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.4);
+  white-space: nowrap;
+}
+
+body[data-page="history"] .history-empty {
+  margin: 0;
+  padding: 2rem 1.25rem;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(17, 48, 44, 0.55);
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+@media (min-width: 769px) {
+  body[data-page="history"] #history-page.page-panel {
+    padding: 2rem clamp(2rem, 4vw, 3rem) 3rem;
+  }
+
+  body[data-page="history"] .history-wins-section {
+    max-width: 48rem;
+  }
+
+  body[data-page="history"] .plan-card-inner {
+    padding: 2rem;
+  }
+
+  body[data-page="history"] .plan-card-title--featured {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  body[data-page="history"] .plan-card-task-text {
+    font-size: 1rem;
+  }
+}
