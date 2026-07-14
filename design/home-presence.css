@@ -730,7 +730,7 @@ body[data-page="home"] .focus-timer-session-tasks {
 
 body[data-page="home"] .focus-timer-session-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   justify-items: start;
   column-gap: 0.55rem;
@@ -761,7 +761,7 @@ body[data-page="home"] .focus-timer-session-item.done .focus-timer-session-text 
 }
 
 body[data-page="home"] .focus-timer-session-check {
-  justify-self: end;
+  justify-self: start;
 }
 
 body[data-page="home"] .focus-timer-session-check input {

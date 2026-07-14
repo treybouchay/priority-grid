@@ -339,10 +339,10 @@ function setupFocusTimer() {
           .map(
             (task) => `
           <li class="focus-timer-session-item${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
-            <span class="focus-timer-session-text">${escapeHtml(task.text)}</span>
             <label class="plan-card-check focus-timer-session-check">
               <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
             </label>
+            <span class="focus-timer-session-text">${escapeHtml(task.text)}</span>
           </li>`
           )
           .join("");
