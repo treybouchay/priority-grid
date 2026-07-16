@@ -609,9 +609,9 @@ function setupFocusTimer() {
 
     const done = !running && remainingMs === 0;
     const active = isActiveSession();
-    syncFocusCardVisibility();
     const sessionActive = active || done;
-    const showMiniBar = sessionActive && page === "home";
+    syncFocusCardVisibility();
+    const showMiniBar = sessionActive && !(page === "home" && focusCardVisible);
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
@@ -624,6 +624,7 @@ function setupFocusTimer() {
     toggleBtn.classList.toggle("is-pause", running);
 
     if (mini) mini.classList.toggle("hidden", !showMiniBar);
+    document.body.classList.toggle("focus-timer-visible", showMiniBar);
     document.body.classList.toggle("focus-timer-session", sessionActive);
     document.body.classList.toggle("focus-timer-done", done);
 
@@ -639,10 +640,20 @@ function setupFocusTimer() {
     }
 
     root.classList.toggle("focus-timer-show-presets", done);
+    if (miniPresets) miniPresets.classList.toggle("hidden", !done);
     if (miniCustomWrap) miniCustomWrap.classList.add("hidden");
 
     if (attachWrap) attachWrap.classList.toggle("hidden", active || done);
     renderAttachedSurfaces();
+
+    const displayTasks = getFocusTimerTasksForDisplay({ timerDone: done });
+    const hasTaskRows = showMiniBar && displayTasks.length > 0;
+    const presetsVisible = done && miniPresets && !miniPresets.classList.contains("hidden");
+    document.body.classList.toggle("focus-timer-has-tasks", hasTaskRows);
+    document.body.style.setProperty(
+      "--focus-timer-offset",
+      hasTaskRows ? "5.75rem" : presetsVisible ? "6.75rem" : "3.75rem"
+    );
   }
 
   function clearCompletePulse() {
@@ -705,9 +716,7 @@ function setupFocusTimer() {
 
   function scrollToMiniBubble() {
     if (!mini || mini.classList.contains("hidden")) return;
-    requestAnimationFrame(() => {
-      mini.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function start() {
