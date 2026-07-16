@@ -1182,9 +1182,21 @@ body[data-page="tasks"] .archive-empty-sub {
     width: 100%;
   }
 
-  /* Free horizontal space for task text in the 2×2 preview */
   body[data-page="tasks"] .tasks-board-area .task-card-main .task-drag-handle {
-    display: none;
+    display: inline-flex;
+    width: 1.25rem;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    opacity: 0.55;
+  }
+
+  body[data-page="tasks"] .tasks-board-area .task-card-main .task-drag-handle .icon-grip {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  body[data-page="tasks"] .tasks-board-area .task-list {
+    min-height: 2.5rem;
   }
 
   body[data-page="tasks"] .tasks-board-area .task-check input {

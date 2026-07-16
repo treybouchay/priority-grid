@@ -209,7 +209,7 @@ let visibleTiers = getVisibleTiers();
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
 const PREVIEW_TASK_LIMIT = 5;
-const FOCUS_TIMER_MAX_TASKS = 3;
+const FOCUS_TIMER_MAX_TASKS = 10;
 const FOCUS_TIMER_TASKS_KEY = "priority-grid-focus-timer-tasks";
 let focusTimerAttached = [];
 let refreshFocusTimerUI = () => {};
@@ -382,10 +382,8 @@ function resolveFocusTimerTasks() {
     .filter(Boolean);
 }
 
-function getFocusTimerTasksForDisplay({ timerDone = false } = {}) {
-  const tasks = resolveFocusTimerTasks();
-  if (timerDone) return tasks;
-  return tasks.filter((task) => !task.done);
+function getFocusTimerTasksForDisplay() {
+  return resolveFocusTimerTasks();
 }
 
 function getFocusTimerCandidateTasks() {
@@ -478,7 +476,9 @@ function setupFocusTimer() {
     if (attachAdd) {
       attachAdd.disabled = focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS;
       attachAdd.textContent =
-        focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS ? "Full (3)" : "Add task";
+        focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS
+          ? `Full (${FOCUS_TIMER_MAX_TASKS})`
+          : "Add task";
     }
   }
 
@@ -503,7 +503,7 @@ function setupFocusTimer() {
 
   function renderSessionTasks() {
     const timerDone = !running && remainingMs === 0;
-    const tasks = getFocusTimerTasksForDisplay({ timerDone });
+    const tasks = getFocusTimerTasksForDisplay();
     const active = isActiveSession();
     const showTasks = (active || timerDone) && tasks.length > 0;
 
@@ -614,8 +614,6 @@ function setupFocusTimer() {
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
-    root.classList.toggle("is-complete-pulse", done);
-    mini?.classList.toggle("is-complete-pulse", done);
 
     const toggleLabel = document.getElementById("focus-timer-toggle-label");
     if (toggleLabel) {
@@ -646,7 +644,7 @@ function setupFocusTimer() {
     if (attachWrap) attachWrap.classList.toggle("hidden", active || done);
     renderAttachedSurfaces();
 
-    const displayTasks = getFocusTimerTasksForDisplay({ timerDone: done });
+    const displayTasks = getFocusTimerTasksForDisplay();
     const hasTaskRows = showMiniBar && displayTasks.length > 0;
     const presetsVisible = done && miniPresets && !miniPresets.classList.contains("hidden");
     document.body.classList.toggle("focus-timer-has-tasks", hasTaskRows);
@@ -654,16 +652,6 @@ function setupFocusTimer() {
       "--focus-timer-offset",
       hasTaskRows ? "5.75rem" : presetsVisible ? "6.75rem" : "3.75rem"
     );
-  }
-
-  function clearCompletePulse() {
-    root?.classList.remove("is-complete-pulse");
-    mini?.classList.remove("is-complete-pulse");
-  }
-
-  function triggerCompletePulse() {
-    root?.classList.add("is-complete-pulse");
-    mini?.classList.add("is-complete-pulse");
   }
 
   function clearTick() {
@@ -678,7 +666,6 @@ function setupFocusTimer() {
     remainingMs = 0;
     clearTick();
     render();
-    triggerCompletePulse();
     playFocusCompleteAlarm();
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -705,7 +692,6 @@ function setupFocusTimer() {
 
   function start() {
     stopFocusCompleteAlarm();
-    clearCompletePulse();
     if (remainingMs <= 0) remainingMs = durationMs;
     endsAt = Date.now() + remainingMs;
     running = true;
@@ -732,7 +718,6 @@ function setupFocusTimer() {
 
   function reset() {
     stopFocusCompleteAlarm();
-    clearCompletePulse();
     running = false;
     remainingMs = durationMs;
     clearTick();
@@ -751,7 +736,6 @@ function setupFocusTimer() {
 
   function setDurationMinutes(mins) {
     stopFocusCompleteAlarm();
-    clearCompletePulse();
     const safe = Math.min(180, Math.max(1, Math.round(Number(mins) || 20)));
     durationMs = safe * 60 * 1000;
     remainingMs = durationMs;
@@ -2506,12 +2490,221 @@ function openAppearancePanel() {
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+function setupScribbleCaptureGesture() {
+  if (setupScribbleCaptureGesture.ready) return;
+  setupScribbleCaptureGesture.ready = true;
+
+  const IGNORE_SELECTOR = [
+    "button",
+    "a",
+    "input",
+    "textarea",
+    "select",
+    "label",
+    "summary",
+    "option",
+    "dialog",
+    "[role='dialog']",
+    "[role='button']",
+    ".task-drag-handle",
+    ".plan-card-drag",
+    ".plan-card-check",
+    ".task-check",
+    ".mobile-nav-shell",
+    ".mobile-nav",
+    ".focus-timer-mini",
+    ".sidebar",
+  ].join(",");
+
+  const MIN_PATH = 110;
+  const MIN_REVERSALS = 2;
+  const MAX_MS = 1800;
+  const COMMIT_PREVENT_SCROLL_AT = 48;
+
+  let session = null;
+  let inkSvg = null;
+  let inkPath = null;
+
+  function ensureInkLayer() {
+    if (inkSvg) return;
+    inkSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    inkSvg.classList.add("scribble-ink-layer");
+    inkSvg.setAttribute("aria-hidden", "true");
+    inkPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    inkPath.classList.add("scribble-ink-path");
+    inkSvg.appendChild(inkPath);
+    document.body.appendChild(inkSvg);
+  }
+
+  function clearInk() {
+    if (!inkPath) return;
+    inkPath.setAttribute("d", "");
+    inkSvg?.classList.remove("is-visible", "is-fading");
+  }
+
+  function drawInk(points) {
+    if (!inkPath || points.length < 2) return;
+    const d = points
+      .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+      .join(" ");
+    inkPath.setAttribute("d", d);
+    inkSvg.classList.add("is-visible");
+    inkSvg.classList.remove("is-fading");
+  }
+
+  function fadeInk() {
+    if (!inkSvg) return;
+    inkSvg.classList.add("is-fading");
+    window.setTimeout(clearInk, 280);
+  }
+
+  function isBlockedTarget(target) {
+    if (!(target instanceof Element)) return true;
+    if (target.closest(IGNORE_SELECTOR)) return true;
+    if (document.querySelector("dialog[open]")) return true;
+    return false;
+  }
+
+  function analyze(points) {
+    if (points.length < 3) return { path: 0, reversals: 0, dx: 0, dy: 0 };
+    let path = 0;
+    let reversals = 0;
+    let lastSign = 0;
+    let minX = points[0].x;
+    let maxX = points[0].x;
+    let minY = points[0].y;
+    let maxY = points[0].y;
+
+    for (let i = 1; i < points.length; i += 1) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const sx = curr.x - prev.x;
+      const sy = curr.y - prev.y;
+      path += Math.hypot(sx, sy);
+      minX = Math.min(minX, curr.x);
+      maxX = Math.max(maxX, curr.x);
+      minY = Math.min(minY, curr.y);
+      maxY = Math.max(maxY, curr.y);
+
+      if (Math.abs(sx) < 2) continue;
+      const sign = sx > 0 ? 1 : -1;
+      if (lastSign && sign !== lastSign) reversals += 1;
+      lastSign = sign;
+    }
+
+    return {
+      path,
+      reversals,
+      dx: maxX - minX,
+      dy: maxY - minY,
+    };
+  }
+
+  function endSession(commit) {
+    if (!session) return;
+    const active = session;
+    session = null;
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("pointercancel", onCancel);
+    document.body.classList.remove("scribble-capture-active");
+
+    if (commit) {
+      fadeInk();
+      if (navigator.vibrate) navigator.vibrate(10);
+      openTaskDialog(1);
+      return;
+    }
+    fadeInk();
+  }
+
+  function onMove(e) {
+    if (!session || e.pointerId !== session.id) return;
+    const point = { x: e.clientX, y: e.clientY, t: Date.now() };
+    const last = session.points[session.points.length - 1];
+    if (last && Math.hypot(point.x - last.x, point.y - last.y) < 2) return;
+    session.points.push(point);
+
+    const stats = analyze(session.points);
+    const elapsed = point.t - session.startedAt;
+
+    // Abort early if this looks like a scroll.
+    if (!session.locked && stats.dy > 28 && stats.dy > stats.dx * 1.35 && stats.reversals < 1) {
+      endSession(false);
+      return;
+    }
+
+    if (!session.locked && stats.path >= COMMIT_PREVENT_SCROLL_AT && stats.dx > 24) {
+      session.locked = true;
+      document.body.classList.add("scribble-capture-active");
+      try {
+        session.target?.setPointerCapture?.(session.id);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (session.locked) {
+      e.preventDefault();
+      drawInk(session.points);
+    }
+
+    if (elapsed > MAX_MS) {
+      const finalStats = analyze(session.points);
+      const ok =
+        finalStats.path >= MIN_PATH &&
+        finalStats.reversals >= MIN_REVERSALS &&
+        finalStats.dx > finalStats.dy * 0.55;
+      endSession(ok);
+    }
+  }
+
+  function onUp(e) {
+    if (!session || e.pointerId !== session.id) return;
+    const stats = analyze(session.points);
+    const ok =
+      session.locked &&
+      stats.path >= MIN_PATH &&
+      stats.reversals >= MIN_REVERSALS &&
+      stats.dx > 36 &&
+      stats.dx >= stats.dy * 0.45;
+    endSession(ok);
+  }
+
+  function onCancel(e) {
+    if (!session || e.pointerId !== session.id) return;
+    endSession(false);
+  }
+
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!e.isPrimary || e.button !== 0) return;
+      if (e.pointerType === "mouse" && !isTouchDevice()) return;
+      if (session || listDragState || document.body.classList.contains("task-dragging-lock")) return;
+      if (isBlockedTarget(e.target)) return;
+
+      ensureInkLayer();
+      clearInk();
+      session = {
+        id: e.pointerId,
+        startedAt: Date.now(),
+        points: [{ x: e.clientX, y: e.clientY, t: Date.now() }],
+        locked: false,
+        target: e.target,
+      };
+
+      document.addEventListener("pointermove", onMove, { passive: false });
+      document.addEventListener("pointerup", onUp, { passive: true });
+      document.addEventListener("pointercancel", onCancel, { passive: true });
+    },
+    { passive: true }
+  );
+}
+
 function setupNavigation() {
   document.querySelectorAll(".nav-item, .mobile-nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (btn.id === "mobile-nav-fab" || btn.classList.contains("mobile-nav-item--capture")) {
-        return;
-      }
       if (btn.dataset.nav === "profile" || btn.dataset.nav === "settings") {
         openAppearancePanel();
         return;
@@ -2544,7 +2737,7 @@ function setupNavigation() {
     sidebarProfileBtn.addEventListener("click", openAppearancePanel);
   }
 
-  document.getElementById("mobile-nav-fab")?.addEventListener("click", (e) => {
+  document.getElementById("capture-clip-fab")?.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     const fab = e.currentTarget;
@@ -4240,6 +4433,8 @@ function listAtPoint(x, y) {
   if (section) return section.querySelector(".task-list[data-tier]");
   const planCard = el?.closest(".plan-card[data-tier]:not(.completed-wins-card)");
   if (planCard) return planCard.querySelector(".plan-card-list[data-tier]");
+  const col = el?.closest(".column[data-tier]");
+  if (col) return col.querySelector(".task-list[data-tier]");
   return null;
 }
 
@@ -4342,11 +4537,16 @@ function finishGripListDrag(x, y) {
   if (!listDragState) return;
   const { card, listEl } = listDragState;
   const dropEl = document.elementFromPoint(x, y);
-  const dropList = dropEl?.closest(GRIP_DRAG_LIST_SELECTOR);
+  const dropList = listAtPoint(x, y);
+  const dropCol = columnAtPoint(x, y);
+  const sourceCol = listEl?.closest?.(".column") || null;
   const isSidebarDrop = Boolean(dropEl?.closest(".plan-135-drop-zone, .forget-it-drop-zone"));
   const isCrossListDrop = Boolean(dropList && dropList !== listEl);
+  const isCrossColumnDrop = Boolean(
+    dropCol && dropCol !== sourceCol && dropCol.querySelector(".task-list[data-tier]")
+  );
 
-  if (isSidebarDrop || isCrossListDrop) {
+  if (isSidebarDrop || isCrossListDrop || isCrossColumnDrop) {
     applyGripDragDrop(card, x, y);
     listEl.classList.remove("list-drag-active");
     listEl.querySelectorAll(GRIP_DRAG_CARD_SELECTOR).forEach((c) => {
@@ -5230,6 +5430,7 @@ setupThemeSchedule();
 setupFontPicker();
 setupHomeDesignPicker();
 setupNavigation();
+setupScribbleCaptureGesture();
 setupDropZones();
 setupTouchListDrag();
 setupSidebarTabs();

@@ -807,7 +807,7 @@ body[data-page="home"] .focus-timer-title {
 }
 
 body[data-page="home"] .focus-timer-display {
-  margin: 0 0 1rem;
+  margin: 0 0 0.35rem;
   font-family: var(--font-heading);
   font-size: clamp(3.4375rem, 12.5vw, 4.6875rem);
   font-weight: 700;
@@ -821,6 +821,21 @@ body[data-page="home"] .focus-timer-display {
   will-change: transform;
 }
 
+body[data-page="home"] .focus-timer-complete-label {
+  margin: 0 0 1rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ft-ink-muted, rgba(255, 219, 210, 0.75));
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-0.25rem);
+  pointer-events: none;
+}
+
 body[data-page="home"] .focus-timer-card.is-running .focus-timer-display,
 body[data-page="home"] .focus-timer-card.is-active .focus-timer-display {
   transform: scale(1.25);
@@ -830,6 +845,13 @@ body[data-page="home"] .focus-timer-card.is-active .focus-timer-display {
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-display {
   color: var(--ft-ink, #0e3030);
   transform: scale(1);
+}
+
+body[data-page="home"] .focus-timer-card.is-done .focus-timer-complete-label {
+  opacity: 1;
+  max-height: 2rem;
+  transform: translateY(0);
+  animation: focus-timer-complete-label-in 0.7s ease forwards;
 }
 
 body[data-page="home"] .focus-timer-card.is-done {
@@ -844,10 +866,7 @@ body[data-page="home"] .focus-timer-card.is-done {
   --ft-chip-bg-active: rgba(14, 48, 48, 0.14);
   --ft-chip-border-active: rgba(14, 48, 48, 0.35);
   --ft-check-border: rgba(14, 48, 48, 0.25);
-}
-
-.focus-timer-card.is-done.is-complete-pulse {
-  animation: focus-timer-complete-breathe 2.5s ease-in-out infinite;
+  animation: focus-timer-complete-breathe 3.25s ease-in-out infinite;
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-badge {
@@ -886,10 +905,7 @@ body[data-page="home"] .focus-timer-card.is-done .focus-timer-session-check inpu
   background-color: var(--ft-btn-bg, #0e3030);
   border-color: var(--ft-btn-bg, #0e3030);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse .focus-timer-session-check input:checked {
-  animation: focus-timer-check-mark 2.5s ease-in-out infinite;
+  animation: focus-timer-check-mark 3.25s ease-in-out infinite;
 }
 
 body[data-page="home"] .focus-timer-card.is-running .focus-timer-presets,
@@ -1157,6 +1173,18 @@ body[data-page="home"] .focus-timer-session-tasks.hidden,
   }
 }
 
+@keyframes focus-timer-complete-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes focus-timer-check-mark {
   0%,
   49.5% {
@@ -1170,13 +1198,9 @@ body[data-page="home"] .focus-timer-session-tasks.hidden,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .focus-timer-mini.is-done.is-complete-pulse,
-  body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse {
-    animation: none;
-  }
-
   .focus-timer-mini.is-done,
   body[data-page="home"] .focus-timer-card.is-done {
+    animation: none;
     --ft-surface: #ffdbd2;
     --ft-ink: #0e3030;
     --ft-ink-muted: rgba(14, 48, 48, 0.78);
@@ -1190,8 +1214,16 @@ body[data-page="home"] .focus-timer-session-tasks.hidden,
     --ft-check-border: rgba(14, 48, 48, 0.25);
   }
 
-  .focus-timer-mini.is-done.is-complete-pulse .focus-timer-mini-check input:checked,
-  body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse .focus-timer-session-check input:checked {
+  .focus-timer-mini.is-done .focus-timer-complete-label,
+  body[data-page="home"] .focus-timer-card.is-done .focus-timer-complete-label {
+    animation: none;
+    opacity: 1;
+    max-height: 2rem;
+    transform: none;
+  }
+
+  .focus-timer-mini.is-done .focus-timer-mini-check input:checked,
+  body[data-page="home"] .focus-timer-card.is-done .focus-timer-session-check input:checked {
     animation: none;
   }
 }
@@ -1248,10 +1280,7 @@ body.focus-timer-visible[data-page="home"] .main {
   --ft-chip-bg-active: rgba(14, 48, 48, 0.14);
   --ft-chip-border-active: rgba(14, 48, 48, 0.35);
   --ft-check-border: rgba(14, 48, 48, 0.25);
-}
-
-.focus-timer-mini.is-done.is-complete-pulse {
-  animation: focus-timer-complete-breathe 2.5s ease-in-out infinite;
+  animation: focus-timer-complete-breathe 3.25s ease-in-out infinite;
 }
 
 .focus-timer-mini.is-done .focus-timer-mini-badge {
@@ -1261,6 +1290,28 @@ body.focus-timer-visible[data-page="home"] .main {
 
 .focus-timer-mini.is-done .focus-timer-mini-display {
   color: var(--ft-ink, #0e3030);
+}
+
+.focus-timer-mini-complete-label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ft-ink-muted, rgba(255, 219, 210, 0.75));
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-0.15rem);
+  pointer-events: none;
+}
+
+.focus-timer-mini.is-done .focus-timer-mini-complete-label {
+  opacity: 1;
+  max-height: 1.5rem;
+  transform: translateY(0);
+  animation: focus-timer-complete-label-in 0.7s ease forwards;
 }
 
 .focus-timer-mini.is-done .focus-timer-mini-toggle {
@@ -1405,10 +1456,7 @@ body.focus-timer-visible[data-page="home"] .main {
 
 .focus-timer-mini.is-done .focus-timer-mini-check input:checked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-.focus-timer-mini.is-done.is-complete-pulse .focus-timer-mini-check input:checked {
-  animation: focus-timer-check-mark 2.5s ease-in-out infinite;
+  animation: focus-timer-check-mark 3.25s ease-in-out infinite;
 }
 
 .focus-timer-mini-presets {
@@ -1773,7 +1821,8 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
 }
 
 .mobile-nav-fab-wrap,
-.mobile-nav-spacer {
+.mobile-nav-spacer,
+.capture-clip-fab {
   display: none;
 }
 
@@ -1799,10 +1848,11 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
     justify-content: space-between;
     align-items: flex-end;
     gap: 0.25rem;
-    padding: 1rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
+    padding: 1.15rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
     background: #0e3030;
     border-top: none;
     box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05);
+    overflow: visible;
   }
 
   .mobile-nav-shell .mobile-nav-item {
@@ -1834,51 +1884,60 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
     background: transparent;
   }
 
-  .mobile-nav-shell .mobile-nav-item--capture,
-  .mobile-nav-shell .mobile-nav-item--capture .icon-mobile,
-  .mobile-nav-shell .mobile-nav-item--capture .mobile-nav-label {
-    color: #3d8b74;
+  /* Floating paperclip capture — above nav, bottom right */
+  .capture-clip-fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 1.15rem;
+    bottom: calc(4.85rem + 20px + env(safe-area-inset-bottom, 0px));
+    z-index: 110;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #fdf9f4;
+    color: #0e3030;
+    box-shadow:
+      0 2px 0 rgba(14, 48, 48, 0.06),
+      0 8px 22px rgba(14, 48, 48, 0.16);
+    cursor: pointer;
+    transform: rotate(-18deg);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   }
 
-  .mobile-nav-shell .mobile-nav-item--capture .mobile-nav-capture-icon {
-    width: 1.35rem;
-    height: 1.35rem;
+  .capture-clip-fab .capture-clip-icon {
+    width: 1.45rem;
+    height: 1.45rem;
     display: block;
-    transform-origin: center;
-    transition: transform 0.12s ease;
   }
 
-  .mobile-nav-shell .mobile-nav-item--capture.is-sparkling .mobile-nav-capture-icon {
-    animation: fab-pen-tap 0.45s ease-out 1;
+  .capture-clip-fab.is-sparkling {
+    animation: capture-clip-tap 0.45s ease-out 1;
   }
 
   @media (hover: hover) {
-    .mobile-nav-shell .mobile-nav-item--capture:hover .mobile-nav-capture-icon {
-      animation: fab-pen-pulse 0.9s ease-in-out infinite;
+    .capture-clip-fab:hover {
+      background: #fff;
+      transform: rotate(-12deg) scale(1.05);
+      box-shadow:
+        0 2px 0 rgba(14, 48, 48, 0.06),
+        0 10px 26px rgba(14, 48, 48, 0.2);
     }
   }
 
-  @keyframes fab-pen-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 0.85;
-    }
-  }
-
-  @keyframes fab-pen-tap {
+  @keyframes capture-clip-tap {
     0% {
-      transform: scale(1) rotate(0deg);
+      transform: rotate(-18deg) scale(1);
     }
     40% {
-      transform: scale(1.2) rotate(-8deg);
+      transform: rotate(-28deg) scale(1.12);
     }
     100% {
-      transform: scale(1) rotate(0deg);
+      transform: rotate(-18deg) scale(1);
     }
   }
 }
