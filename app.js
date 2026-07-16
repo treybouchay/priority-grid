@@ -231,12 +231,7 @@ function syncBottomChrome() {
     return;
   }
 
-  // Mobile uses in-flow nav (flex footer) — no padding reserve needed.
-  if (window.matchMedia("(max-width: 768px)").matches) {
-    document.documentElement.style.setProperty("--bottom-chrome-height", "0px");
-    return;
-  }
-
+  // Measure the whole chrome (session dock + nav) so content padding stays correct.
   const height = Math.ceil(shell.getBoundingClientRect().height);
   document.documentElement.style.setProperty(
     "--bottom-chrome-height",
@@ -410,6 +405,7 @@ function setupFocusTimer() {
   const customInput = document.getElementById("focus-timer-minutes");
   const setCustomBtn = document.getElementById("focus-timer-set");
   const mini = document.getElementById("focus-timer-mini");
+  const miniDock = document.getElementById("focus-timer-mini-dock");
   const miniDisplay = document.getElementById("focus-timer-mini-display");
   const miniToggle = document.getElementById("focus-timer-mini-toggle");
   const miniReset = document.getElementById("focus-timer-mini-reset");
@@ -610,7 +606,7 @@ function setupFocusTimer() {
     const active = isActiveSession();
     const sessionActive = active || done;
     syncFocusCardVisibility();
-    const showMiniBar = sessionActive && !(page === "home" && focusCardVisible);
+    const showMiniBar = sessionActive;
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
@@ -621,10 +617,27 @@ function setupFocusTimer() {
     }
     toggleBtn.classList.toggle("is-pause", running);
 
-    if (mini) mini.classList.toggle("hidden", !showMiniBar);
+    if (mini) {
+      if (miniDock && mini.parentElement !== miniDock) miniDock.appendChild(mini);
+      mini.classList.toggle("hidden", !showMiniBar);
+    }
     document.body.classList.toggle("focus-timer-visible", showMiniBar);
+    document.body.classList.remove("focus-timer-nav-dock", "focus-timer-home-card");
     document.body.classList.toggle("focus-timer-session", sessionActive);
     document.body.classList.toggle("focus-timer-done", done);
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) {
+      if (showMiniBar) {
+        themeMeta.setAttribute("content", done ? "#ffdbd2" : "#0e3030");
+      } else if (!themeMeta.dataset.locked) {
+        const effective = document.documentElement.dataset.theme;
+        themeMeta.setAttribute(
+          "content",
+          effective === "midnight" ? "#0e303b" : effective === "terracotta" ? "#fff9f9" : "#fef7f4"
+        );
+      }
+    }
 
     if (mini) {
       mini.classList.toggle("is-running", running);
@@ -646,12 +659,24 @@ function setupFocusTimer() {
 
     const displayTasks = getFocusTimerTasksForDisplay();
     const hasTaskRows = showMiniBar && displayTasks.length > 0;
-    const presetsVisible = done && miniPresets && !miniPresets.classList.contains("hidden");
     document.body.classList.toggle("focus-timer-has-tasks", hasTaskRows);
-    document.body.style.setProperty(
-      "--focus-timer-offset",
-      hasTaskRows ? "5.75rem" : presetsVisible ? "6.75rem" : "3.75rem"
-    );
+    syncFocusTimerOffset();
+    syncBottomChrome();
+    requestAnimationFrame(() => {
+      syncFocusTimerOffset();
+      syncBottomChrome();
+    });
+  }
+
+  function syncFocusTimerOffset() {
+    if (!mini || mini.classList.contains("hidden")) {
+      document.body.style.removeProperty("--focus-timer-offset");
+      return;
+    }
+    const height = Math.ceil(mini.getBoundingClientRect().height);
+    if (height > 0) {
+      document.body.style.setProperty("--focus-timer-offset", `${height}px`);
+    }
   }
 
   function clearTick() {
@@ -825,7 +850,17 @@ function setupFocusTimer() {
   });
   setupFocusCardObserver();
   setupBottomChromeObserver();
-  window.addEventListener("resize", syncBottomChrome);
+  if (mini && typeof ResizeObserver !== "undefined") {
+    const miniResizeObserver = new ResizeObserver(() => {
+      syncFocusTimerOffset();
+      syncBottomChrome();
+    });
+    miniResizeObserver.observe(mini);
+  }
+  window.addEventListener("resize", () => {
+    syncBottomChrome();
+    syncFocusTimerOffset();
+  });
   render();
   syncPresetButtons(20);
 }
@@ -2512,14 +2547,18 @@ function setupScribbleCaptureGesture() {
     ".task-check",
     ".mobile-nav-shell",
     ".mobile-nav",
+    ".capture-clip-fab",
     ".focus-timer-mini",
     ".sidebar",
   ].join(",");
 
-  const MIN_PATH = 110;
-  const MIN_REVERSALS = 2;
-  const MAX_MS = 1800;
-  const COMMIT_PREVENT_SCROLL_AT = 48;
+  // Looser thresholds so a quick back-and-forth scribble registers on phones.
+  const MIN_PATH = 70;
+  const MIN_REVERSALS = 1;
+  const MAX_MS = 2200;
+  const LOCK_PATH = 22;
+  const LOCK_DX = 12;
+  const SCROLL_ABORT_DY = 36;
 
   let session = null;
   let inkSvg = null;
@@ -2566,7 +2605,7 @@ function setupScribbleCaptureGesture() {
   }
 
   function analyze(points) {
-    if (points.length < 3) return { path: 0, reversals: 0, dx: 0, dy: 0 };
+    if (points.length < 2) return { path: 0, reversals: 0, dx: 0, dy: 0 };
     let path = 0;
     let reversals = 0;
     let lastSign = 0;
@@ -2586,7 +2625,8 @@ function setupScribbleCaptureGesture() {
       minY = Math.min(minY, curr.y);
       maxY = Math.max(maxY, curr.y);
 
-      if (Math.abs(sx) < 2) continue;
+      // Ignore tiny jitter when counting direction changes.
+      if (Math.abs(sx) < 4) continue;
       const sign = sx > 0 ? 1 : -1;
       if (lastSign && sign !== lastSign) reversals += 1;
       lastSign = sign;
@@ -2600,13 +2640,23 @@ function setupScribbleCaptureGesture() {
     };
   }
 
+  function isScribble(stats, requireLock) {
+    if (requireLock && !session?.locked) return false;
+    return (
+      stats.path >= MIN_PATH &&
+      stats.reversals >= MIN_REVERSALS &&
+      stats.dx >= 28 &&
+      stats.dx >= stats.dy * 0.35
+    );
+  }
+
   function endSession(commit) {
     if (!session) return;
-    const active = session;
     session = null;
-    document.removeEventListener("pointermove", onMove);
-    document.removeEventListener("pointerup", onUp);
-    document.removeEventListener("pointercancel", onCancel);
+    document.removeEventListener("pointermove", onMove, true);
+    document.removeEventListener("pointerup", onUp, true);
+    document.removeEventListener("pointercancel", onCancel, true);
+    document.removeEventListener("touchmove", onTouchMove, true);
     document.body.classList.remove("scribble-capture-active");
 
     if (commit) {
@@ -2618,69 +2668,93 @@ function setupScribbleCaptureGesture() {
     fadeInk();
   }
 
-  function onMove(e) {
-    if (!session || e.pointerId !== session.id) return;
-    const point = { x: e.clientX, y: e.clientY, t: Date.now() };
-    const last = session.points[session.points.length - 1];
-    if (last && Math.hypot(point.x - last.x, point.y - last.y) < 2) return;
-    session.points.push(point);
-
-    const stats = analyze(session.points);
-    const elapsed = point.t - session.startedAt;
-
-    // Abort early if this looks like a scroll.
-    if (!session.locked && stats.dy > 28 && stats.dy > stats.dx * 1.35 && stats.reversals < 1) {
-      endSession(false);
-      return;
-    }
-
-    if (!session.locked && stats.path >= COMMIT_PREVENT_SCROLL_AT && stats.dx > 24) {
-      session.locked = true;
-      document.body.classList.add("scribble-capture-active");
+  function lockSession(e) {
+    if (!session || session.locked) return;
+    session.locked = true;
+    document.body.classList.add("scribble-capture-active");
+    try {
+      // Capture on the document element so moves keep arriving after scroll intent.
+      document.documentElement.setPointerCapture?.(session.id);
+    } catch {
       try {
         session.target?.setPointerCapture?.(session.id);
       } catch {
         /* ignore */
       }
     }
+    if (e?.cancelable) e.preventDefault();
+    drawInk(session.points);
+  }
+
+  function onMove(e) {
+    if (!session || e.pointerId !== session.id) return;
+    const point = { x: e.clientX, y: e.clientY, t: Date.now() };
+    const last = session.points[session.points.length - 1];
+    if (last && Math.hypot(point.x - last.x, point.y - last.y) < 1.5) return;
+    session.points.push(point);
+
+    const stats = analyze(session.points);
+    const elapsed = point.t - session.startedAt;
+    const fromStart = {
+      dx: Math.abs(point.x - session.points[0].x),
+      dy: Math.abs(point.y - session.points[0].y),
+    };
+
+    // Abort early if this looks like a vertical scroll.
+    if (
+      !session.locked &&
+      fromStart.dy > SCROLL_ABORT_DY &&
+      fromStart.dy > fromStart.dx * 1.2 &&
+      stats.reversals < 1
+    ) {
+      endSession(false);
+      return;
+    }
+
+    // Claim the gesture as soon as horizontal intent is clear (before iOS scrolls).
+    if (
+      !session.locked &&
+      (stats.path >= LOCK_PATH || fromStart.dx >= LOCK_DX) &&
+      fromStart.dx >= fromStart.dy * 0.85
+    ) {
+      lockSession(e);
+    }
 
     if (session.locked) {
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       drawInk(session.points);
     }
 
     if (elapsed > MAX_MS) {
-      const finalStats = analyze(session.points);
-      const ok =
-        finalStats.path >= MIN_PATH &&
-        finalStats.reversals >= MIN_REVERSALS &&
-        finalStats.dx > finalStats.dy * 0.55;
-      endSession(ok);
+      endSession(isScribble(analyze(session.points), true));
     }
+  }
+
+  // iOS often delivers scroll via touchmove; keep a non-passive listener in lockstep.
+  function onTouchMove(e) {
+    if (!session || !session.locked) return;
+    if (e.cancelable) e.preventDefault();
   }
 
   function onUp(e) {
     if (!session || e.pointerId !== session.id) return;
-    const stats = analyze(session.points);
-    const ok =
-      session.locked &&
-      stats.path >= MIN_PATH &&
-      stats.reversals >= MIN_REVERSALS &&
-      stats.dx > 36 &&
-      stats.dx >= stats.dy * 0.45;
-    endSession(ok);
+    endSession(isScribble(analyze(session.points), true));
   }
 
   function onCancel(e) {
     if (!session || e.pointerId !== session.id) return;
-    endSession(false);
+    // If we already locked and have a valid scribble, still commit (cancel mid-stroke on iOS).
+    const stats = analyze(session.points);
+    endSession(isScribble(stats, true));
   }
 
   document.addEventListener(
     "pointerdown",
     (e) => {
       if (!e.isPrimary || e.button !== 0) return;
+      // Touch / pen only — skip pure mouse on desktop.
       if (e.pointerType === "mouse" && !isTouchDevice()) return;
+      if (e.pointerType === "mouse") return;
       if (session || listDragState || document.body.classList.contains("task-dragging-lock")) return;
       if (isBlockedTarget(e.target)) return;
 
@@ -2691,14 +2765,15 @@ function setupScribbleCaptureGesture() {
         startedAt: Date.now(),
         points: [{ x: e.clientX, y: e.clientY, t: Date.now() }],
         locked: false,
-        target: e.target,
+        target: e.target instanceof Element ? e.target : document.documentElement,
       };
 
-      document.addEventListener("pointermove", onMove, { passive: false });
-      document.addEventListener("pointerup", onUp, { passive: true });
-      document.addEventListener("pointercancel", onCancel, { passive: true });
+      document.addEventListener("pointermove", onMove, { capture: true, passive: false });
+      document.addEventListener("pointerup", onUp, { capture: true, passive: true });
+      document.addEventListener("pointercancel", onCancel, { capture: true, passive: true });
+      document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
     },
-    { passive: true }
+    { capture: true, passive: true }
   );
 }
 
@@ -4175,29 +4250,38 @@ function getCompletedTodayTasks() {
   );
 }
 
+function getArchivedTodayWinsTasks() {
+  const today = archiveDayKey(new Date().toISOString());
+  const seen = new Set();
+  const tasks = [];
+  CONTEXTS.forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (!t.archived || !t.done || !t.completedAt) return;
+      if (archiveDayKey(t.completedAt) !== today) return;
+      const key = `${ctx}:${t.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks.sort((a, b) => {
+    const aTime = new Date(a.archivedAt || a.completedAt).getTime();
+    const bTime = new Date(b.archivedAt || b.completedAt).getTime();
+    return bTime - aTime;
+  });
+}
+
 function completedTodayEmptyHtml() {
-  const canUndo = Boolean(lastWinsArchiveBatch?.length);
   return `
     <article class="plan-card completed-wins-card completed-wins-card--empty">
       <div class="plan-card-inner">
         <div class="completed-wins-card-header">
           <div class="completed-wins-card-heading">
             <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
-            <p class="plan-card-subtitle">${canUndo ? "Just archived" : "0 completed"}</p>
+            <p class="plan-card-subtitle">0 completed</p>
           </div>
-          ${
-            canUndo
-              ? `<button type="button" class="completed-wins-undo-all" id="completed-wins-undo-all">
-            <span>Undo archive</span>
-          </button>`
-              : ""
-          }
         </div>
-        <p class="completed-wins-empty-msg">${
-          canUndo
-            ? "Wins were archived. Undo to bring them back here — they still count in History and Reflection."
-            : "Nothing crossed off yet — your first win of the day is still ahead."
-        }</p>
+        <p class="completed-wins-empty-msg">Nothing crossed off yet — your first win of the day is still ahead.</p>
       </div>
     </article>`;
 }
@@ -4212,6 +4296,21 @@ function completedWinsItemHtml(task) {
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
       <button type="button" class="completed-wins-archive" aria-label="Archive task" title="Archive">
         <svg class="icon" aria-hidden="true"><use href="#icon-archive"></use></svg>
+      </button>
+      ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : `<span class="completed-wins-time" aria-hidden="true"></span>`}
+    </li>`;
+}
+
+function completedWinsArchivedItemHtml(task) {
+  const time = formatCompletionTime(task.archivedAt || task.completedAt);
+  return `
+    <li class="plan-card-task done completed-wins-item completed-wins-item--archived" data-id="${task.id}" data-context="${task.context}">
+      <label class="plan-card-check">
+        <input type="checkbox" checked disabled aria-label="Archived win" />
+      </label>
+      <span class="plan-card-task-text">${escapeHtml(task.text)}</span>
+      <button type="button" class="completed-wins-restore" aria-label="Restore task" title="Restore">
+        <span>Restore</span>
       </button>
       ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : `<span class="completed-wins-time" aria-hidden="true"></span>`}
     </li>`;
@@ -4233,25 +4332,66 @@ function completedWinsGroupHtml(tier, tasks) {
     </section>`;
 }
 
+function completedWinsArchivedSectionHtml(tasks) {
+  if (!tasks.length) return "";
+  return `
+    <section class="completed-wins-archived" aria-label="Archived wins">
+      <header class="completed-wins-archived-header">
+        <h4 class="completed-wins-archived-title">Archived</h4>
+        <span class="completed-wins-group-count">${tasks.length}</span>
+      </header>
+      <ul class="plan-card-list completed-wins-items completed-wins-items--archived">
+        ${tasks.map(completedWinsArchivedItemHtml).join("")}
+      </ul>
+    </section>`;
+}
+
+function bindCompletedWinsActions(content) {
+  content.querySelectorAll(".completed-wins-archive").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const row = btn.closest(".completed-wins-item");
+      if (!row) return;
+      archiveTask(row.dataset.id, row.dataset.context);
+    });
+  });
+  content.querySelectorAll(".completed-wins-restore").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const row = btn.closest(".completed-wins-item");
+      if (!row) return;
+      restoreTask(row.dataset.id, row.dataset.context);
+    });
+  });
+  content.querySelector("#completed-wins-archive-all")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    archiveCompletedTodayWins();
+  });
+  content.querySelector("#completed-wins-undo-all")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    undoLastWinsArchive();
+  });
+}
+
 function renderHomeCompletedToday() {
   const content = document.getElementById("home-completed-content");
   const section = document.querySelector(".presence-completed-today");
   if (!content) return;
 
   const tasks = getCompletedTodayTasks();
+  const archivedTasks = getArchivedTodayWinsTasks();
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && archivedTasks.length === 0) {
     content.innerHTML = completedTodayEmptyHtml();
     section?.classList.add("presence-completed-today--empty");
-    content.querySelector("#completed-wins-undo-all")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      undoLastWinsArchive();
-    });
     return;
   }
 
-  section?.classList.remove("presence-completed-today--empty");
+  section?.classList.toggle("presence-completed-today--empty", tasks.length === 0);
   const groupsHtml = getVisibleTierList()
     .map((tier) => {
       const tierTasks = tasks.filter((t) => t.tier === tier);
@@ -4265,10 +4405,19 @@ function renderHomeCompletedToday() {
     ? `<button type="button" class="completed-wins-undo-all" id="completed-wins-undo-all">
             <span>Undo archive</span>
           </button>`
-    : `<button type="button" class="completed-wins-archive-all" id="completed-wins-archive-all">
+    : tasks.length
+      ? `<button type="button" class="completed-wins-archive-all" id="completed-wins-archive-all">
             <svg class="icon" aria-hidden="true"><use href="#icon-archive"></use></svg>
             <span>Archive all</span>
-          </button>`;
+          </button>`
+      : "";
+
+  const subtitle =
+    tasks.length === 0
+      ? `${archivedTasks.length} archived`
+      : archivedTasks.length
+        ? `${tasks.length} completed · ${archivedTasks.length} archived`
+        : `${tasks.length} completed`;
 
   content.innerHTML = `
     <article class="plan-card completed-wins-card">
@@ -4276,35 +4425,22 @@ function renderHomeCompletedToday() {
         <div class="completed-wins-card-header">
           <div class="completed-wins-card-heading">
             <h3 class="plan-card-title plan-card-title--featured">Today's Wins</h3>
-            <p class="plan-card-subtitle">${tasks.length} completed</p>
+            <p class="plan-card-subtitle">${subtitle}</p>
           </div>
           ${undoBtnHtml}
         </div>
         <div class="completed-wins-card-body">
-          ${groupsHtml}
+          ${
+            tasks.length
+              ? groupsHtml
+              : `<p class="completed-wins-empty-msg">Active wins are cleared — archived ones stay below.</p>`
+          }
+          ${completedWinsArchivedSectionHtml(archivedTasks)}
         </div>
       </div>
     </article>`;
-  bindHomeCardTasks(content);
-  content.querySelectorAll(".completed-wins-archive").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const row = btn.closest(".completed-wins-item");
-      if (!row) return;
-      archiveTask(row.dataset.id, row.dataset.context);
-    });
-  });
-  content.querySelector("#completed-wins-archive-all")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    archiveCompletedTodayWins();
-  });
-  content.querySelector("#completed-wins-undo-all")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    undoLastWinsArchive();
-  });
+  if (tasks.length) bindHomeCardTasks(content);
+  bindCompletedWinsActions(content);
 }
 
 function renderHome() {

@@ -5311,7 +5311,7 @@ dialog {
   }
 
   .main {
-    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--bottom-chrome-height, calc(6.5rem + env(safe-area-inset-bottom, 0px)));
   }
 
   .mobile-nav-shell .mobile-nav {
@@ -6052,4 +6052,14 @@ body.scribble-capture-active {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  overscroll-behavior: none;
+}
+
+/* Help horizontal scribbles compete with vertical page scroll on phones */
+@media (pointer: coarse) {
+  body[data-page="home"] .main,
+  body[data-page="tasks"] .main,
+  body[data-page="history"] .main {
+    touch-action: pan-y;
+  }
 }
