@@ -20,8 +20,9 @@ body[data-page="history"] .main {
 body[data-page="history"] #history-page.page-panel {
   max-width: none;
   width: 100%;
-  padding: 1.25rem clamp(0.75rem, 3vw, 1.5rem) 7rem;
+  padding: 1.25rem clamp(0.75rem, 3vw, 1.5rem) 0;
   background: transparent;
+  box-sizing: border-box;
 }
 
 body[data-page="history"] .history-wins-section {
@@ -198,7 +199,7 @@ body[data-page="history"] .history-wins-restore:hover {
   background: rgba(17, 48, 44, 0.06);
 }
 
-body[data-page="history"] .plan-card-check input {
+body[data-page="history"] .history-wins-item .plan-card-check input {
   appearance: none;
   -webkit-appearance: none;
   width: 1.25rem;

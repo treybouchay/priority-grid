@@ -159,7 +159,7 @@ body[data-page="home"] .plan-card-check input:checked,
 body[data-page="tasks"] .task-check input:checked,
 body[data-page="tasks"] .plan-card-check input:checked,
 body[data-page="tasks"] .plan-135-check input:checked,
-body[data-page="history"] .plan-card-check input {
+body[data-page="history"] .plan-card-check input:checked {
   background-color: #0e3030;
   border-color: #0e3030;
   background-image: var(--task-check-svg);

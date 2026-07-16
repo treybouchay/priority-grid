@@ -950,10 +950,6 @@ body[data-page="tasks"] .archive-empty-sub {
     border-bottom: none;
   }
 
-  body.focus-timer-visible[data-page="tasks"] .page-header {
-    padding-top: 0.75rem;
-  }
-
   body[data-page="tasks"] .page-header-tasks-top {
     display: flex;
     justify-content: space-between;
@@ -979,7 +975,7 @@ body[data-page="tasks"] .archive-empty-sub {
   }
 
   body[data-page="tasks"] #tasks-page.page-panel {
-    padding: 0 1rem calc(8rem + env(safe-area-inset-bottom));
+    padding: 0 1rem 0;
     background: #fdf9f4;
     overflow-x: hidden;
     max-width: 100%;

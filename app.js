@@ -214,6 +214,82 @@ const FOCUS_TIMER_TASKS_KEY = "priority-grid-focus-timer-tasks";
 let focusTimerAttached = [];
 let refreshFocusTimerUI = () => {};
 let renderFocusTimerChrome = () => {};
+let focusCardVisible = false;
+let focusCardObserver = null;
+let bottomChromeObserver = null;
+let completePulseTimerId = null;
+
+function syncBottomChrome() {
+  const shell = document.querySelector(".mobile-nav-shell");
+  if (!shell) {
+    document.documentElement.style.setProperty("--bottom-chrome-height", "0px");
+    return;
+  }
+
+  const style = getComputedStyle(shell);
+  if (style.display === "none" || style.visibility === "hidden") {
+    document.documentElement.style.setProperty("--bottom-chrome-height", "0px");
+    return;
+  }
+
+  // Mobile uses in-flow nav (flex footer) — no padding reserve needed.
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    document.documentElement.style.setProperty("--bottom-chrome-height", "0px");
+    return;
+  }
+
+  const height = Math.ceil(shell.getBoundingClientRect().height);
+  document.documentElement.style.setProperty(
+    "--bottom-chrome-height",
+    height > 0 ? `${height}px` : "0px"
+  );
+}
+
+function setupBottomChromeObserver() {
+  const shell = document.querySelector(".mobile-nav-shell");
+  if (!shell || bottomChromeObserver) return;
+  bottomChromeObserver = new ResizeObserver(() => syncBottomChrome());
+  bottomChromeObserver.observe(shell);
+}
+
+function syncFocusCardVisibility() {
+  const card = document.getElementById("focus-timer");
+  if (!card || page !== "home") {
+    focusCardVisible = false;
+    return;
+  }
+  const rect = card.getBoundingClientRect();
+  focusCardVisible = rect.bottom > 12 && rect.top < window.innerHeight - 12;
+}
+
+function setupFocusCardObserver() {
+  const card = document.getElementById("focus-timer");
+  focusCardObserver?.disconnect();
+  focusCardObserver = null;
+
+  if (!card || page !== "home") {
+    focusCardVisible = false;
+    renderFocusTimerChrome();
+    syncBottomChrome();
+    return;
+  }
+
+  syncFocusCardVisibility();
+
+  focusCardObserver = new IntersectionObserver(
+    (entries) => {
+      const nextVisible = entries.some((entry) => entry.isIntersecting);
+      if (nextVisible === focusCardVisible) return;
+      focusCardVisible = nextVisible;
+      renderFocusTimerChrome();
+      syncBottomChrome();
+    },
+    { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
+  );
+  focusCardObserver.observe(card);
+  renderFocusTimerChrome();
+  syncBottomChrome();
+}
 
 let focusAlarmCancel = null;
 
@@ -533,10 +609,13 @@ function setupFocusTimer() {
 
     const done = !running && remainingMs === 0;
     const active = isActiveSession();
-    const showMini = active || done;
+    syncFocusCardVisibility();
+    const sessionActive = active || done;
+    const showMiniBar = sessionActive && page === "home";
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
+    if (!done) clearCompletePulse();
 
     const toggleLabel = document.getElementById("focus-timer-toggle-label");
     if (toggleLabel) {
@@ -544,8 +623,8 @@ function setupFocusTimer() {
     }
     toggleBtn.classList.toggle("is-pause", running);
 
-    if (mini) mini.classList.toggle("hidden", !showMini);
-    document.body.classList.toggle("focus-timer-visible", showMini);
+    if (mini) mini.classList.toggle("hidden", !showMiniBar);
+    document.body.classList.toggle("focus-timer-session", sessionActive);
     document.body.classList.toggle("focus-timer-done", done);
 
     if (mini) {
@@ -560,20 +639,36 @@ function setupFocusTimer() {
     }
 
     root.classList.toggle("focus-timer-show-presets", done);
-    if (miniPresets) miniPresets.classList.toggle("hidden", !done);
     if (miniCustomWrap) miniCustomWrap.classList.add("hidden");
 
     if (attachWrap) attachWrap.classList.toggle("hidden", active || done);
     renderAttachedSurfaces();
+  }
 
-    const displayTasks = getFocusTimerTasksForDisplay({ timerDone: done });
-    const hasTaskRows = showMini && displayTasks.length > 0;
-    const presetsVisible = done && miniPresets && !miniPresets.classList.contains("hidden");
-    document.body.classList.toggle("focus-timer-has-tasks", hasTaskRows);
-    document.body.style.setProperty(
-      "--focus-timer-offset",
-      hasTaskRows ? "5.75rem" : presetsVisible ? "6.75rem" : "3.75rem"
-    );
+  function clearCompletePulse() {
+    root?.classList.remove("is-complete-pulse");
+    mini?.classList.remove("is-complete-pulse");
+    if (completePulseTimerId) {
+      window.clearTimeout(completePulseTimerId);
+      completePulseTimerId = null;
+    }
+  }
+
+  function triggerCompletePulse() {
+    clearCompletePulse();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        root?.classList.add("is-complete-pulse");
+        mini?.classList.add("is-complete-pulse");
+      });
+    });
+    const onAnimEnd = (e) => {
+      if (e.animationName !== "focus-timer-complete-breathe") return;
+      clearCompletePulse();
+    };
+    root?.addEventListener("animationend", onAnimEnd, { once: true });
+    mini?.addEventListener("animationend", onAnimEnd, { once: true });
+    completePulseTimerId = window.setTimeout(clearCompletePulse, 5200);
   }
 
   function clearTick() {
@@ -588,6 +683,7 @@ function setupFocusTimer() {
     remainingMs = 0;
     clearTick();
     render();
+    triggerCompletePulse();
     playFocusCompleteAlarm();
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -608,14 +704,15 @@ function setupFocusTimer() {
   }
 
   function scrollToMiniBubble() {
-    if (!mini || page !== "home") return;
+    if (!mini || mini.classList.contains("hidden")) return;
     requestAnimationFrame(() => {
-      mini.scrollIntoView({ behavior: "smooth", block: "start" });
+      mini.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }
 
   function start() {
     stopFocusCompleteAlarm();
+    clearCompletePulse();
     if (remainingMs <= 0) remainingMs = durationMs;
     endsAt = Date.now() + remainingMs;
     running = true;
@@ -642,6 +739,7 @@ function setupFocusTimer() {
 
   function reset() {
     stopFocusCompleteAlarm();
+    clearCompletePulse();
     running = false;
     remainingMs = durationMs;
     clearTick();
@@ -660,6 +758,7 @@ function setupFocusTimer() {
 
   function setDurationMinutes(mins) {
     stopFocusCompleteAlarm();
+    clearCompletePulse();
     const safe = Math.min(180, Math.max(1, Math.round(Number(mins) || 20)));
     durationMs = safe * 60 * 1000;
     remainingMs = durationMs;
@@ -747,6 +846,9 @@ function setupFocusTimer() {
   document.getElementById("focus-timer-picker-close")?.addEventListener("click", () => {
     pickerDialog?.close();
   });
+  setupFocusCardObserver();
+  setupBottomChromeObserver();
+  window.addEventListener("resize", syncBottomChrome);
   render();
   syncPresetButtons(20);
 }
@@ -2387,6 +2489,9 @@ function setPage(nextPage, nextFilter = filter, options = {}) {
   syncNavActive();
   updatePageTitle();
   renderAll();
+  setupFocusCardObserver();
+  syncBottomChrome();
+  requestAnimationFrame(syncBottomChrome);
 
   if (options.focusBrain) {
     requestAnimationFrame(() => focusBrainPanel());
@@ -5145,6 +5250,8 @@ setupReflection();
 setupMode135();
 setupForgetIt();
 setupPriorityVisibilityTags();
+setupBottomChromeObserver();
 updateBoardHint();
 
 setPage(page, filter);
+syncBottomChrome();

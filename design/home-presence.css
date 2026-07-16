@@ -774,8 +774,8 @@ body[data-page="home"] .focus-timer-card {
   min-height: 12rem;
   padding: 1.5rem 1.35rem;
   border-radius: 2rem;
-  background: #0e3030;
-  color: var(--peach-on-forest);
+  background: var(--ft-surface, #0e3030);
+  color: var(--ft-ink, var(--peach-on-forest));
 }
 
 body[data-page="home"] .focus-timer-top {
@@ -828,41 +828,68 @@ body[data-page="home"] .focus-timer-card.is-active .focus-timer-display {
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-display {
-  color: #0e3030;
+  color: var(--ft-ink, #0e3030);
   transform: scale(1);
 }
 
 body[data-page="home"] .focus-timer-card.is-done {
-  background: #ffdbd2;
-  color: #0e3030;
+  --ft-surface: #ffdbd2;
+  --ft-ink: #0e3030;
+  --ft-ink-muted: rgba(14, 48, 48, 0.78);
+  --ft-badge-bg: rgba(14, 48, 48, 0.1);
+  --ft-btn-bg: #0e3030;
+  --ft-btn-ink: #ffdbd2;
+  --ft-chip-border: rgba(14, 48, 48, 0.2);
+  --ft-chip-bg: rgba(14, 48, 48, 0.06);
+  --ft-chip-bg-active: rgba(14, 48, 48, 0.14);
+  --ft-chip-border-active: rgba(14, 48, 48, 0.35);
+  --ft-check-border: rgba(14, 48, 48, 0.25);
+}
+
+.focus-timer-card.is-done.is-complete-pulse {
+  animation: focus-timer-complete-breathe 2.5s ease-in-out 2;
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-badge {
-  background: rgba(14, 48, 48, 0.1);
-  color: #0e3030;
+  background: var(--ft-badge-bg, rgba(14, 48, 48, 0.1));
+  color: var(--ft-ink, #0e3030);
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-preset,
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-set,
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-reset {
-  border-color: rgba(14, 48, 48, 0.2);
-  background: rgba(14, 48, 48, 0.06);
-  color: #0e3030;
+  border-color: var(--ft-chip-border, rgba(14, 48, 48, 0.2));
+  background: var(--ft-chip-bg, rgba(14, 48, 48, 0.06));
+  color: var(--ft-ink, #0e3030);
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-preset.active {
-  background: rgba(14, 48, 48, 0.14);
-  border-color: rgba(14, 48, 48, 0.35);
+  background: var(--ft-chip-bg-active, rgba(14, 48, 48, 0.14));
+  border-color: var(--ft-chip-border-active, rgba(14, 48, 48, 0.35));
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-toggle {
-  background: #0e3030;
-  color: #ffdbd2;
+  background: var(--ft-btn-bg, #0e3030);
+  color: var(--ft-btn-ink, #ffdbd2);
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-session-text,
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-attach-label {
-  color: rgba(14, 48, 48, 0.75);
+  color: var(--ft-ink-muted, rgba(14, 48, 48, 0.75));
+}
+
+body[data-page="home"] .focus-timer-card.is-done .focus-timer-session-check input {
+  border-color: var(--ft-check-border, rgba(14, 48, 48, 0.25));
+}
+
+body[data-page="home"] .focus-timer-card.is-done .focus-timer-session-check input:checked {
+  background-color: var(--ft-btn-bg, #0e3030);
+  border-color: var(--ft-btn-bg, #0e3030);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse .focus-timer-session-check input:checked {
+  animation: focus-timer-check-mark 2.5s ease-in-out 2;
 }
 
 body[data-page="home"] .focus-timer-card.is-running .focus-timer-presets,
@@ -1028,108 +1055,209 @@ body[data-page="home"] .focus-timer-session-tasks.hidden,
   display: none;
 }
 
-/* Global focus mini — visible on all pages during an active or completed session */
-.focus-timer-mini {
+/* Focus timer — shared tokens for a soothing complete-state colour pulse */
+@property --ft-surface {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #0e3030;
+}
+
+@property --ft-ink {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffdbd2;
+}
+
+@property --ft-ink-muted {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.85);
+}
+
+@property --ft-badge-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.12);
+}
+
+@property --ft-btn-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffdbd2;
+}
+
+@property --ft-btn-ink {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #11302c;
+}
+
+@property --ft-chip-border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.35);
+}
+
+@property --ft-chip-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.08);
+}
+
+@property --ft-chip-bg-active {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.16);
+}
+
+@property --ft-chip-border-active {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.45);
+}
+
+@property --ft-check-border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 219, 210, 0.45);
+}
+
+@keyframes focus-timer-complete-breathe {
+  0%,
+  100% {
+    background-color: #0e3030;
+    color: #ffdbd2;
+    --ft-surface: #0e3030;
+    --ft-ink: #ffdbd2;
+    --ft-ink-muted: rgba(255, 219, 210, 0.85);
+    --ft-badge-bg: rgba(255, 219, 210, 0.12);
+    --ft-btn-bg: #ffdbd2;
+    --ft-btn-ink: #11302c;
+    --ft-chip-border: rgba(255, 219, 210, 0.35);
+    --ft-chip-bg: rgba(255, 219, 210, 0.08);
+    --ft-chip-bg-active: rgba(255, 219, 210, 0.16);
+    --ft-chip-border-active: rgba(255, 219, 210, 0.45);
+    --ft-check-border: rgba(255, 219, 210, 0.45);
+  }
+
+  50% {
+    background-color: #ffdbd2;
+    color: #0e3030;
+    --ft-surface: #ffdbd2;
+    --ft-ink: #0e3030;
+    --ft-ink-muted: rgba(14, 48, 48, 0.78);
+    --ft-badge-bg: rgba(14, 48, 48, 0.1);
+    --ft-btn-bg: #0e3030;
+    --ft-btn-ink: #ffdbd2;
+    --ft-chip-border: rgba(14, 48, 48, 0.2);
+    --ft-chip-bg: rgba(14, 48, 48, 0.06);
+    --ft-chip-bg-active: rgba(14, 48, 48, 0.14);
+    --ft-chip-border-active: rgba(14, 48, 48, 0.35);
+    --ft-check-border: rgba(14, 48, 48, 0.25);
+  }
+}
+
+@keyframes focus-timer-check-mark {
+  0%,
+  49.5% {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  50%,
+  100% {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-timer-mini.is-done.is-complete-pulse,
+  body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse {
+    animation: none;
+  }
+
+  .focus-timer-mini.is-done,
+  body[data-page="home"] .focus-timer-card.is-done {
+    --ft-surface: #ffdbd2;
+    --ft-ink: #0e3030;
+    --ft-ink-muted: rgba(14, 48, 48, 0.78);
+    --ft-badge-bg: rgba(14, 48, 48, 0.1);
+    --ft-btn-bg: #0e3030;
+    --ft-btn-ink: #ffdbd2;
+    --ft-chip-border: rgba(14, 48, 48, 0.2);
+    --ft-chip-bg: rgba(14, 48, 48, 0.06);
+    --ft-chip-bg-active: rgba(14, 48, 48, 0.14);
+    --ft-chip-border-active: rgba(14, 48, 48, 0.35);
+    --ft-check-border: rgba(14, 48, 48, 0.25);
+  }
+
+  .focus-timer-mini.is-done.is-complete-pulse .focus-timer-mini-check input:checked,
+  body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse .focus-timer-session-check input:checked {
+    animation: none;
+  }
+}
+
+/* In-page focus mini — between priority tags and cards on Home */
+body[data-page="home"] .focus-timer-mini {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.65rem;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 200;
-  margin: 0;
-  padding: 0.65rem 1rem;
-  padding-top: calc(0.65rem + env(safe-area-inset-top, 0px));
-  border-radius: 0 0 1.25rem 1.25rem;
-  background: #0e3030;
-  color: var(--peach-on-forest, #ffdbd2);
-  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 2rem;
+  background: var(--ft-surface, #0e3030);
+  color: var(--ft-ink, var(--peach-on-forest, #ffdbd2));
+  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.1);
+  scroll-margin-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
 }
 
-.focus-timer-mini.hidden {
-  display: none;
-}
-
-body.focus-timer-visible .main {
-  padding-top: calc(var(--focus-timer-offset, 3.75rem) + env(safe-area-inset-top, 0px));
-}
-
-body.focus-timer-visible.focus-timer-done .main {
-  --focus-timer-offset: 6.75rem;
-}
-
-body.focus-timer-visible.focus-timer-has-tasks:not(.focus-timer-done) .main {
-  --focus-timer-offset: 5.75rem;
-}
-
-.focus-timer-mini.is-done {
-  background: #ffdbd2;
-  color: #0e3030;
-}
-
-.focus-timer-mini.is-done .focus-timer-mini-badge {
-  background: rgba(14, 48, 48, 0.1);
-  color: #0e3030;
-}
-
-.focus-timer-mini.is-done .focus-timer-mini-display {
-  color: #0e3030;
-}
-
-.focus-timer-mini.is-done .focus-timer-mini-toggle {
-  background: #0e3030;
-  color: #ffdbd2;
-}
-
-.focus-timer-mini.is-done .focus-timer-mini-reset {
-  color: #0e3030;
-}
-
-.focus-timer-mini-row {
+body[data-page="home"] .focus-timer-mini-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
 }
 
-.focus-timer-mini-badge {
+body[data-page="home"] .focus-timer-mini.hidden {
+  display: none;
+}
+
+body[data-page="home"] .focus-timer-mini-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: rgba(255, 219, 210, 0.12);
-  color: var(--peach-on-forest, #ffdbd2);
+  background: var(--ft-badge-bg, rgba(255, 219, 210, 0.12));
+  color: var(--ft-ink, var(--peach-on-forest, #ffdbd2));
   flex-shrink: 0;
 }
 
-.focus-timer-mini-badge svg {
+body[data-page="home"] .focus-timer-mini-badge svg {
   width: 1rem;
   height: 1rem;
 }
 
-.focus-timer-mini-display {
+body[data-page="home"] .focus-timer-mini-display {
   margin: 0;
   font-family: var(--font-heading);
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
-  color: var(--peach-on-forest, #ffdbd2);
+  color: var(--ft-ink, var(--peach-on-forest, #ffdbd2));
   font-variant-numeric: tabular-nums;
   flex: 1;
   min-width: 0;
 }
 
-.focus-timer-mini-toggle {
+body[data-page="home"] .focus-timer-mini-toggle {
   border: none;
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
-  background: var(--peach-on-forest, #ffdbd2);
-  color: #11302c;
+  background: var(--ft-btn-bg, var(--peach-on-forest, #ffdbd2));
+  color: var(--ft-btn-ink, #11302c);
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1137,15 +1265,14 @@ body.focus-timer-visible.focus-timer-has-tasks:not(.focus-timer-done) .main {
   flex-shrink: 0;
 }
 
-.focus-timer-mini-toggle.is-resume {
-  background: var(--peach-on-forest, #ffdbd2);
+body[data-page="home"] .focus-timer-mini-toggle.is-resume {
   opacity: 0.92;
 }
 
-.focus-timer-mini-reset {
+body[data-page="home"] .focus-timer-mini-reset {
   border: none;
   background: transparent;
-  color: var(--peach-on-forest, #ffdbd2);
+  color: var(--ft-ink, var(--peach-on-forest, #ffdbd2));
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
@@ -1154,16 +1281,7 @@ body.focus-timer-visible.focus-timer-has-tasks:not(.focus-timer-done) .main {
   flex-shrink: 0;
 }
 
-.focus-timer-mini-tasks {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.focus-timer-mini-task {
+body[data-page="home"] .focus-timer-mini-task {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr);
   align-items: center;
@@ -1171,45 +1289,34 @@ body.focus-timer-visible.focus-timer-has-tasks:not(.focus-timer-done) .main {
   font-family: var(--font-body);
   font-size: 0.8125rem;
   font-weight: 500;
-  color: rgba(255, 219, 210, 0.85);
+  color: var(--ft-ink-muted, rgba(255, 219, 210, 0.85));
   padding: 0.15rem 0;
 }
 
-.focus-timer-mini.is-done .focus-timer-mini-task {
-  color: rgba(14, 48, 48, 0.75);
-}
-
-.focus-timer-mini-check {
+body[data-page="home"] .focus-timer-mini-check {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.focus-timer-mini-task-text {
+body[data-page="home"] .focus-timer-mini-task-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
   justify-self: start;
   width: 100%;
-  color: var(--peach-on-forest, #ffdbd2);
-  transition: color 0.35s ease, opacity 0.35s ease;
 }
 
-.focus-timer-mini.is-done .focus-timer-mini-task-text {
-  color: #0e3030;
-  opacity: 0.92;
-}
-
-.focus-timer-mini-task.done .focus-timer-mini-task-text {
+body[data-page="home"] .focus-timer-mini-task.done .focus-timer-mini-task-text {
   text-decoration: line-through;
   opacity: 0.55;
 }
 
-.focus-timer-mini-check input {
+body[data-page="home"] .focus-timer-mini-check input {
   appearance: none;
   -webkit-appearance: none;
-  border: 2px solid rgba(255, 219, 210, 0.45);
+  border: 2px solid var(--ft-check-border, rgba(255, 219, 210, 0.45));
   background: transparent;
   width: 1.05rem;
   height: 1.05rem;
@@ -1217,81 +1324,35 @@ body.focus-timer-visible.focus-timer-has-tasks:not(.focus-timer-done) .main {
   margin: 0;
 }
 
-.focus-timer-mini-check input:checked {
-  background-color: var(--peach-on-forest);
-  border-color: var(--peach-on-forest);
+body[data-page="home"] .focus-timer-mini-check input:checked {
+  background-color: var(--ft-btn-bg, var(--peach-on-forest, #ffdbd2));
+  border-color: var(--ft-btn-bg, var(--peach-on-forest, #ffdbd2));
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   background-size: 0.65rem;
 }
 
-.focus-timer-mini.is-done .focus-timer-mini-check input {
-  border-color: rgba(14, 48, 48, 0.25);
+body[data-page="home"] .focus-timer-mini.is-done {
+  --ft-surface: #ffdbd2;
+  --ft-ink: #0e3030;
+  --ft-ink-muted: rgba(14, 48, 48, 0.78);
+  --ft-badge-bg: rgba(14, 48, 48, 0.1);
+  --ft-btn-bg: #0e3030;
+  --ft-btn-ink: #ffdbd2;
+  --ft-check-border: rgba(14, 48, 48, 0.25);
 }
 
-.focus-timer-mini.is-done .focus-timer-mini-check input:checked {
-  background-color: #0e3030;
-  border-color: #0e3030;
+body[data-page="home"] .focus-timer-mini.is-done.is-complete-pulse {
+  animation: focus-timer-complete-breathe 2.5s ease-in-out 2;
+}
+
+body[data-page="home"] .focus-timer-mini.is-done .focus-timer-mini-check input:checked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
-.focus-timer-mini-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.focus-timer-mini-presets.hidden {
-  display: none;
-}
-
-.focus-timer-mini-preset,
-.focus-timer-mini-set {
-  border: 1px solid rgba(14, 48, 48, 0.2);
-  border-radius: 999px;
-  background: rgba(14, 48, 48, 0.06);
-  color: #0e3030;
-  font-family: var(--font-body);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 0.45rem 0.75rem;
-  cursor: pointer;
-}
-
-.focus-timer-mini-preset.active {
-  background: rgba(14, 48, 48, 0.14);
-  border-color: rgba(14, 48, 48, 0.35);
-}
-
-.focus-timer-mini-custom {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.focus-timer-mini-custom.hidden {
-  display: none;
-}
-
-.focus-timer-mini-custom-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-}
-
-.focus-timer-mini-minutes {
-  width: 4.5rem;
-  border: 1px solid rgba(14, 48, 48, 0.2);
-  border-radius: 999px;
-  padding: 0.4rem 0.65rem;
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  background: rgba(255, 255, 255, 0.65);
-  color: #0e3030;
+body[data-page="home"] .focus-timer-mini.is-done.is-complete-pulse .focus-timer-mini-check input:checked {
+  animation: focus-timer-check-mark 2.5s ease-in-out 2;
 }
 
 body[data-page="home"] .focus-timer-presets {
@@ -1474,14 +1535,15 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
 
   body[data-page="home"] .main {
     padding: 0;
-    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
     width: 100%;
-    max-width: none;
+    max-width: 100%;
     margin: 0;
   }
 
-  body.focus-timer-visible[data-page="home"] .main {
-    padding-top: calc(3.75rem + env(safe-area-inset-top, 0px));
+  body[data-page="home"] .shell {
+    width: 100%;
+    max-width: 100%;
   }
 
   body[data-page="home"] .presence-hero {
@@ -1522,12 +1584,16 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
   body[data-page="home"] .presence-plan {
     margin-top: clamp(-2rem, -5vw, -2.5rem);
     padding: 0 clamp(0.75rem, 4vw, 1.25rem) 1.5rem;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   body[data-page="home"] .presence-plan-sheet {
     background: #fdf9f4;
     border-radius: clamp(2rem, 6vw, 2.5rem) clamp(2rem, 6vw, 2.5rem) 0 0;
     padding: clamp(1.5rem, 5vw, 2rem) clamp(0.25rem, 2vw, 0.5rem) 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   body[data-page="home"] .presence-plan-header {
@@ -1535,9 +1601,14 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
     margin-bottom: 1.5rem;
   }
 
+  body[data-page="home"] .focus-timer-mini {
+    margin-left: clamp(0.25rem, 2vw, 0.5rem);
+    margin-right: clamp(0.25rem, 2vw, 0.5rem);
+  }
+
   body[data-page="home"] .presence-completed-today {
     margin-top: 1.5rem;
-    padding: 1.5rem 0 clamp(1.5rem, 5vw, 2rem);
+    padding: 1.5rem 0 0;
     border-top: 1px solid rgba(113, 120, 120, 0.12);
   }
 
@@ -1548,6 +1619,11 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
 
   body[data-page="home"] .completed-today-layout {
     padding: 0 clamp(0.75rem, 3vw, 1rem);
+  }
+
+  body[data-page="home"] .focus-timer-card {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   body[data-page="home"] .plan-card-grid,
@@ -1754,10 +1830,6 @@ body[data-page="home"] .section-link--plan svg {
     width: 100%;
     max-width: none;
     overflow-y: auto;
-  }
-
-  body.focus-timer-visible[data-page="home"] .main {
-    padding-top: calc(3.75rem + env(safe-area-inset-top, 0px));
   }
 
   body[data-page="home"] #home-page.page-panel {
