@@ -217,7 +217,6 @@ let renderFocusTimerChrome = () => {};
 let focusCardVisible = false;
 let focusCardObserver = null;
 let bottomChromeObserver = null;
-let completePulseTimerId = null;
 
 function syncBottomChrome() {
   const shell = document.querySelector(".mobile-nav-shell");
@@ -615,7 +614,8 @@ function setupFocusTimer() {
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
-    if (!done) clearCompletePulse();
+    root.classList.toggle("is-complete-pulse", done);
+    mini?.classList.toggle("is-complete-pulse", done);
 
     const toggleLabel = document.getElementById("focus-timer-toggle-label");
     if (toggleLabel) {
@@ -659,27 +659,11 @@ function setupFocusTimer() {
   function clearCompletePulse() {
     root?.classList.remove("is-complete-pulse");
     mini?.classList.remove("is-complete-pulse");
-    if (completePulseTimerId) {
-      window.clearTimeout(completePulseTimerId);
-      completePulseTimerId = null;
-    }
   }
 
   function triggerCompletePulse() {
-    clearCompletePulse();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        root?.classList.add("is-complete-pulse");
-        mini?.classList.add("is-complete-pulse");
-      });
-    });
-    const onAnimEnd = (e) => {
-      if (e.animationName !== "focus-timer-complete-breathe") return;
-      clearCompletePulse();
-    };
-    root?.addEventListener("animationend", onAnimEnd, { once: true });
-    mini?.addEventListener("animationend", onAnimEnd, { once: true });
-    completePulseTimerId = window.setTimeout(clearCompletePulse, 5200);
+    root?.classList.add("is-complete-pulse");
+    mini?.classList.add("is-complete-pulse");
   }
 
   function clearTick() {

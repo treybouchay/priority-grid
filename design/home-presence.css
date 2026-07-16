@@ -847,7 +847,7 @@ body[data-page="home"] .focus-timer-card.is-done {
 }
 
 .focus-timer-card.is-done.is-complete-pulse {
-  animation: focus-timer-complete-breathe 2.5s ease-in-out 2;
+  animation: focus-timer-complete-breathe 2.5s ease-in-out infinite;
 }
 
 body[data-page="home"] .focus-timer-card.is-done .focus-timer-badge {
@@ -889,7 +889,7 @@ body[data-page="home"] .focus-timer-card.is-done .focus-timer-session-check inpu
 }
 
 body[data-page="home"] .focus-timer-card.is-done.is-complete-pulse .focus-timer-session-check input:checked {
-  animation: focus-timer-check-mark 2.5s ease-in-out 2;
+  animation: focus-timer-check-mark 2.5s ease-in-out infinite;
 }
 
 body[data-page="home"] .focus-timer-card.is-running .focus-timer-presets,
@@ -1251,7 +1251,7 @@ body.focus-timer-visible[data-page="home"] .main {
 }
 
 .focus-timer-mini.is-done.is-complete-pulse {
-  animation: focus-timer-complete-breathe 2.5s ease-in-out 2;
+  animation: focus-timer-complete-breathe 2.5s ease-in-out infinite;
 }
 
 .focus-timer-mini.is-done .focus-timer-mini-badge {
@@ -1408,7 +1408,7 @@ body.focus-timer-visible[data-page="home"] .main {
 }
 
 .focus-timer-mini.is-done.is-complete-pulse .focus-timer-mini-check input:checked {
-  animation: focus-timer-check-mark 2.5s ease-in-out 2;
+  animation: focus-timer-check-mark 2.5s ease-in-out infinite;
 }
 
 .focus-timer-mini-presets {
