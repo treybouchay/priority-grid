@@ -4979,6 +4979,23 @@ dialog {
   margin-bottom: 1.25rem;
 }
 
+.btn-add-list {
+  border: 1px dashed rgba(14, 48, 48, 0.28);
+  background: transparent;
+  color: #11302c;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-add-list:hover {
+  background: rgba(14, 48, 48, 0.05);
+}
+
 .lists-add-form input {
   flex: 1;
   min-width: 0;

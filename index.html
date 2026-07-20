@@ -65,7 +65,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=149" />
+    <link rel="stylesheet" href="styles.css?v=150" />
     <link rel="stylesheet" href="design/task-rows.css?v=13" />
     <link rel="stylesheet" href="design/home-presence.css?v=93" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=33" />
@@ -330,6 +330,7 @@
               <button type="button" class="filter-pill" data-filter="work" role="tab">Work</button>
               <button type="button" class="filter-pill" data-filter="home" role="tab">Home</button>
             </div>
+            <button type="button" class="btn-add-list hidden" id="add-list-btn">+ New list</button>
             <button type="button" class="btn-add-task hidden" id="add-task-btn">+ Add Task</button>
           </div>
         </header>
@@ -908,26 +909,15 @@
       </form>
     </dialog>
 
-    <dialog class="task-dialog" id="task-capture-dialog">
-      <form method="dialog" id="task-capture-form">
-        <h3 class="dialog-title" id="capture-title">Take down this task</h3>
-        <p class="dialog-capture-task" id="capture-task-text"></p>
-        <label class="dialog-label" for="capture-notes">Notes</label>
-        <textarea id="capture-notes" class="dialog-notes" rows="3" placeholder="What mattered? Any follow-ups…" maxlength="1000"></textarea>
-        <div class="dialog-photos">
-          <div class="dialog-photos-header">
-            <span class="dialog-label">Photos</span>
-            <label class="dialog-photo-add">
-              Attach from files
-              <input type="file" id="capture-photo-input" accept="image/*" hidden />
-            </label>
-          </div>
-          <div class="dialog-photo-grid" id="capture-photo-grid"></div>
-        </div>
+    <dialog class="task-dialog" id="list-dialog">
+      <form method="dialog" id="list-dialog-form">
+        <h3 class="dialog-title">New list</h3>
+        <p class="dialog-capture-task">Create a custom category for your tasks.</p>
+        <label class="dialog-label" for="list-dialog-input">Name</label>
+        <input type="text" id="list-dialog-input" placeholder="e.g. Side project, Kids, Travel…" autocomplete="off" maxlength="32" required />
         <div class="dialog-actions">
-          <button type="button" class="btn-ghost" id="capture-cancel">Cancel</button>
-          <button type="button" class="btn-ghost" id="capture-skip">Skip</button>
-          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-ghost" id="list-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn-primary">Create list</button>
         </div>
       </form>
     </dialog>
@@ -1102,6 +1092,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=203"></script>
+    <script src="app.js?v=204"></script>
   </body>
 </html>

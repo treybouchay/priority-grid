@@ -452,10 +452,8 @@ let dragGrabOffset = { x: 0, y: 0 };
 let listDragState = null;
 let visibleTiers = getVisibleTiers();
 let dialogPhotoDraft = [];
-let capturePending = null;
-let capturePhotoDraft = [];
 let dialogPhotoUrls = [];
-let capturePhotoUrls = [];
+let mediaViewerUrls = [];
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
 const PREVIEW_TASK_LIMIT = 5;
@@ -2775,6 +2773,7 @@ function updatePageTitle() {
   const isTasks = page === "tasks";
   document.getElementById("filter-pills").classList.toggle("hidden", !isTasks);
   document.getElementById("add-task-btn").classList.toggle("hidden", !(isHome || isTasks));
+  document.getElementById("add-list-btn")?.classList.toggle("hidden", !isTasks);
   syncMode135Toggle();
   updateTasksLayout();
 }
@@ -3298,20 +3297,48 @@ async function removePhotoFromDraft(draft, photoId, gridEl, urlsBucket, onRemove
   await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
 }
 
+function openListDialog() {
+  const dialog = document.getElementById("list-dialog");
+  const input = document.getElementById("list-dialog-input");
+  if (!dialog || !input) return;
+  input.value = "";
+  dialog.showModal();
+  input.focus();
+}
+
+function createListFromName(name) {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+  const id = addCustomContext(trimmed);
+  if (id) setPage("tasks", id);
+  return id;
+}
+
 function setupListsManager() {
   const form = document.getElementById("lists-add-form");
   const input = document.getElementById("lists-add-input");
   const manager = document.getElementById("lists-manager");
+  const listDialog = document.getElementById("list-dialog");
+  const listForm = document.getElementById("list-dialog-form");
+  const listInput = document.getElementById("list-dialog-input");
+
+  const createFromInput = (el) => {
+    const id = createListFromName(el?.value);
+    if (el) el.value = "";
+    return id;
+  };
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
-    const name = input?.value.trim();
-    if (!name) return;
-    const id = addCustomContext(name);
-    if (input) input.value = "";
-    if (id) {
-      setPage("tasks", id);
-    }
+    createFromInput(input);
+  });
+
+  document.getElementById("add-list-btn")?.addEventListener("click", openListDialog);
+  document.getElementById("list-dialog-cancel")?.addEventListener("click", () => listDialog?.close());
+
+  listForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (createFromInput(listInput)) listDialog?.close();
   });
 
   document.getElementById("dialog-context")?.addEventListener("change", (e) => {
@@ -4233,17 +4260,14 @@ function markTaskDone(id, ctx, extras = {}) {
 }
 
 function toggleTaskDone(id, ctx, markingDone) {
-  if (markingDone) {
-    openTaskCaptureDialog(id, ctx);
-    return;
-  }
   let tier = null;
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
       tier = t.tier;
-      const next = { ...t, done: false };
-      delete next.completedAt;
+      const next = { ...t, done: markingDone };
+      if (markingDone) next.completedAt = new Date().toISOString();
+      else delete next.completedAt;
       return next;
     })
   );
@@ -4256,82 +4280,6 @@ function draftPhotoRemover(draft, gridId, urls) {
     removePhotoFromDraft(draft, photoId, document.getElementById(gridId), urls, onRemove);
   };
   return onRemove;
-}
-
-async function openTaskCaptureDialog(id, ctx) {
-  const dialog = document.getElementById("task-capture-dialog");
-  const task = loadTasks(ctx).find((t) => t.id === id);
-  if (!dialog || !task) {
-    renderAll();
-    return;
-  }
-
-  capturePending = { id, ctx };
-  capturePhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
-  document.getElementById("capture-task-text").textContent = task.text;
-  document.getElementById("capture-notes").value = task.notes || "";
-  await renderPhotoGrid(
-    document.getElementById("capture-photo-grid"),
-    capturePhotoDraft,
-    capturePhotoUrls,
-    draftPhotoRemover(capturePhotoDraft, "capture-photo-grid", capturePhotoUrls)
-  );
-  dialog.showModal();
-  document.getElementById("capture-notes")?.focus();
-}
-
-function finishTaskCapture({ skip = false } = {}) {
-  if (!capturePending) return;
-  const { id, ctx } = capturePending;
-  const notes = skip ? undefined : document.getElementById("capture-notes")?.value.trim() || "";
-  const photos = skip ? undefined : capturePhotoDraft.map((p) => ({ ...p }));
-  capturePending = null;
-  document.getElementById("task-capture-dialog")?.close();
-  revokePhotoUrls(capturePhotoUrls);
-  markTaskDone(id, ctx, {
-    ...(notes !== undefined ? { notes } : {}),
-    ...(photos !== undefined ? { photos } : {}),
-  });
-  capturePhotoDraft = [];
-}
-
-function cancelTaskCapture() {
-  capturePending = null;
-  capturePhotoDraft = [];
-  revokePhotoUrls(capturePhotoUrls);
-  document.getElementById("task-capture-dialog")?.close();
-  renderAll();
-}
-
-function setupTaskCaptureDialog() {
-  const dialog = document.getElementById("task-capture-dialog");
-  const form = document.getElementById("task-capture-form");
-  const photoInput = document.getElementById("capture-photo-input");
-
-  document.getElementById("capture-cancel")?.addEventListener("click", cancelTaskCapture);
-  document.getElementById("capture-skip")?.addEventListener("click", () => finishTaskCapture({ skip: true }));
-
-  form?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    finishTaskCapture({ skip: false });
-  });
-
-  photoInput?.addEventListener("change", async () => {
-    const file = photoInput.files?.[0];
-    photoInput.value = "";
-    await addPhotoToDraft(
-      capturePhotoDraft,
-      file,
-      document.getElementById("capture-photo-grid"),
-      capturePhotoUrls,
-      draftPhotoRemover(capturePhotoDraft, "capture-photo-grid", capturePhotoUrls)
-    );
-  });
-
-  dialog?.addEventListener("cancel", (e) => {
-    e.preventDefault();
-    cancelTaskCapture();
-  });
 }
 
 function bindPlan135Slots(container) {
@@ -4966,8 +4914,6 @@ function bindAttachmentIndicator(row, id, ctx) {
     if (task) openTaskMediaViewer(task);
   });
 }
-
-let mediaViewerUrls = [];
 
 async function openTaskMediaViewer(task) {
   const dialog = document.getElementById("media-viewer-dialog");
@@ -6437,7 +6383,6 @@ setupTouchListDrag();
 setupSidebarTabs();
 setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
-setupTaskCaptureDialog();
 setupMediaViewer();
 setupBrainDumpForms();
 setupDailyRepeatForm();
