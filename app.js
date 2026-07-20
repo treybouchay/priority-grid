@@ -3121,33 +3121,58 @@ function setupScribbleCaptureGesture() {
   );
 }
 
+const NEW_LIST_SELECT_VALUE = "__new_list__";
+
 function contextSelectOptionsHtml(selected = "work") {
-  return getContexts()
+  const options = getContexts()
     .map((ctx) => {
       const label = contextLabel(ctx);
       return `<option value="${escapeHtml(ctx)}"${ctx === selected ? " selected" : ""}>${escapeHtml(label)}</option>`;
     })
     .join("");
+  return `${options}<option value="${NEW_LIST_SELECT_VALUE}">+ New list…</option>`;
 }
 
 function syncDialogContextIcon(selectEl, iconEl) {
   if (!iconEl) return;
   const ctx = selectEl?.value || "work";
+  if (ctx === NEW_LIST_SELECT_VALUE) return;
   iconEl.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${contextIconId(ctx)}"></use></svg>`;
   iconEl.title = contextLabel(ctx);
+}
+
+function contextSelectIconEl(selectEl) {
+  if (selectEl?.id === "dialog-context") return document.getElementById("dialog-context-icon");
+  if (selectEl?.id === "daily-repeat-context") return document.getElementById("daily-repeat-context-icon");
+  return null;
 }
 
 function fillContextSelect(selectEl, selected) {
   if (!selectEl) return;
   const value = isValidContext(selected) ? selected : filter === "all" ? "work" : filter;
-  selectEl.innerHTML = contextSelectOptionsHtml(isValidContext(value) ? value : "work");
-  selectEl.value = isValidContext(value) ? value : "work";
-  const iconEl =
-    selectEl.id === "dialog-context"
-      ? document.getElementById("dialog-context-icon")
-      : selectEl.id === "daily-repeat-context"
-        ? document.getElementById("daily-repeat-context-icon")
-        : null;
+  const next = isValidContext(value) ? value : "work";
+  selectEl.innerHTML = contextSelectOptionsHtml(next);
+  selectEl.value = next;
+  selectEl.dataset.previousContext = next;
+  syncDialogContextIcon(selectEl, contextSelectIconEl(selectEl));
+}
+
+function handleContextSelectChange(selectEl) {
+  if (!selectEl) return;
+  const iconEl = contextSelectIconEl(selectEl);
+  if (selectEl.value === NEW_LIST_SELECT_VALUE) {
+    const previous = selectEl.dataset.previousContext || "work";
+    const name = prompt("Name for the new list");
+    if (name == null || !name.trim()) {
+      selectEl.value = isValidContext(previous) ? previous : "work";
+      syncDialogContextIcon(selectEl, iconEl);
+      return;
+    }
+    const id = addCustomContext(name.trim());
+    fillContextSelect(selectEl, id || previous);
+    return;
+  }
+  selectEl.dataset.previousContext = selectEl.value;
   syncDialogContextIcon(selectEl, iconEl);
 }
 
@@ -3342,10 +3367,10 @@ function setupListsManager() {
   });
 
   document.getElementById("dialog-context")?.addEventListener("change", (e) => {
-    syncDialogContextIcon(e.target, document.getElementById("dialog-context-icon"));
+    handleContextSelectChange(e.target);
   });
   document.getElementById("daily-repeat-context")?.addEventListener("change", (e) => {
-    syncDialogContextIcon(e.target, document.getElementById("daily-repeat-context-icon"));
+    handleContextSelectChange(e.target);
   });
 
   manager?.addEventListener("click", (e) => {
@@ -5791,6 +5816,7 @@ function saveTaskFromDialog() {
 
   const tier = Number(document.getElementById("dialog-tier-select").value);
   const newCtx = document.getElementById("dialog-context").value;
+  if (!isValidContext(newCtx)) return;
   const editId = document.getElementById("dialog-edit-id").value;
   const oldCtx = document.getElementById("dialog-original-context").value;
   const brainId = document.getElementById("dialog-brain-id").value;
