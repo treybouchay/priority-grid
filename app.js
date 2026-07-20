@@ -3673,7 +3673,7 @@ function taskCardHtml(task) {
       <div class="task-card-actions">
         ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         ${contextBadge}
-        <button type="button" class="edit-btn" aria-label="Edit task">✎</button>
+        <button type="button" class="edit-btn" aria-label="Edit task"><svg class="icon icon-edit" aria-hidden="true"><use href="#icon-pencil"></use></svg></button>
         <button type="button" class="archive-btn" aria-label="Archive task" title="Archive task">×</button>
       </div>
     </li>`;
