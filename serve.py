@@ -115,6 +115,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
+        path = urlparse(self.path).path.lower()
+        # Phones aggressively cache the shell/assets; keep HTML/JS/CSS fresh after deploys.
+        if path.endswith((".html", ".js", ".css")) or path in ("", "/"):
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         super().end_headers()
 
     def do_OPTIONS(self):
