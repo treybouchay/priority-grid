@@ -3029,7 +3029,10 @@ body.task-dragging-lock .app-main {
 
 .task-card.done .task-text-btn {
   text-decoration: line-through;
-  color: var(--done);
+  text-decoration-color: currentColor;
+  -webkit-text-decoration-color: currentColor;
+  color: #11302c;
+  opacity: 0.55;
 }
 
 .task-context-badge {

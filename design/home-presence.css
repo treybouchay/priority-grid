@@ -820,13 +820,13 @@ body[data-page="home"] .tier-expand-count {
 }
 
 body[data-page="home"] .tier-expand-list .task-card {
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
   cursor: grab;
 }
 
 body[data-page="home"] .tier-expand-list .task-card-main {
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
 }
 

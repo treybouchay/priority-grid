@@ -299,7 +299,7 @@ body[data-page="tasks"] .tasks-flat-heading {
 }
 
 body[data-page="tasks"] .tier-expand-list .task-card {
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
   border: var(--task-row-border);
   box-shadow: var(--task-row-shadow);
@@ -307,7 +307,7 @@ body[data-page="tasks"] .tier-expand-list .task-card {
 }
 
 body[data-page="tasks"] .tier-expand-list .task-card-main {
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
 }
 

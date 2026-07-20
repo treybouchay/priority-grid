@@ -3656,7 +3656,6 @@ function moveTask(taskId, taskContext, tier, beforeId = null, atTierStart = fals
 }
 
 function taskCardHtml(task) {
-  const tierLabel = TIER_NAMES[task.tier - 1];
   const inForgetIt = isTaskForgetIt(task);
   const contextBadge = filter === "all" ? contextIconHtml(task.context, "task-context-badge") : "";
   return `
@@ -3673,7 +3672,6 @@ function taskCardHtml(task) {
       </div>
       <div class="task-card-actions">
         ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
-        <span class="task-dot task-dot-tier-${task.tier}" title="${tierLabel}" aria-label="${tierLabel}"></span>
         ${contextBadge}
         <button type="button" class="edit-btn" aria-label="Edit task">✎</button>
         <button type="button" class="archive-btn" aria-label="Archive task" title="Archive task">×</button>
