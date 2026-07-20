@@ -2909,13 +2909,13 @@ function setupScribbleCaptureGesture() {
     ".sidebar",
   ].join(",");
 
-  // Looser thresholds so a quick back-and-forth scribble registers on phones.
-  const MIN_PATH = 70;
-  const MIN_REVERSALS = 1;
-  const MAX_MS = 2200;
-  const LOCK_PATH = 22;
+  // Simple horizontal swipe to open Add Task.
+  const MIN_DX = 56;
+  const MIN_PATH = 56;
+  const MAX_MS = 1800;
+  const LOCK_PATH = 20;
   const LOCK_DX = 12;
-  const SCROLL_ABORT_DY = 36;
+  const SCROLL_ABORT_DY = 28;
 
   let session = null;
   let inkSvg = null;
@@ -2962,10 +2962,8 @@ function setupScribbleCaptureGesture() {
   }
 
   function analyze(points) {
-    if (points.length < 2) return { path: 0, reversals: 0, dx: 0, dy: 0 };
+    if (points.length < 2) return { path: 0, dx: 0, dy: 0 };
     let path = 0;
-    let reversals = 0;
-    let lastSign = 0;
     let minX = points[0].x;
     let maxX = points[0].x;
     let minY = points[0].y;
@@ -2974,37 +2972,23 @@ function setupScribbleCaptureGesture() {
     for (let i = 1; i < points.length; i += 1) {
       const prev = points[i - 1];
       const curr = points[i];
-      const sx = curr.x - prev.x;
-      const sy = curr.y - prev.y;
-      path += Math.hypot(sx, sy);
+      path += Math.hypot(curr.x - prev.x, curr.y - prev.y);
       minX = Math.min(minX, curr.x);
       maxX = Math.max(maxX, curr.x);
       minY = Math.min(minY, curr.y);
       maxY = Math.max(maxY, curr.y);
-
-      // Ignore tiny jitter when counting direction changes.
-      if (Math.abs(sx) < 4) continue;
-      const sign = sx > 0 ? 1 : -1;
-      if (lastSign && sign !== lastSign) reversals += 1;
-      lastSign = sign;
     }
 
     return {
       path,
-      reversals,
       dx: maxX - minX,
       dy: maxY - minY,
     };
   }
 
-  function isScribble(stats, requireLock) {
+  function isHorizontalSwipe(stats, requireLock) {
     if (requireLock && !session?.locked) return false;
-    return (
-      stats.path >= MIN_PATH &&
-      stats.reversals >= MIN_REVERSALS &&
-      stats.dx >= 28 &&
-      stats.dx >= stats.dy * 0.35
-    );
+    return stats.dx >= MIN_DX && stats.path >= MIN_PATH && stats.dx >= stats.dy * 1.6;
   }
 
   function endSession(commit) {
@@ -3058,12 +3042,7 @@ function setupScribbleCaptureGesture() {
     };
 
     // Abort early if this looks like a vertical scroll.
-    if (
-      !session.locked &&
-      fromStart.dy > SCROLL_ABORT_DY &&
-      fromStart.dy > fromStart.dx * 1.2 &&
-      stats.reversals < 1
-    ) {
+    if (!session.locked && fromStart.dy > SCROLL_ABORT_DY && fromStart.dy > fromStart.dx * 1.15) {
       endSession(false);
       return;
     }
@@ -3072,7 +3051,7 @@ function setupScribbleCaptureGesture() {
     if (
       !session.locked &&
       (stats.path >= LOCK_PATH || fromStart.dx >= LOCK_DX) &&
-      fromStart.dx >= fromStart.dy * 0.85
+      fromStart.dx >= fromStart.dy * 1.1
     ) {
       lockSession(e);
     }
@@ -3083,7 +3062,7 @@ function setupScribbleCaptureGesture() {
     }
 
     if (elapsed > MAX_MS) {
-      endSession(isScribble(analyze(session.points), true));
+      endSession(isHorizontalSwipe(analyze(session.points), true));
     }
   }
 
@@ -3095,14 +3074,14 @@ function setupScribbleCaptureGesture() {
 
   function onUp(e) {
     if (!session || e.pointerId !== session.id) return;
-    endSession(isScribble(analyze(session.points), true));
+    endSession(isHorizontalSwipe(analyze(session.points), true));
   }
 
   function onCancel(e) {
     if (!session || e.pointerId !== session.id) return;
-    // If we already locked and have a valid scribble, still commit (cancel mid-stroke on iOS).
+    // If we already locked and have a valid swipe, still commit (cancel mid-stroke on iOS).
     const stats = analyze(session.points);
-    endSession(isScribble(stats, true));
+    endSession(isHorizontalSwipe(stats, true));
   }
 
   document.addEventListener(

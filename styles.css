@@ -6635,7 +6635,7 @@ dialog {
   }
 }
 
-/* Scribble-to-capture gesture ink trail */
+/* Horizontal swipe-to-capture gesture ink trail */
 .scribble-ink-layer {
   position: fixed;
   inset: 0;
@@ -6672,7 +6672,7 @@ body.scribble-capture-active {
   overscroll-behavior: none;
 }
 
-/* Help horizontal scribbles compete with vertical page scroll on phones */
+/* Help horizontal swipes compete with vertical page scroll on phones */
 @media (pointer: coarse) {
   body[data-page="home"] .main,
   body[data-page="tasks"] .main,
