@@ -1064,7 +1064,7 @@ body[data-page="home"] .focus-timer-session-tasks {
 
 body[data-page="home"] .focus-timer-session-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   justify-items: start;
   column-gap: 0.55rem;
@@ -1087,6 +1087,10 @@ body[data-page="home"] .focus-timer-session-text {
   text-align: left;
   justify-self: start;
   width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 body[data-page="home"] .focus-timer-session-item.done .focus-timer-session-text {
@@ -1456,7 +1460,7 @@ body.focus-timer-visible[data-page="history"] .page-header {
 
 .focus-timer-mini-task {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.75rem;
   font-family: var(--font-body);
@@ -1484,6 +1488,30 @@ body.focus-timer-visible[data-page="history"] .page-header {
   text-align: left;
   justify-self: start;
   width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.focus-timer-mini-task .task-attach-btn {
+  color: rgba(255, 232, 224, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 232, 224, 0.2);
+}
+
+.focus-timer-mini.is-done .focus-timer-mini-task .task-attach-btn {
+  color: rgba(14, 48, 48, 0.7);
+  background: rgba(14, 48, 48, 0.06);
+  border-color: rgba(14, 48, 48, 0.12);
+}
+
+body[data-page="home"] .focus-timer-session-item .task-attach-btn {
+  color: var(--peach-on-forest);
+  background: rgba(255, 232, 224, 0.12);
+  border-color: rgba(255, 232, 224, 0.22);
 }
 
 .focus-timer-mini-task.done .focus-timer-mini-task-text {

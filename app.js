@@ -745,6 +745,31 @@ function setupFocusTimer() {
     });
   }
 
+  function bindFocusTimerTaskRow(row, onDoneChange) {
+    const id = row.dataset.id;
+    const ctx = row.dataset.context;
+    row.querySelector('input[type="checkbox"]')?.addEventListener("change", (e) => {
+      toggleTaskDone(id, ctx, e.target.checked);
+      onDoneChange?.();
+    });
+    bindAttachmentIndicator(row, id, ctx);
+    row.querySelector(".focus-timer-session-text, .focus-timer-mini-task-text")?.addEventListener("click", () => {
+      const task = loadTasks(ctx).find((t) => t.id === id);
+      if (task) openTaskMediaViewer(task);
+    });
+  }
+
+  function focusTimerTaskRowHtml(task, { itemClass, checkClass, textClass }) {
+    return `
+      <li class="${itemClass}${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
+        <label class="plan-card-check ${checkClass}">
+          <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
+        </label>
+        <button type="button" class="${textClass}" title="View details">${escapeHtml(task.text)}</button>
+        ${taskAttachmentIndicatorHtml(task)}
+      </li>`;
+  }
+
   function renderSessionTasks() {
     const timerDone = !running && remainingMs === 0;
     const tasks = getFocusTimerTasksForDisplay();
@@ -758,22 +783,16 @@ function setupFocusTimer() {
       } else {
         sessionTasks.classList.remove("hidden");
         sessionTasks.innerHTML = tasks
-          .map(
-            (task) => `
-          <li class="focus-timer-session-item${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
-            <label class="plan-card-check focus-timer-session-check">
-              <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
-            </label>
-            <span class="focus-timer-session-text">${escapeHtml(task.text)}</span>
-          </li>`
+          .map((task) =>
+            focusTimerTaskRowHtml(task, {
+              itemClass: "focus-timer-session-item",
+              checkClass: "focus-timer-session-check",
+              textClass: "focus-timer-session-text",
+            })
           )
           .join("");
         sessionTasks.querySelectorAll(".focus-timer-session-item").forEach((row) => {
-          const input = row.querySelector('input[type="checkbox"]');
-          input?.addEventListener("change", (e) => {
-            toggleTaskDone(row.dataset.id, row.dataset.context, e.target.checked);
-            renderAttachedSurfaces();
-          });
+          bindFocusTimerTaskRow(row, renderAttachedSurfaces);
         });
       }
     }
@@ -785,22 +804,16 @@ function setupFocusTimer() {
       } else {
         miniTasks.classList.remove("hidden");
         miniTasks.innerHTML = tasks
-          .map(
-            (task) => `
-          <li class="focus-timer-mini-task${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
-            <label class="plan-card-check focus-timer-mini-check">
-              <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
-            </label>
-            <span class="focus-timer-mini-task-text">${escapeHtml(task.text)}</span>
-          </li>`
+          .map((task) =>
+            focusTimerTaskRowHtml(task, {
+              itemClass: "focus-timer-mini-task",
+              checkClass: "focus-timer-mini-check",
+              textClass: "focus-timer-mini-task-text",
+            })
           )
           .join("");
         miniTasks.querySelectorAll(".focus-timer-mini-task").forEach((row) => {
-          const input = row.querySelector('input[type="checkbox"]');
-          input?.addEventListener("change", (e) => {
-            toggleTaskDone(row.dataset.id, row.dataset.context, e.target.checked);
-            renderAttachedSurfaces();
-          });
+          bindFocusTimerTaskRow(row, renderAttachedSurfaces);
         });
       }
     }
@@ -854,7 +867,7 @@ function setupFocusTimer() {
     const active = isActiveSession();
     const sessionActive = active || done;
     syncFocusCardVisibility();
-    const showMiniBar = sessionActive;
+    const showMiniBar = sessionActive && !focusCardVisible;
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
