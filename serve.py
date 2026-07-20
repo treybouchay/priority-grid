@@ -63,6 +63,23 @@ def merge_payload(existing, incoming):
 
     newer = incoming if incoming["updatedAt"] >= existing["updatedAt"] else existing
     older = existing if newer is incoming else incoming
+
+    older_custom_tasks = older.get("customTasks") if isinstance(older.get("customTasks"), dict) else {}
+    newer_custom_tasks = newer.get("customTasks") if isinstance(newer.get("customTasks"), dict) else {}
+    custom_task_keys = set(older_custom_tasks) | set(newer_custom_tasks)
+    merged_custom_tasks = {
+        key: merge_lists_by_id(older_custom_tasks.get(key), newer_custom_tasks.get(key))
+        for key in custom_task_keys
+    }
+
+    older_custom_brain = older.get("customBrainDump") if isinstance(older.get("customBrainDump"), dict) else {}
+    newer_custom_brain = newer.get("customBrainDump") if isinstance(newer.get("customBrainDump"), dict) else {}
+    custom_brain_keys = set(older_custom_brain) | set(newer_custom_brain)
+    merged_custom_brain = {
+        key: merge_lists_by_id(older_custom_brain.get(key), newer_custom_brain.get(key))
+        for key in custom_brain_keys
+    }
+
     merged = {
         "version": max(existing.get("version", 1), incoming.get("version", 1)),
         "updatedAt": max(existing["updatedAt"], incoming["updatedAt"]),
@@ -70,6 +87,9 @@ def merge_payload(existing, incoming):
         "home": merge_lists_by_id(older.get("home"), newer.get("home")),
         "brainDumpWork": merge_lists_by_id(older.get("brainDumpWork"), newer.get("brainDumpWork")),
         "brainDumpHome": merge_lists_by_id(older.get("brainDumpHome"), newer.get("brainDumpHome")),
+        "customContexts": merge_lists_by_id(older.get("customContexts"), newer.get("customContexts")),
+        "customTasks": merged_custom_tasks,
+        "customBrainDump": merged_custom_brain,
         "plans": merge_dicts(older.get("plans"), newer.get("plans")),
         "nextWeek": merge_dicts(older.get("nextWeek"), newer.get("nextWeek")),
         "forgetIt": merge_dicts(

@@ -33,9 +33,235 @@ const PLAN_135_SLOTS = [
   { group: "small", label: "Small Tasks", number: "03", count: 5 },
 ];
 
-const CONTEXTS = ["work", "home"];
+const BUILTIN_CONTEXTS = ["work", "home"];
+const CUSTOM_CONTEXTS_KEY = "priority-grid-custom-contexts";
+const BUILTIN_CONTEXT_LABELS = { work: "Work", home: "Home" };
+const PHOTO_DB_NAME = "priority-grid-media";
+const PHOTO_STORE = "photos";
+const MAX_TASK_PHOTOS = 4;
+const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
 const TIER_LABELS = ["1st", "2nd", "3rd", "4th"];
 const isTouchDevice = () => window.matchMedia("(hover: none), (pointer: coarse)").matches;
+
+function getCustomContexts() {
+  try {
+    const saved = localStorage.getItem(CUSTOM_CONTEXTS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (c) => c && typeof c.id === "string" && typeof c.name === "string" && !BUILTIN_CONTEXTS.includes(c.id)
+        );
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function saveCustomContexts(list, options = {}) {
+  localStorage.setItem(CUSTOM_CONTEXTS_KEY, JSON.stringify(list));
+  if (!options.skipSync) markSyncDirty();
+}
+
+function getContexts() {
+  return [...BUILTIN_CONTEXTS, ...getCustomContexts().map((c) => c.id)];
+}
+
+function isValidContext(ctx) {
+  return getContexts().includes(ctx);
+}
+
+function isValidFilter(value) {
+  return value === "all" || isValidContext(value);
+}
+
+function slugifyContextName(name) {
+  const base =
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "list";
+  let id = `custom-${base}`;
+  const existing = new Set(getContexts());
+  if (!existing.has(id)) return id;
+  let n = 2;
+  while (existing.has(`${id}-${n}`)) n += 1;
+  return `${id}-${n}`;
+}
+
+function addCustomContext(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const id = slugifyContextName(trimmed);
+  saveCustomContexts([
+    ...getCustomContexts(),
+    { id, name: trimmed, createdAt: new Date().toISOString() },
+  ]);
+  rebuildContextUi();
+  return id;
+}
+
+function renameCustomContext(id, name) {
+  const trimmed = name.trim();
+  if (!trimmed || BUILTIN_CONTEXTS.includes(id)) return false;
+  const next = getCustomContexts().map((c) => (c.id === id ? { ...c, name: trimmed } : c));
+  saveCustomContexts(next);
+  rebuildContextUi();
+  return true;
+}
+
+function deleteCustomContext(id) {
+  if (BUILTIN_CONTEXTS.includes(id)) return false;
+  const next = getCustomContexts().filter((c) => c.id !== id);
+  saveCustomContexts(next);
+  localStorage.removeItem(tasksKey(id));
+  localStorage.removeItem(brainDumpKey(id));
+  if (filter === id) setFilter("all");
+  rebuildContextUi();
+  return true;
+}
+
+function collectCustomTasksPayload() {
+  const tasks = {};
+  getCustomContexts().forEach((c) => {
+    tasks[c.id] = loadTasks(c.id);
+  });
+  return tasks;
+}
+
+function collectCustomBrainDumpPayload() {
+  const dumps = {};
+  getCustomContexts().forEach((c) => {
+    dumps[c.id] = loadBrainDump(c.id);
+  });
+  return dumps;
+}
+
+function mergeCustomContextMeta(localList, remoteList, preferRemote = true) {
+  const local = Array.isArray(localList) ? localList : [];
+  const remote = Array.isArray(remoteList) ? remoteList : [];
+  const byId = new Map();
+  const order = [];
+  for (const item of local) {
+    if (!item?.id) continue;
+    byId.set(item.id, item);
+    order.push(item.id);
+  }
+  for (const item of remote) {
+    if (!item?.id || BUILTIN_CONTEXTS.includes(item.id)) continue;
+    if (byId.has(item.id)) {
+      if (preferRemote) byId.set(item.id, item);
+    } else {
+      byId.set(item.id, item);
+      order.push(item.id);
+    }
+  }
+  return order.map((id) => byId.get(id)).filter(Boolean);
+}
+
+function openPhotoDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(PHOTO_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(PHOTO_STORE)) {
+        db.createObjectStore(PHOTO_STORE, { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function savePhotoRecord(record) {
+  const db = await openPhotoDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHOTO_STORE, "readwrite");
+    tx.objectStore(PHOTO_STORE).put(record);
+    tx.oncomplete = () => resolve(record.id);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getPhotoRecord(id) {
+  const db = await openPhotoDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHOTO_STORE, "readonly");
+    const req = tx.objectStore(PHOTO_STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deletePhotoRecord(id) {
+  const db = await openPhotoDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHOTO_STORE, "readwrite");
+    tx.objectStore(PHOTO_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImageFile(file, maxEdge = 1600, quality = 0.82) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Not an image");
+  const dataUrl = await readFileAsDataUrl(file);
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = reject;
+    el.src = dataUrl;
+  });
+  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  if (!blob) throw new Error("Could not compress image");
+  if (blob.size > MAX_PHOTO_BYTES) throw new Error("Photo is too large");
+  return blob;
+}
+
+async function storeTaskPhotoFromFile(file) {
+  const blob = await compressImageFile(file);
+  const id = createId();
+  await savePhotoRecord({
+    id,
+    blob,
+    mimeType: blob.type || "image/jpeg",
+    size: blob.size,
+    createdAt: new Date().toISOString(),
+  });
+  return {
+    id,
+    name: file.name || "photo.jpg",
+    mimeType: blob.type || "image/jpeg",
+    size: blob.size,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function photoObjectUrl(photoId) {
+  const record = await getPhotoRecord(photoId);
+  if (!record?.blob) return null;
+  return URL.createObjectURL(record.blob);
+}
 
 const THEMES = [
   { id: "auto", name: "Auto (time of day)", colors: ["#0E303B", "#FCEFEA", "#FF6A6A", "#E07A5F", "#072F2E"] },
@@ -206,6 +432,11 @@ let touchDragGhost = null;
 let dragGrabOffset = { x: 0, y: 0 };
 let listDragState = null;
 let visibleTiers = getVisibleTiers();
+let dialogPhotoDraft = [];
+let capturePending = null;
+let capturePhotoDraft = [];
+let dialogPhotoUrls = [];
+let capturePhotoUrls = [];
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
 const PREVIEW_TASK_LIMIT = 5;
@@ -384,7 +615,7 @@ function getFocusTimerTasksForDisplay() {
 function getFocusTimerCandidateTasks() {
   const attachedKeys = new Set(focusTimerAttached.map((r) => `${r.context}:${r.id}`));
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (t.archived || t.done || isTaskDeferred(t)) return;
       const key = `${ctx}:${t.id}`;
@@ -940,7 +1171,7 @@ function isTaskDeferred(task) {
 function getVisibleTasks() {
   const include = (t) => !t.archived && !isTaskDeferred(t);
   if (filter === "all") {
-    return CONTEXTS.flatMap((ctx) =>
+    return getContexts().flatMap((ctx) =>
       loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
     );
   }
@@ -950,7 +1181,7 @@ function getVisibleTasks() {
 function getArchivedTasks() {
   const include = (t) => t.archived;
   if (filter === "all") {
-    return CONTEXTS.flatMap((ctx) =>
+    return getContexts().flatMap((ctx) =>
       loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
     );
   }
@@ -959,7 +1190,7 @@ function getArchivedTasks() {
 
 function getVisibleBrainDump() {
   if (filter === "all") {
-    return CONTEXTS.flatMap((ctx) =>
+    return getContexts().flatMap((ctx) =>
       loadBrainDump(ctx).map((item) => ({ ...item, context: ctx }))
     );
   }
@@ -967,7 +1198,7 @@ function getVisibleBrainDump() {
 }
 
 function getBrainDumpContexts() {
-  return filter === "all" ? CONTEXTS : [filter];
+  return filter === "all" ? getContexts() : [filter];
 }
 
 function createId() {
@@ -987,12 +1218,15 @@ function updateBoardHint() {
 
 function exportAllData() {
   const payload = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     work: loadTasks("work"),
     home: loadTasks("home"),
     brainDumpWork: loadBrainDump("work"),
     brainDumpHome: loadBrainDump("home"),
+    customContexts: getCustomContexts(),
+    customTasks: collectCustomTasksPayload(),
+    customBrainDump: collectCustomBrainDumpPayload(),
     theme: getTheme(),
     font: getFont(),
   };
@@ -1014,8 +1248,19 @@ function importAllData(file) {
       if (data.home) saveTasks("home", data.home);
       if (data.brainDumpWork) saveBrainDump("work", data.brainDumpWork);
       if (data.brainDumpHome) saveBrainDump("home", data.brainDumpHome);
+      if (Array.isArray(data.customContexts)) {
+        saveCustomContexts(data.customContexts);
+        const customTasks = data.customTasks || {};
+        const customBrain = data.customBrainDump || {};
+        data.customContexts.forEach((c) => {
+          if (!c?.id) return;
+          if (Array.isArray(customTasks[c.id])) saveTasks(c.id, customTasks[c.id]);
+          if (Array.isArray(customBrain[c.id])) saveBrainDump(c.id, customBrain[c.id]);
+        });
+      }
       if (data.theme && THEMES.some((t) => t.id === data.theme)) setTheme(data.theme);
       if (data.font && FONTS.some((f) => f.id === data.font)) setFont(data.font);
+      rebuildContextUi();
       renderAll();
       markSyncDirty();
       alert("Backup imported successfully.");
@@ -1098,12 +1343,15 @@ const collectForgetItFromStorage = collectNextWeekFromStorage;
 
 function buildSyncPayload() {
   return {
-    version: 1,
+    version: 2,
     updatedAt: new Date().toISOString(),
     work: loadTasks("work"),
     home: loadTasks("home"),
     brainDumpWork: loadBrainDump("work"),
     brainDumpHome: loadBrainDump("home"),
+    customContexts: getCustomContexts(),
+    customTasks: collectCustomTasksPayload(),
+    customBrainDump: collectCustomBrainDumpPayload(),
     plans: collectPlan135FromStorage(),
     nextWeek: collectNextWeekFromStorage(),
     forgetIt: collectNextWeekFromStorage(),
@@ -1141,11 +1389,16 @@ function mergeBrainLists(localList, remoteList, preferRemote = true) {
 
 function countPayloadTasks(payload) {
   if (!payload) return 0;
-  return (payload.work?.length || 0) + (payload.home?.length || 0);
+  const custom = payload.customTasks || {};
+  const customCount = Object.values(custom).reduce(
+    (sum, list) => sum + (Array.isArray(list) ? list.length : 0),
+    0
+  );
+  return (payload.work?.length || 0) + (payload.home?.length || 0) + customCount;
 }
 
 function countLocalTasks() {
-  return loadTasks("work").length + loadTasks("home").length;
+  return getContexts().reduce((sum, ctx) => sum + loadTasks(ctx).length, 0);
 }
 
 function applySyncPayload(payload, options = {}) {
@@ -1174,6 +1427,34 @@ function applySyncPayload(payload, options = {}) {
       skipSync
     );
   }
+
+  if (Array.isArray(payload.customContexts) || getCustomContexts().length > 0) {
+    saveCustomContexts(
+      mergeCustomContextMeta(getCustomContexts(), payload.customContexts || [], preferRemote),
+      skipSync
+    );
+  }
+
+  const remoteCustomTasks = payload.customTasks || {};
+  const remoteCustomBrain = payload.customBrainDump || {};
+  const customIds = new Set([
+    ...getCustomContexts().map((c) => c.id),
+    ...Object.keys(remoteCustomTasks),
+    ...Object.keys(remoteCustomBrain),
+  ]);
+  customIds.forEach((id) => {
+    if (BUILTIN_CONTEXTS.includes(id)) return;
+    if (Array.isArray(remoteCustomTasks[id]) || loadTasks(id).length > 0) {
+      saveTasks(id, mergeTaskLists(loadTasks(id), remoteCustomTasks[id] || [], preferRemote), skipSync);
+    }
+    if (Array.isArray(remoteCustomBrain[id]) || loadBrainDump(id).length > 0) {
+      saveBrainDump(
+        id,
+        mergeBrainLists(loadBrainDump(id), remoteCustomBrain[id] || [], preferRemote),
+        skipSync
+      );
+    }
+  });
 
   const localPlans = collectPlan135FromStorage();
   const remotePlans = payload.plans || {};
@@ -1204,6 +1485,8 @@ function applySyncPayload(payload, options = {}) {
   if (payload.updatedAt && options.setMeta !== false) {
     setSyncMeta({ updatedAt: payload.updatedAt });
   }
+
+  rebuildContextUi();
 
   if (!options.skipRender) {
     renderAll();
@@ -1238,10 +1521,7 @@ async function pullRemoteSync(options = {}) {
     const remote = await response.json();
     if (!remote?.updatedAt) {
       const hasLocal =
-        loadTasks("home").length > 0 ||
-        loadTasks("work").length > 0 ||
-        loadBrainDump("home").length > 0 ||
-        loadBrainDump("work").length > 0;
+        getContexts().some((ctx) => loadTasks(ctx).length > 0 || loadBrainDump(ctx).length > 0);
       if (hasLocal || syncDirty) {
         await pushRemoteSync({ force: true });
       }
@@ -1431,7 +1711,7 @@ function getPage() {
 function getFilter() {
   try {
     const saved = localStorage.getItem(FILTER_KEY);
-    if (["all", "work", "home"].includes(saved)) return saved;
+    if (isValidFilter(saved)) return saved;
   } catch {
     /* ignore */
   }
@@ -1566,12 +1846,13 @@ function escapeHtml(text) {
 }
 
 function contextLabel(ctx) {
-  return ctx === "work" ? "Work" : "Home";
+  if (BUILTIN_CONTEXT_LABELS[ctx]) return BUILTIN_CONTEXT_LABELS[ctx];
+  return getCustomContexts().find((c) => c.id === ctx)?.name || ctx;
 }
 
 function contextIconHtml(ctx, className = "context-icon") {
   const label = contextLabel(ctx);
-  const iconId = ctx === "work" ? "icon-briefcase" : "icon-house";
+  const iconId = ctx === "work" ? "icon-briefcase" : ctx === "home" ? "icon-house" : "icon-box";
   return `<span class="${className}" title="${label}" aria-label="${label}"><svg class="icon ${className}-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
 }
 
@@ -1883,7 +2164,7 @@ function getNextMondayKey(fromDate = new Date()) {
 
 function clearExpiredDeferredTasks() {
   const today = todayKey();
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     const list = loadTasks(ctx);
     let changed = false;
     const next = list.map((t) => {
@@ -1906,7 +2187,7 @@ function resetRepeatDailyTasksIfNeeded() {
   }
   if (lastReset === today) return;
 
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     const list = loadTasks(ctx);
     let changed = false;
     const next = list.map((t) => {
@@ -1929,7 +2210,7 @@ function resetRepeatDailyTasksIfNeeded() {
 function getRepeatDailyTasks() {
   const include = (t) => !t.archived && t.repeatDaily && !isTaskDeferred(t);
   if (filter === "all") {
-    return CONTEXTS.flatMap((ctx) =>
+    return getContexts().flatMap((ctx) =>
       loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
     );
   }
@@ -2210,7 +2491,7 @@ function sortTierTasksForDisplay(tasks, tier) {
 
 function getTierTasksAllContexts(tier) {
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.archived && !isTaskDeferred(t) && t.tier === tier) {
         tasks.push({ ...t, context: ctx });
@@ -2412,12 +2693,16 @@ function syncMode135Toggle() {
 }
 
 function updatePageTitle() {
-  const titles = {
-    home: { all: "My Day", work: "My Day", home: "My Day" },
-    tasks: { all: "All Tasks", work: "Work Tasks", home: "Home Tasks" },
-    history: { all: "History", work: "History", home: "History" },
-  };
-  document.getElementById("page-title").textContent = titles[page][filter];
+  let title = "My Day";
+  if (page === "history") {
+    title = "History";
+  } else if (page === "tasks") {
+    if (filter === "all") title = "All Tasks";
+    else if (filter === "work") title = "Work Tasks";
+    else if (filter === "home") title = "Home Tasks";
+    else title = `${contextLabel(filter)} Tasks`;
+  }
+  document.getElementById("page-title").textContent = title;
   document.getElementById("page-title").classList.toggle("hidden", page === "home" || page === "tasks");
   document.getElementById("page-header").classList.toggle("hidden", page === "home");
   document.getElementById("page-header").classList.toggle("page-header--home", page === "home");
@@ -2485,7 +2770,7 @@ function focusBrainPanel() {
 
 function setPage(nextPage, nextFilter = filter, options = {}) {
   page = nextPage;
-  filter = nextFilter;
+  filter = isValidFilter(nextFilter) ? nextFilter : "all";
   localStorage.setItem(PAGE_KEY, page);
   localStorage.setItem(FILTER_KEY, filter);
 
@@ -2511,7 +2796,7 @@ function setPage(nextPage, nextFilter = filter, options = {}) {
 }
 
 function setFilter(nextFilter) {
-  filter = nextFilter;
+  filter = isValidFilter(nextFilter) ? nextFilter : "all";
   localStorage.setItem(FILTER_KEY, filter);
   syncNavActive();
   updatePageTitle();
@@ -2777,6 +3062,182 @@ function setupScribbleCaptureGesture() {
   );
 }
 
+function contextSelectOptionsHtml(selected = "work") {
+  return getContexts()
+    .map(
+      (ctx) =>
+        `<option value="${escapeHtml(ctx)}"${ctx === selected ? " selected" : ""}>${escapeHtml(contextLabel(ctx))}</option>`
+    )
+    .join("");
+}
+
+function fillContextSelect(selectEl, selected) {
+  if (!selectEl) return;
+  const value = isValidContext(selected) ? selected : filter === "all" ? "work" : filter;
+  selectEl.innerHTML = contextSelectOptionsHtml(isValidContext(value) ? value : "work");
+  selectEl.value = isValidContext(value) ? value : "work";
+}
+
+function revokePhotoUrls(urls) {
+  urls.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    }
+  });
+  urls.length = 0;
+}
+
+async function renderPhotoGrid(gridEl, photos, urlsBucket, onRemove) {
+  if (!gridEl) return;
+  revokePhotoUrls(urlsBucket);
+  if (!photos.length) {
+    gridEl.innerHTML = `<p class="dialog-photo-empty">No photos yet.</p>`;
+    return;
+  }
+  const items = await Promise.all(
+    photos.map(async (photo) => {
+      const url = await photoObjectUrl(photo.id);
+      if (url) urlsBucket.push(url);
+      return { photo, url };
+    })
+  );
+  gridEl.innerHTML = items
+    .map(
+      ({ photo, url }) => `
+      <figure class="dialog-photo-item" data-photo-id="${escapeHtml(photo.id)}">
+        ${url ? `<img src="${url}" alt="${escapeHtml(photo.name || "Photo")}" />` : `<span class="dialog-photo-missing">Missing</span>`}
+        <button type="button" class="dialog-photo-remove" data-photo-id="${escapeHtml(photo.id)}" aria-label="Remove photo">×</button>
+      </figure>`
+    )
+    .join("");
+  gridEl.querySelectorAll(".dialog-photo-remove").forEach((btn) => {
+    btn.addEventListener("click", () => onRemove(btn.dataset.photoId));
+  });
+}
+
+async function addPhotoToDraft(draft, file, gridEl, urlsBucket, onRemove) {
+  if (!file) return;
+  if (draft.length >= MAX_TASK_PHOTOS) {
+    alert(`You can attach up to ${MAX_TASK_PHOTOS} photos.`);
+    return;
+  }
+  try {
+    const meta = await storeTaskPhotoFromFile(file);
+    draft.push(meta);
+    await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
+  } catch (err) {
+    alert(err?.message || "Could not save that photo.");
+  }
+}
+
+async function removePhotoFromDraft(draft, photoId, gridEl, urlsBucket, onRemove) {
+  const idx = draft.findIndex((p) => p.id === photoId);
+  if (idx === -1) return;
+  draft.splice(idx, 1);
+  await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
+}
+
+function rebuildContextUi() {
+  const pills = document.getElementById("filter-pills");
+  if (pills) {
+    pills.querySelectorAll(".filter-pill[data-custom='true']").forEach((el) => el.remove());
+    getCustomContexts().forEach((c) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filter-pill";
+      btn.dataset.filter = c.id;
+      btn.dataset.custom = "true";
+      btn.setAttribute("role", "tab");
+      btn.textContent = c.name;
+      pills.appendChild(btn);
+    });
+  }
+
+  const sidebarSlot = document.getElementById("sidebar-custom-lists");
+  if (sidebarSlot) {
+    sidebarSlot.innerHTML = getCustomContexts()
+      .map(
+        (c) => `
+      <button type="button" class="nav-item" data-page="tasks" data-filter="${escapeHtml(c.id)}" data-custom="true">
+        <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-box"></use></svg>
+        <span class="nav-item-label">${escapeHtml(c.name)}</span>
+      </button>`
+      )
+      .join("");
+  }
+
+  fillContextSelect(document.getElementById("dialog-context"), document.getElementById("dialog-context")?.value);
+  fillContextSelect(
+    document.getElementById("daily-repeat-context"),
+    document.getElementById("daily-repeat-context")?.value
+  );
+
+  const manager = document.getElementById("lists-manager");
+  if (manager) {
+    const customs = getCustomContexts();
+    if (customs.length === 0) {
+      manager.innerHTML = `<li class="lists-manager-empty">No custom lists yet.</li>`;
+    } else {
+      manager.innerHTML = customs
+        .map(
+          (c) => `
+        <li class="lists-manager-item" data-id="${escapeHtml(c.id)}">
+          <span class="lists-manager-name">${escapeHtml(c.name)}</span>
+          <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Rename</button>
+          <button type="button" class="lists-manager-delete" data-id="${escapeHtml(c.id)}">Delete</button>
+        </li>`
+        )
+        .join("");
+    }
+  }
+
+  if (!isValidFilter(filter)) {
+    filter = "all";
+    localStorage.setItem(FILTER_KEY, filter);
+  }
+  syncNavActive();
+}
+
+function setupListsManager() {
+  const form = document.getElementById("lists-add-form");
+  const input = document.getElementById("lists-add-input");
+  const manager = document.getElementById("lists-manager");
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = input?.value.trim();
+    if (!name) return;
+    const id = addCustomContext(name);
+    if (input) input.value = "";
+    if (id) {
+      setPage("tasks", id);
+    }
+  });
+
+  manager?.addEventListener("click", (e) => {
+    const renameBtn = e.target.closest(".lists-manager-rename");
+    const deleteBtn = e.target.closest(".lists-manager-delete");
+    if (renameBtn) {
+      const id = renameBtn.dataset.id;
+      const current = getCustomContexts().find((c) => c.id === id);
+      const next = prompt("Rename list", current?.name || "");
+      if (next == null) return;
+      renameCustomContext(id, next);
+      renderAll();
+      return;
+    }
+    if (deleteBtn) {
+      const id = deleteBtn.dataset.id;
+      const current = getCustomContexts().find((c) => c.id === id);
+      if (!confirm(`Delete list “${current?.name || id}”? Its tasks will be removed.`)) return;
+      deleteCustomContext(id);
+      renderAll();
+    }
+  });
+}
+
 function setupNavigation() {
   document.querySelectorAll(".nav-item, .mobile-nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -2792,8 +3253,18 @@ function setupNavigation() {
     });
   });
 
-  document.querySelectorAll(".filter-pill").forEach((pill) => {
-    pill.addEventListener("click", () => setFilter(pill.dataset.filter));
+  document.getElementById("sidebar-custom-lists")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".nav-item");
+    if (!btn) return;
+    const nextPage = btn.dataset.page;
+    if (!nextPage) return;
+    setPage(nextPage, btn.dataset.filter || filter);
+  });
+
+  document.getElementById("filter-pills")?.addEventListener("click", (e) => {
+    const pill = e.target.closest(".filter-pill");
+    if (!pill) return;
+    setFilter(pill.dataset.filter);
   });
 
   document.getElementById("home-view-tasks").addEventListener("click", () => {
@@ -3353,7 +3824,7 @@ function isYesterdayWin(task) {
 function getTasksCompletedYesterday() {
   const seen = new Set();
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!isYesterdayWin(t)) return;
       const key = `${ctx}:${t.id}`;
@@ -3429,13 +3900,35 @@ function updateReflectionCharCount() {
   countEl.textContent = `${textarea.value.length} / 500`;
 }
 
+function getOpenTasksSnapshot() {
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || t.done || isTaskDeferred(t)) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks;
+}
+
+function getYesterdayDailySummary() {
+  const completed = getCompletedYesterdayTasks();
+  const leftOpen = getOpenTasksSnapshot();
+  return {
+    completedCount: completed.length,
+    leftCount: leftOpen.length,
+    completed,
+    leftOpen,
+  };
+}
+
 function getCompletedYesterdayTasks() {
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterday = archiveDayKey(yesterdayDate.toISOString());
   const seen = new Set();
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.done || !t.completedAt) return;
       if (archiveDayKey(t.completedAt) !== yesterday) return;
@@ -3452,11 +3945,17 @@ function getCompletedYesterdayTasks() {
 
 function reflectionReviewItemHtml(task) {
   const time = formatCompletionTime(task.completedAt);
+  const note = task.notes?.trim()
+    ? `<p class="reflection-review-note">${escapeHtml(task.notes.trim())}</p>`
+    : "";
   return `
     <li class="reflection-review-item">
       <span class="reflection-review-check" aria-hidden="true">✓</span>
-      <span class="reflection-review-text">${escapeHtml(task.text)}</span>
-      <span class="reflection-review-tier">${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""}</span>
+      <div class="reflection-review-body">
+        <span class="reflection-review-text">${escapeHtml(task.text)}</span>
+        ${note}
+        <span class="reflection-review-tier">${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""} · ${escapeHtml(contextLabel(task.context))}</span>
+      </div>
     </li>`;
 }
 
@@ -3464,25 +3963,46 @@ function renderReflectionReview() {
   const list = document.getElementById("reflection-review-list");
   const empty = document.getElementById("reflection-review-empty");
   const subtitle = document.getElementById("reflection-review-subtitle");
+  const summary = document.getElementById("reflection-summary");
+  const heading = document.getElementById("reflection-review-heading");
   if (!list || !empty) return;
 
-  const tasks = getCompletedYesterdayTasks();
+  const { completedCount, leftCount, completed } = getYesterdayDailySummary();
+
+  if (summary) {
+    summary.innerHTML = `
+      <div class="reflection-summary-stat">
+        <span class="reflection-summary-value">${completedCount}</span>
+        <span class="reflection-summary-label">completed</span>
+      </div>
+      <div class="reflection-summary-stat">
+        <span class="reflection-summary-value">${leftCount}</span>
+        <span class="reflection-summary-label">still open</span>
+      </div>`;
+  }
 
   if (subtitle) {
     subtitle.textContent =
-      tasks.length === 0
-        ? "Nothing was completed yesterday — you can still reflect on your day."
-        : `${tasks.length} task${tasks.length === 1 ? "" : "s"} completed yesterday.`;
+      completedCount === 0 && leftCount === 0
+        ? "A quiet day — nothing completed, nothing left open."
+        : completedCount === 0
+          ? `${leftCount} task${leftCount === 1 ? "" : "s"} still open. Reflect on what mattered.`
+          : `${completedCount} finished yesterday · ${leftCount} still open today.`;
   }
 
-  if (tasks.length === 0) {
+  if (heading) {
+    heading.textContent =
+      completedCount === 0 ? "Completed yesterday" : `Completed yesterday (${completedCount})`;
+  }
+
+  if (completed.length === 0) {
     list.innerHTML = "";
     empty.classList.remove("hidden");
     return;
   }
 
   empty.classList.add("hidden");
-  list.innerHTML = tasks.map(reflectionReviewItemHtml).join("");
+  list.innerHTML = completed.map(reflectionReviewItemHtml).join("");
 }
 
 function setReflectionTab(tab) {
@@ -3588,20 +4108,126 @@ function setupReflection() {
   });
 }
 
-function toggleTaskDone(id, ctx, markingDone) {
+function markTaskDone(id, ctx, extras = {}) {
   let tier = null;
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
       tier = t.tier;
-      const next = { ...t, done: markingDone };
-      if (markingDone) next.completedAt = new Date().toISOString();
-      else delete next.completedAt;
+      const next = {
+        ...t,
+        done: true,
+        completedAt: new Date().toISOString(),
+      };
+      if (extras.notes !== undefined) next.notes = extras.notes;
+      if (extras.photos !== undefined) next.photos = extras.photos;
       return next;
     })
   );
   if (tier != null) persistTierOrderAfterToggle(tier);
   renderAll();
+}
+
+function toggleTaskDone(id, ctx, markingDone) {
+  if (markingDone) {
+    openTaskCaptureDialog(id, ctx);
+    return;
+  }
+  let tier = null;
+  updateTaskInContext(ctx, (list) =>
+    list.map((t) => {
+      if (t.id !== id) return t;
+      tier = t.tier;
+      const next = { ...t, done: false };
+      delete next.completedAt;
+      return next;
+    })
+  );
+  if (tier != null) persistTierOrderAfterToggle(tier);
+  renderAll();
+}
+
+function draftPhotoRemover(draft, gridId, urls) {
+  const onRemove = (photoId) => {
+    removePhotoFromDraft(draft, photoId, document.getElementById(gridId), urls, onRemove);
+  };
+  return onRemove;
+}
+
+async function openTaskCaptureDialog(id, ctx) {
+  const dialog = document.getElementById("task-capture-dialog");
+  const task = loadTasks(ctx).find((t) => t.id === id);
+  if (!dialog || !task) {
+    renderAll();
+    return;
+  }
+
+  capturePending = { id, ctx };
+  capturePhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
+  document.getElementById("capture-task-text").textContent = task.text;
+  document.getElementById("capture-notes").value = task.notes || "";
+  await renderPhotoGrid(
+    document.getElementById("capture-photo-grid"),
+    capturePhotoDraft,
+    capturePhotoUrls,
+    draftPhotoRemover(capturePhotoDraft, "capture-photo-grid", capturePhotoUrls)
+  );
+  dialog.showModal();
+  document.getElementById("capture-notes")?.focus();
+}
+
+function finishTaskCapture({ skip = false } = {}) {
+  if (!capturePending) return;
+  const { id, ctx } = capturePending;
+  const notes = skip ? undefined : document.getElementById("capture-notes")?.value.trim() || "";
+  const photos = skip ? undefined : capturePhotoDraft.map((p) => ({ ...p }));
+  capturePending = null;
+  document.getElementById("task-capture-dialog")?.close();
+  revokePhotoUrls(capturePhotoUrls);
+  markTaskDone(id, ctx, {
+    ...(notes !== undefined ? { notes } : {}),
+    ...(photos !== undefined ? { photos } : {}),
+  });
+  capturePhotoDraft = [];
+}
+
+function cancelTaskCapture() {
+  capturePending = null;
+  capturePhotoDraft = [];
+  revokePhotoUrls(capturePhotoUrls);
+  document.getElementById("task-capture-dialog")?.close();
+  renderAll();
+}
+
+function setupTaskCaptureDialog() {
+  const dialog = document.getElementById("task-capture-dialog");
+  const form = document.getElementById("task-capture-form");
+  const photoInput = document.getElementById("capture-photo-input");
+
+  document.getElementById("capture-cancel")?.addEventListener("click", cancelTaskCapture);
+  document.getElementById("capture-skip")?.addEventListener("click", () => finishTaskCapture({ skip: true }));
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    finishTaskCapture({ skip: false });
+  });
+
+  photoInput?.addEventListener("change", async () => {
+    const file = photoInput.files?.[0];
+    photoInput.value = "";
+    await addPhotoToDraft(
+      capturePhotoDraft,
+      file,
+      document.getElementById("capture-photo-grid"),
+      capturePhotoUrls,
+      draftPhotoRemover(capturePhotoDraft, "capture-photo-grid", capturePhotoUrls)
+    );
+  });
+
+  dialog?.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    cancelTaskCapture();
+  });
 }
 
 function bindPlan135Slots(container) {
@@ -3953,7 +4579,7 @@ function renderGrid() {
 }
 
 function getTopPriorityTasks(limit = 5) {
-  const visible = CONTEXTS.flatMap((ctx) =>
+  const visible = getContexts().flatMap((ctx) =>
     loadTasks(ctx)
       .filter((t) => !t.archived)
       .map((t) => ({ ...t, context: ctx }))
@@ -4108,7 +4734,7 @@ function getTasksByTierForHome(tier, limit) {
 
 function getOpenTasksForTiers(tiers, limit) {
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.archived && !t.done && !isTaskDeferred(t) && tiers.includes(t.tier)) {
         tasks.push({ ...t, context: ctx });
@@ -4235,7 +4861,7 @@ function getCompletedTodayTasks() {
   const today = archiveDayKey(new Date().toISOString());
   const seen = new Set();
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.done || !t.completedAt || t.archived) return;
       if (archiveDayKey(t.completedAt) !== today) return;
@@ -4254,7 +4880,7 @@ function getArchivedTodayWinsTasks() {
   const today = archiveDayKey(new Date().toISOString());
   const seen = new Set();
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.archived || !t.done || !t.completedAt) return;
       if (archiveDayKey(t.completedAt) !== today) return;
@@ -4927,20 +5553,30 @@ function clearDialogBrainFields() {
   document.getElementById("dialog-brain-context").value = "";
 }
 
+function resetDialogMediaFields() {
+  dialogPhotoDraft = [];
+  revokePhotoUrls(dialogPhotoUrls);
+  const notes = document.getElementById("dialog-notes");
+  if (notes) notes.value = "";
+  const grid = document.getElementById("dialog-photo-grid");
+  if (grid) grid.innerHTML = `<p class="dialog-photo-empty">No photos yet.</p>`;
+}
+
 function setTaskDialogSubmitLabel(label) {
   const btn = document.querySelector("#task-dialog-form button[type='submit']");
   if (btn) btn.textContent = label;
 }
 
-function openTaskDialog(tier = 1) {
+async function openTaskDialog(tier = 1) {
   const dialog = document.getElementById("task-dialog");
   const defaultCtx = filter === "all" ? "work" : filter;
 
   clearDialogBrainFields();
+  resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Add Task";
   document.getElementById("dialog-input").value = "";
   document.getElementById("dialog-tier-select").value = String(tier);
-  document.getElementById("dialog-context").value = defaultCtx;
+  fillContextSelect(document.getElementById("dialog-context"), defaultCtx);
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
   setTaskDialogSubmitLabel("Save");
@@ -4949,17 +5585,25 @@ function openTaskDialog(tier = 1) {
   document.getElementById("dialog-input").focus();
 }
 
-function openEditTaskDialog(task, ctx) {
+async function openEditTaskDialog(task, ctx) {
   const dialog = document.getElementById("task-dialog");
 
   clearDialogBrainFields();
+  dialogPhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
   document.getElementById("dialog-title").textContent = "Edit Task";
   document.getElementById("dialog-input").value = task.text;
   document.getElementById("dialog-tier-select").value = String(task.tier);
-  document.getElementById("dialog-context").value = ctx;
+  fillContextSelect(document.getElementById("dialog-context"), ctx);
   document.getElementById("dialog-edit-id").value = task.id;
   document.getElementById("dialog-original-context").value = ctx;
+  document.getElementById("dialog-notes").value = task.notes || "";
   setTaskDialogSubmitLabel("Save");
+  await renderPhotoGrid(
+    document.getElementById("dialog-photo-grid"),
+    dialogPhotoDraft,
+    dialogPhotoUrls,
+    draftPhotoRemover(dialogPhotoDraft, "dialog-photo-grid", dialogPhotoUrls)
+  );
 
   dialog.showModal();
   document.getElementById("dialog-input").focus();
@@ -4969,10 +5613,11 @@ function openBrainDumpSendDialog(item, ctx) {
   const dialog = document.getElementById("task-dialog");
 
   clearDialogBrainFields();
+  resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Send to Priority";
   document.getElementById("dialog-input").value = item.text;
   document.getElementById("dialog-tier-select").value = "1";
-  document.getElementById("dialog-context").value = ctx;
+  fillContextSelect(document.getElementById("dialog-context"), ctx);
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
   document.getElementById("dialog-brain-id").value = item.id;
@@ -5008,9 +5653,14 @@ function saveTaskFromDialog() {
   const oldCtx = document.getElementById("dialog-original-context").value;
   const brainId = document.getElementById("dialog-brain-id").value;
   const brainCtx = document.getElementById("dialog-brain-context").value;
+  const notes = document.getElementById("dialog-notes")?.value.trim() || "";
+  const photos = dialogPhotoDraft.map((p) => ({ ...p }));
 
   if (brainId) {
-    saveTasks(newCtx, [...loadTasks(newCtx), { id: createId(), text, tier, done: false }]);
+    saveTasks(newCtx, [
+      ...loadTasks(newCtx),
+      { id: createId(), text, tier, done: false, notes, photos },
+    ]);
     saveBrainDump(brainCtx, loadBrainDump(brainCtx).filter((i) => i.id !== brainId));
     clearDialogBrainFields();
     return;
@@ -5021,7 +5671,7 @@ function saveTaskFromDialog() {
     const task = oldList.find((t) => t.id === editId);
     if (!task) return;
 
-    const updated = { ...task, text, tier };
+    const updated = { ...task, text, tier, notes, photos };
 
     if (oldCtx === newCtx) {
       saveTasks(
@@ -5036,12 +5686,16 @@ function saveTaskFromDialog() {
       saveTasks(newCtx, [...loadTasks(newCtx), updated]);
     }
   } else {
-    saveTasks(newCtx, [...loadTasks(newCtx), { id: createId(), text, tier, done: false }]);
+    saveTasks(newCtx, [
+      ...loadTasks(newCtx),
+      { id: createId(), text, tier, done: false, notes, photos },
+    ]);
   }
 }
 
 function setupTaskDialog() {
   const dialog = document.getElementById("task-dialog");
+  const photoInput = document.getElementById("dialog-photo-input");
 
   document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(1));
 
@@ -5055,12 +5709,26 @@ function setupTaskDialog() {
 
   document.getElementById("dialog-cancel").addEventListener("click", () => {
     clearDialogBrainFields();
+    resetDialogMediaFields();
     dialog.close();
   });
 
   dialog.addEventListener("close", () => {
     clearDialogBrainFields();
+    resetDialogMediaFields();
     setTaskDialogSubmitLabel("Save");
+  });
+
+  photoInput?.addEventListener("change", async () => {
+    const file = photoInput.files?.[0];
+    photoInput.value = "";
+    await addPhotoToDraft(
+      dialogPhotoDraft,
+      file,
+      document.getElementById("dialog-photo-grid"),
+      dialogPhotoUrls,
+      draftPhotoRemover(dialogPhotoDraft, "dialog-photo-grid", dialogPhotoUrls)
+    );
   });
 
   document.getElementById("task-dialog-form").addEventListener("submit", (e) => {
@@ -5210,7 +5878,7 @@ function formatArchiveDayHeading(dayKey) {
 
 function getEarliestCompletedDay() {
   let earliest = null;
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.completedAt) return;
       const key = archiveDayKey(t.completedAt);
@@ -5242,7 +5910,7 @@ function getAppStartedDay() {
 function getCompletedTasksForHistory() {
   const seen = new Set();
   const tasks = [];
-  CONTEXTS.forEach((ctx) => {
+  getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.done || !t.completedAt) return;
       const key = `${ctx}:${t.id}`;
@@ -5566,12 +6234,14 @@ setupThemeSchedule();
 setupFontPicker();
 setupHomeDesignPicker();
 setupNavigation();
+setupListsManager();
 setupScribbleCaptureGesture();
 setupDropZones();
 setupTouchListDrag();
 setupSidebarTabs();
 setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
+setupTaskCaptureDialog();
 setupBrainDumpForms();
 setupDailyRepeatForm();
 setupDataSync();
@@ -5582,6 +6252,7 @@ setupForgetIt();
 setupPriorityVisibilityTags();
 setupBottomChromeObserver();
 updateBoardHint();
+rebuildContextUi();
 
 setPage(page, filter);
 syncBottomChrome();

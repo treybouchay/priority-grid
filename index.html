@@ -65,7 +65,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=143" />
+    <link rel="stylesheet" href="styles.css?v=144" />
     <link rel="stylesheet" href="design/task-rows.css?v=9" />
     <link rel="stylesheet" href="design/home-presence.css?v=92" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=32" />
@@ -258,6 +258,7 @@
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-house"></use></svg>
             <span class="nav-item-label">Home</span>
           </button>
+          <div class="sidebar-custom-lists" id="sidebar-custom-lists"></div>
           <button type="button" class="nav-item" data-page="history">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-calendar"></use></svg>
             <span class="nav-item-label">History</span>
@@ -333,6 +334,13 @@
             <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
             <p class="appearance-label">Home layout</p>
             <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-label="Home layout"></div>
+            <p class="appearance-label">Lists</p>
+            <p class="sync-hint">Work and Home stay built-in. Add your own categories below.</p>
+            <ul class="lists-manager" id="lists-manager" aria-label="Custom lists"></ul>
+            <form class="lists-add-form" id="lists-add-form">
+              <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
+              <button type="submit" class="btn-secondary">Add list</button>
+            </form>
             <p class="appearance-label">Sync data</p>
             <p class="sync-status" id="sync-status">Checking sync…</p>
             <p class="sync-hint">Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.</p>
@@ -858,12 +866,48 @@
           <option value="3">3rd Priority</option>
           <option value="4">4th Priority</option>
         </select>
+        <label class="dialog-label" for="dialog-notes">Notes</label>
+        <textarea id="dialog-notes" class="dialog-notes" rows="3" placeholder="Optional notes…" maxlength="1000"></textarea>
+        <div class="dialog-photos" id="dialog-photos">
+          <div class="dialog-photos-header">
+            <span class="dialog-label">Photos</span>
+            <label class="dialog-photo-add">
+              Add photo
+              <input type="file" id="dialog-photo-input" accept="image/*" capture="environment" hidden />
+            </label>
+          </div>
+          <div class="dialog-photo-grid" id="dialog-photo-grid"></div>
+        </div>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
         <input type="hidden" id="dialog-brain-id" value="" />
         <input type="hidden" id="dialog-brain-context" value="" />
         <div class="dialog-actions">
           <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="task-dialog" id="task-capture-dialog">
+      <form method="dialog" id="task-capture-form">
+        <h3 class="dialog-title" id="capture-title">Take down this task</h3>
+        <p class="dialog-capture-task" id="capture-task-text"></p>
+        <label class="dialog-label" for="capture-notes">Notes</label>
+        <textarea id="capture-notes" class="dialog-notes" rows="3" placeholder="What mattered? Any follow-ups…" maxlength="1000"></textarea>
+        <div class="dialog-photos">
+          <div class="dialog-photos-header">
+            <span class="dialog-label">Photos</span>
+            <label class="dialog-photo-add">
+              Add photo
+              <input type="file" id="capture-photo-input" accept="image/*" capture="environment" hidden />
+            </label>
+          </div>
+          <div class="dialog-photo-grid" id="capture-photo-grid"></div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-ghost" id="capture-cancel">Cancel</button>
+          <button type="button" class="btn-ghost" id="capture-skip">Skip</button>
           <button type="submit" class="btn-primary">Save</button>
         </div>
       </form>
@@ -937,10 +981,12 @@
         <div class="reflection-tab-panels">
           <section class="reflection-tab-panel active" id="reflection-panel-review" role="tabpanel" data-tab="review" aria-labelledby="reflection-tab-review">
             <section class="reflection-hero reflection-hero--review">
-              <h1 class="reflection-hero-title">Yesterday's<br>completed tasks</h1>
+              <h1 class="reflection-hero-title">Yesterday's<br>daily summary</h1>
               <p class="reflection-hero-subtitle" id="reflection-review-subtitle">Review what you finished before reflecting.</p>
+              <div class="reflection-summary" id="reflection-summary" aria-label="Yesterday summary"></div>
             </section>
             <section class="reflection-review">
+              <h2 class="reflection-review-heading" id="reflection-review-heading">Completed yesterday</h2>
               <ul class="reflection-review-list" id="reflection-review-list"></ul>
               <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were completed yesterday.</p>
             </section>
@@ -1022,6 +1068,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=198"></script>
+    <script src="app.js?v=199"></script>
   </body>
 </html>
