@@ -192,16 +192,18 @@ body[data-page="tasks"] .plan-card-task.done .plan-card-task-text,
 body[data-page="tasks"] .plan-135-slot.done .plan-135-slot-text,
 body[data-page="tasks"] .tier-expand-list .task-card.done .task-text-btn,
 body[data-page="history"] .plan-card-task-text {
-  color: var(--task-done-ink);
+  color: #11302c;
   text-decoration: line-through;
-  text-decoration-color: var(--task-done-ink);
-  -webkit-text-decoration-color: var(--task-done-ink);
-  opacity: 0.55;
+  text-decoration-color: #11302c;
+  -webkit-text-decoration-color: #11302c;
+  opacity: 0.7;
 }
 
-/* Tier expand rows — wrap cleanly on real phones */
+/* Tier expand rows — never flex-shrink (that crushed wrapped text on phones) */
 body[data-page="home"] .tier-expand-list .task-card,
 body[data-page="tasks"] .tier-expand-list .task-card {
+  flex: 0 0 auto;
+  flex-shrink: 0;
   align-items: flex-start;
   min-height: 0;
   height: auto;
@@ -211,39 +213,42 @@ body[data-page="home"] .tier-expand-list .task-card-main,
 body[data-page="tasks"] .tier-expand-list .task-card-main {
   align-items: flex-start;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
 }
 
 body[data-page="home"] .tier-expand-list .task-card-body,
 body[data-page="tasks"] .tier-expand-list .task-card-body {
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
 }
 
 body[data-page="home"] .tier-expand-list .task-text-btn,
 body[data-page="tasks"] .tier-expand-list .task-text-btn {
-  display: block;
+  display: block !important;
   width: 100%;
-  min-height: 0;
-  height: auto;
-  padding: 0.1rem 0;
-  line-height: 1.45;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none;
+  padding: 0.15rem 0;
+  line-height: 1.45 !important;
   white-space: normal;
-  overflow: visible;
-  -webkit-line-clamp: unset;
+  overflow: visible !important;
+  text-overflow: unset;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
 }
 
 body[data-page="home"] .tier-expand-list .task-card-actions,
 body[data-page="tasks"] .tier-expand-list .task-card-actions {
   align-self: flex-start;
-  padding-top: 0.1rem;
+  padding-top: 0.15rem;
 }
 
 body[data-page="home"] .tier-expand-list .task-dot,
 body[data-page="tasks"] .tier-expand-list .task-dot,
 body[data-page="home"] .task-card-actions .task-dot,
 body[data-page="tasks"] .task-card-actions .task-dot {
-  display: none;
+  display: none !important;
 }
 
 /* plan-card-task row layout on tasks page */
