@@ -65,8 +65,8 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=147" />
-    <link rel="stylesheet" href="design/task-rows.css?v=12" />
+    <link rel="stylesheet" href="styles.css?v=148" />
+    <link rel="stylesheet" href="design/task-rows.css?v=13" />
     <link rel="stylesheet" href="design/home-presence.css?v=93" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=33" />
     <link rel="stylesheet" href="design/history-wins.css?v=5" />
@@ -262,7 +262,7 @@
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-house"></use></svg>
             <span class="nav-item-label">Home</span>
           </button>
-          <div class="sidebar-custom-lists" id="sidebar-custom-lists"></div>
+          <div class="sidebar-extra-lists" id="sidebar-extra-lists"></div>
           <button type="button" class="nav-item" data-page="history">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-calendar"></use></svg>
             <span class="nav-item-label">History</span>
@@ -339,8 +339,8 @@
             <p class="appearance-label">Home layout</p>
             <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-label="Home layout"></div>
             <p class="appearance-label">Lists</p>
-            <p class="sync-hint">Work and Home stay built-in. Add your own categories below.</p>
-            <ul class="lists-manager" id="lists-manager" aria-label="Custom lists"></ul>
+            <p class="sync-hint">Work, Home, Personal, Errands, Health, and Faith are built in. Add your own below.</p>
+            <ul class="lists-manager" id="lists-manager" aria-label="Lists"></ul>
             <form class="lists-add-form" id="lists-add-form">
               <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
               <button type="submit" class="btn-secondary">Add list</button>
@@ -715,10 +715,13 @@
                           <option value="3">3rd</option>
                           <option value="4">4th</option>
                         </select>
-                        <select id="daily-repeat-context" aria-label="List">
-                          <option value="work">Work</option>
-                          <option value="home">Home</option>
-                        </select>
+                        <div class="dialog-list-field dialog-list-field--compact">
+                          <span class="dialog-list-icon" id="daily-repeat-context-icon" aria-hidden="true"></span>
+                          <select id="daily-repeat-context" aria-label="List">
+                            <option value="work">Work</option>
+                            <option value="home">Home</option>
+                          </select>
+                        </div>
                         <button type="submit" class="daily-repeat-save">Add</button>
                       </form>
                       <ul class="daily-repeat-list" id="daily-repeat-list"></ul>
@@ -859,10 +862,13 @@
         <h3 class="dialog-title" id="dialog-title">Add Task</h3>
         <input type="text" id="dialog-input" placeholder="What needs to be done?" autocomplete="off" required />
         <label class="dialog-label" for="dialog-context">List</label>
-        <select id="dialog-context">
-          <option value="work">Work</option>
-          <option value="home">Home</option>
-        </select>
+        <div class="dialog-list-field">
+          <span class="dialog-list-icon" id="dialog-context-icon" aria-hidden="true"></span>
+          <select id="dialog-context">
+            <option value="work">Work</option>
+            <option value="home">Home</option>
+          </select>
+        </div>
         <label class="dialog-label" for="dialog-tier-select">Priority</label>
         <select id="dialog-tier-select">
           <option value="1">1st Priority</option>
@@ -876,8 +882,8 @@
           <div class="dialog-photos-header">
             <span class="dialog-label">Photos</span>
             <label class="dialog-photo-add">
-              Add photo
-              <input type="file" id="dialog-photo-input" accept="image/*" capture="environment" hidden />
+              Attach from files
+              <input type="file" id="dialog-photo-input" accept="image/*" hidden />
             </label>
           </div>
           <div class="dialog-photo-grid" id="dialog-photo-grid"></div>
@@ -903,8 +909,8 @@
           <div class="dialog-photos-header">
             <span class="dialog-label">Photos</span>
             <label class="dialog-photo-add">
-              Add photo
-              <input type="file" id="capture-photo-input" accept="image/*" capture="environment" hidden />
+              Attach from files
+              <input type="file" id="capture-photo-input" accept="image/*" hidden />
             </label>
           </div>
           <div class="dialog-photo-grid" id="capture-photo-grid"></div>
@@ -1072,6 +1078,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=201"></script>
+    <script src="app.js?v=202"></script>
   </body>
 </html>

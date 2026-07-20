@@ -33,9 +33,24 @@ const PLAN_135_SLOTS = [
   { group: "small", label: "Small Tasks", number: "03", count: 5 },
 ];
 
-const BUILTIN_CONTEXTS = ["work", "home"];
+const BUILTIN_CONTEXTS = ["work", "home", "personal", "errands", "health", "faith"];
 const CUSTOM_CONTEXTS_KEY = "priority-grid-custom-contexts";
-const BUILTIN_CONTEXT_LABELS = { work: "Work", home: "Home" };
+const BUILTIN_CONTEXT_LABELS = {
+  work: "Work",
+  home: "Home",
+  personal: "Personal",
+  errands: "Errands",
+  health: "Health",
+  faith: "Faith",
+};
+const CONTEXT_ICON_IDS = {
+  work: "icon-briefcase",
+  home: "icon-house",
+  personal: "icon-user",
+  errands: "icon-clipboard",
+  health: "icon-wellness",
+  faith: "icon-leaf",
+};
 const PHOTO_DB_NAME = "priority-grid-media";
 const PHOTO_STORE = "photos";
 const MAX_TASK_PHOTOS = 4;
@@ -124,18 +139,22 @@ function deleteCustomContext(id) {
   return true;
 }
 
+function getExtraContextIds() {
+  return getContexts().filter((ctx) => ctx !== "work" && ctx !== "home");
+}
+
 function collectCustomTasksPayload() {
   const tasks = {};
-  getCustomContexts().forEach((c) => {
-    tasks[c.id] = loadTasks(c.id);
+  getExtraContextIds().forEach((id) => {
+    tasks[id] = loadTasks(id);
   });
   return tasks;
 }
 
 function collectCustomBrainDumpPayload() {
   const dumps = {};
-  getCustomContexts().forEach((c) => {
-    dumps[c.id] = loadBrainDump(c.id);
+  getExtraContextIds().forEach((id) => {
+    dumps[id] = loadBrainDump(id);
   });
   return dumps;
 }
@@ -1443,7 +1462,7 @@ function applySyncPayload(payload, options = {}) {
     ...Object.keys(remoteCustomBrain),
   ]);
   customIds.forEach((id) => {
-    if (BUILTIN_CONTEXTS.includes(id)) return;
+    if (id === "work" || id === "home") return;
     if (Array.isArray(remoteCustomTasks[id]) || loadTasks(id).length > 0) {
       saveTasks(id, mergeTaskLists(loadTasks(id), remoteCustomTasks[id] || [], preferRemote), skipSync);
     }
@@ -1850,10 +1869,18 @@ function contextLabel(ctx) {
   return getCustomContexts().find((c) => c.id === ctx)?.name || ctx;
 }
 
+function contextIconId(ctx) {
+  return CONTEXT_ICON_IDS[ctx] || "icon-box";
+}
+
 function contextIconHtml(ctx, className = "context-icon") {
   const label = contextLabel(ctx);
-  const iconId = ctx === "work" ? "icon-briefcase" : ctx === "home" ? "icon-house" : "icon-box";
+  const iconId = contextIconId(ctx);
   return `<span class="${className}" title="${label}" aria-label="${label}"><svg class="icon ${className}-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
+}
+
+function archiveButtonHtml() {
+  return `<button type="button" class="archive-btn" aria-label="Archive task" title="Archive task"><svg class="icon icon-archive-btn" aria-hidden="true"><use href="#icon-archive"></use></svg></button>`;
 }
 
 function sidebarContextIconHtml(ctx) {
@@ -3064,11 +3091,18 @@ function setupScribbleCaptureGesture() {
 
 function contextSelectOptionsHtml(selected = "work") {
   return getContexts()
-    .map(
-      (ctx) =>
-        `<option value="${escapeHtml(ctx)}"${ctx === selected ? " selected" : ""}>${escapeHtml(contextLabel(ctx))}</option>`
-    )
+    .map((ctx) => {
+      const label = contextLabel(ctx);
+      return `<option value="${escapeHtml(ctx)}"${ctx === selected ? " selected" : ""}>${escapeHtml(label)}</option>`;
+    })
     .join("");
+}
+
+function syncDialogContextIcon(selectEl, iconEl) {
+  if (!iconEl) return;
+  const ctx = selectEl?.value || "work";
+  iconEl.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${contextIconId(ctx)}"></use></svg>`;
+  iconEl.title = contextLabel(ctx);
 }
 
 function fillContextSelect(selectEl, selected) {
@@ -3076,6 +3110,98 @@ function fillContextSelect(selectEl, selected) {
   const value = isValidContext(selected) ? selected : filter === "all" ? "work" : filter;
   selectEl.innerHTML = contextSelectOptionsHtml(isValidContext(value) ? value : "work");
   selectEl.value = isValidContext(value) ? value : "work";
+  const iconEl =
+    selectEl.id === "dialog-context"
+      ? document.getElementById("dialog-context-icon")
+      : selectEl.id === "daily-repeat-context"
+        ? document.getElementById("daily-repeat-context-icon")
+        : null;
+  syncDialogContextIcon(selectEl, iconEl);
+}
+
+function rebuildContextUi() {
+  const pills = document.getElementById("filter-pills");
+  if (pills) {
+    const allBtn = pills.querySelector('[data-filter="all"]');
+    pills.innerHTML = "";
+    if (allBtn) {
+      allBtn.classList.toggle("active", filter === "all");
+      pills.appendChild(allBtn);
+    } else {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `filter-pill${filter === "all" ? " active" : ""}`;
+      btn.dataset.filter = "all";
+      btn.setAttribute("role", "tab");
+      btn.textContent = "All";
+      pills.appendChild(btn);
+    }
+    getContexts().forEach((ctx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `filter-pill${filter === ctx ? " active" : ""}`;
+      btn.dataset.filter = ctx;
+      if (!BUILTIN_CONTEXTS.includes(ctx) || !["work", "home"].includes(ctx)) {
+        btn.dataset.extra = "true";
+      }
+      btn.setAttribute("role", "tab");
+      btn.innerHTML = `${contextIconHtml(ctx, "filter-pill-icon")}<span>${escapeHtml(contextLabel(ctx))}</span>`;
+      pills.appendChild(btn);
+    });
+  }
+
+  const sidebarSlot = document.getElementById("sidebar-extra-lists");
+  if (sidebarSlot) {
+    sidebarSlot.innerHTML = getExtraContextIds()
+      .map(
+        (ctx) => `
+      <button type="button" class="nav-item" data-page="tasks" data-filter="${escapeHtml(ctx)}" data-extra="true">
+        <svg class="icon icon-nav" aria-hidden="true"><use href="#${contextIconId(ctx)}"></use></svg>
+        <span class="nav-item-label">${escapeHtml(contextLabel(ctx))}</span>
+      </button>`
+      )
+      .join("");
+  }
+
+  fillContextSelect(document.getElementById("dialog-context"), document.getElementById("dialog-context")?.value);
+  fillContextSelect(
+    document.getElementById("daily-repeat-context"),
+    document.getElementById("daily-repeat-context")?.value
+  );
+
+  const manager = document.getElementById("lists-manager");
+  if (manager) {
+    const builtins = BUILTIN_CONTEXTS.map(
+      (ctx) => `
+      <li class="lists-manager-item lists-manager-item--builtin" data-id="${escapeHtml(ctx)}">
+        ${contextIconHtml(ctx, "lists-manager-icon")}
+        <span class="lists-manager-name">${escapeHtml(contextLabel(ctx))}</span>
+        <span class="lists-manager-badge">Built-in</span>
+      </li>`
+    ).join("");
+    const customs = getCustomContexts();
+    const customHtml =
+      customs.length === 0
+        ? `<li class="lists-manager-empty">No custom lists yet — add one below.</li>`
+        : customs
+            .map(
+              (c) => `
+        <li class="lists-manager-item" data-id="${escapeHtml(c.id)}">
+          ${contextIconHtml(c.id, "lists-manager-icon")}
+          <span class="lists-manager-name">${escapeHtml(c.name)}</span>
+          <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Rename</button>
+          <button type="button" class="lists-manager-delete" data-id="${escapeHtml(c.id)}">Delete</button>
+        </li>`
+            )
+            .join("");
+    manager.innerHTML = builtins + customHtml;
+  }
+
+  if (!isValidFilter(filter)) {
+    filter = "all";
+    localStorage.setItem(FILTER_KEY, filter);
+  }
+  syncNavActive();
 }
 
 function revokePhotoUrls(urls) {
@@ -3139,67 +3265,6 @@ async function removePhotoFromDraft(draft, photoId, gridEl, urlsBucket, onRemove
   await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
 }
 
-function rebuildContextUi() {
-  const pills = document.getElementById("filter-pills");
-  if (pills) {
-    pills.querySelectorAll(".filter-pill[data-custom='true']").forEach((el) => el.remove());
-    getCustomContexts().forEach((c) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "filter-pill";
-      btn.dataset.filter = c.id;
-      btn.dataset.custom = "true";
-      btn.setAttribute("role", "tab");
-      btn.textContent = c.name;
-      pills.appendChild(btn);
-    });
-  }
-
-  const sidebarSlot = document.getElementById("sidebar-custom-lists");
-  if (sidebarSlot) {
-    sidebarSlot.innerHTML = getCustomContexts()
-      .map(
-        (c) => `
-      <button type="button" class="nav-item" data-page="tasks" data-filter="${escapeHtml(c.id)}" data-custom="true">
-        <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-box"></use></svg>
-        <span class="nav-item-label">${escapeHtml(c.name)}</span>
-      </button>`
-      )
-      .join("");
-  }
-
-  fillContextSelect(document.getElementById("dialog-context"), document.getElementById("dialog-context")?.value);
-  fillContextSelect(
-    document.getElementById("daily-repeat-context"),
-    document.getElementById("daily-repeat-context")?.value
-  );
-
-  const manager = document.getElementById("lists-manager");
-  if (manager) {
-    const customs = getCustomContexts();
-    if (customs.length === 0) {
-      manager.innerHTML = `<li class="lists-manager-empty">No custom lists yet.</li>`;
-    } else {
-      manager.innerHTML = customs
-        .map(
-          (c) => `
-        <li class="lists-manager-item" data-id="${escapeHtml(c.id)}">
-          <span class="lists-manager-name">${escapeHtml(c.name)}</span>
-          <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Rename</button>
-          <button type="button" class="lists-manager-delete" data-id="${escapeHtml(c.id)}">Delete</button>
-        </li>`
-        )
-        .join("");
-    }
-  }
-
-  if (!isValidFilter(filter)) {
-    filter = "all";
-    localStorage.setItem(FILTER_KEY, filter);
-  }
-  syncNavActive();
-}
-
 function setupListsManager() {
   const form = document.getElementById("lists-add-form");
   const input = document.getElementById("lists-add-input");
@@ -3214,6 +3279,13 @@ function setupListsManager() {
     if (id) {
       setPage("tasks", id);
     }
+  });
+
+  document.getElementById("dialog-context")?.addEventListener("change", (e) => {
+    syncDialogContextIcon(e.target, document.getElementById("dialog-context-icon"));
+  });
+  document.getElementById("daily-repeat-context")?.addEventListener("change", (e) => {
+    syncDialogContextIcon(e.target, document.getElementById("daily-repeat-context-icon"));
   });
 
   manager?.addEventListener("click", (e) => {
@@ -3253,7 +3325,7 @@ function setupNavigation() {
     });
   });
 
-  document.getElementById("sidebar-custom-lists")?.addEventListener("click", (e) => {
+  document.getElementById("sidebar-extra-lists")?.addEventListener("click", (e) => {
     const btn = e.target.closest(".nav-item");
     if (!btn) return;
     const nextPage = btn.dataset.page;
@@ -3657,7 +3729,7 @@ function moveTask(taskId, taskContext, tier, beforeId = null, atTierStart = fals
 
 function taskCardHtml(task) {
   const inForgetIt = isTaskForgetIt(task);
-  const contextBadge = filter === "all" ? contextIconHtml(task.context, "task-context-badge") : "";
+  const contextBadge = contextIconHtml(task.context, "task-context-badge");
   return `
     <li class="task-card${task.done ? " done" : ""}" draggable="${isTouchDevice() ? "false" : "true"}"
       data-id="${task.id}" data-context="${task.context}">
@@ -3674,7 +3746,7 @@ function taskCardHtml(task) {
         ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         ${contextBadge}
         <button type="button" class="edit-btn" aria-label="Edit task"><svg class="icon icon-edit" aria-hidden="true"><use href="#icon-pencil"></use></svg></button>
-        <button type="button" class="archive-btn" aria-label="Archive task" title="Archive task">×</button>
+        ${archiveButtonHtml()}
       </div>
     </li>`;
 }
@@ -4498,7 +4570,7 @@ function tasksFlatRowHtml(task) {
         </span>
       </div>
       <div class="task-card-actions">
-        <button type="button" class="archive-btn" aria-label="Archive task" title="Archive task">×</button>
+        ${archiveButtonHtml()}
       </div>
     </li>`;
 }

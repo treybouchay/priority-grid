@@ -3157,8 +3157,16 @@ body.task-dragging-lock .app-main {
   display: block;
 }
 
+.archive-btn .icon,
+.archive-btn svg,
+.icon-archive-btn {
+  width: 0.95rem;
+  height: 0.95rem;
+  display: block;
+}
+
 .archive-btn {
-  font-size: 1.1rem;
+  font-size: 0;
 }
 
 .task-card:hover .edit-btn,
@@ -4981,7 +4989,93 @@ dialog {
   font-size: 0.875rem;
 }
 
-.sidebar-custom-lists {
+.dialog-list-field {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dialog-list-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(14, 48, 48, 0.06);
+  color: #11302c;
+}
+
+.dialog-list-icon .icon,
+.dialog-list-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: block;
+}
+
+.dialog-list-field select {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-list-field--compact {
+  gap: 0.35rem;
+}
+
+.dialog-list-field--compact .dialog-list-icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.filter-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.filter-pill-icon .icon,
+.filter-pill-icon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  display: block;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lists-manager-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(17, 48, 44, 0.55);
+  flex-shrink: 0;
+}
+
+.lists-manager-icon .icon,
+.lists-manager-icon svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
+
+.lists-manager-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.45);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.lists-manager-item--builtin {
+  opacity: 0.92;
+}
+
+.sidebar-extra-lists {
   display: flex;
   flex-direction: column;
   gap: inherit;
@@ -5165,8 +5259,16 @@ dialog {
 }
 
 .tier-expand-list .task-card-actions .archive-btn {
-  font-size: 1.05rem;
+  font-size: 0;
   opacity: 0.7;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+.tier-expand-list .task-card-actions .archive-btn .icon,
+.tier-expand-list .task-card-actions .archive-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  display: block;
 }
 
 .tier-expand-list .task-card.done .task-text-btn {
@@ -5692,9 +5794,6 @@ dialog {
     gap: 0.45rem;
   }
 
-  .task-card-actions .archive-btn,
-  .task-card-actions .edit-btn,
-  .tasks-board-area .task-card .archive-btn,
   .tier-expand-list .archive-btn,
   .tier-expand-list .edit-btn {
     display: inline-flex;
@@ -5707,7 +5806,7 @@ dialog {
     max-width: 1.75rem;
     max-height: 1.75rem;
     padding: 0;
-    font-size: 1.05rem;
+    font-size: 0;
     line-height: 1;
   }
 
