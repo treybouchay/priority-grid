@@ -1883,6 +1883,39 @@ function archiveButtonHtml() {
   return `<button type="button" class="archive-btn" aria-label="Archive task" title="Archive task"><svg class="icon icon-archive-btn" aria-hidden="true"><use href="#icon-archive"></use></svg></button>`;
 }
 
+function taskHasNotes(task) {
+  return Boolean(task?.notes?.trim());
+}
+
+function taskHasPhotos(task) {
+  return Array.isArray(task?.photos) && task.photos.length > 0;
+}
+
+function taskAttachmentIndicatorHtml(task) {
+  const hasNotes = taskHasNotes(task);
+  const hasPhotos = taskHasPhotos(task);
+  if (!hasNotes && !hasPhotos) return "";
+  const bits = [];
+  if (hasNotes) {
+    bits.push(
+      `<span class="task-attach-chip" title="Has notes" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#icon-note"></use></svg></span>`
+    );
+  }
+  if (hasPhotos) {
+    const count = task.photos.length;
+    bits.push(
+      `<span class="task-attach-chip" title="${count} photo${count === 1 ? "" : "s"}" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg>${count > 1 ? `<span class="task-attach-count">${count}</span>` : ""}</span>`
+    );
+  }
+  const label = [
+    hasNotes ? "notes" : null,
+    hasPhotos ? "photos" : null,
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  return `<button type="button" class="task-attach-btn" aria-label="View ${label}" title="View ${label}">${bits.join("")}</button>`;
+}
+
 function sidebarContextIconHtml(ctx) {
   return filter === "all" ? contextIconHtml(ctx, "context-icon sidebar-row-context-icon") : "";
 }
@@ -3745,6 +3778,7 @@ function taskCardHtml(task) {
       <div class="task-card-actions">
         ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         ${contextBadge}
+        ${taskAttachmentIndicatorHtml(task)}
         <button type="button" class="edit-btn" aria-label="Edit task"><svg class="icon icon-edit" aria-hidden="true"><use href="#icon-pencil"></use></svg></button>
         ${archiveButtonHtml()}
       </div>
@@ -4672,6 +4706,7 @@ function planCardTaskHtml(task) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
+      ${taskAttachmentIndicatorHtml(task)}
       <button type="button" class="plan-card-drag task-drag-handle" tabindex="-1" aria-label="Drag to reorder">
         <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
           <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
@@ -4741,6 +4776,7 @@ function homeCardTaskHtml(task, options = {}) {
         <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
         ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
       </div>
+      ${taskAttachmentIndicatorHtml(task)}
     </li>`;
 }
 
@@ -4904,6 +4940,8 @@ function bindHomeTaskEvents(row) {
     toggleTaskDone(id, ctx, e.target.checked);
   });
 
+  bindAttachmentIndicator(row, id, ctx);
+
   row.querySelector(".home-card-task-title, .home-task-title, .plan-card-task-text, .completed-wins-text")?.addEventListener("click", () => {
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
@@ -4918,6 +4956,92 @@ function bindHomeTaskEvents(row) {
   if (isHomePriorityDragCard(row) && !isTouchDevice()) {
     bindMouseGripDrag(row);
   }
+}
+
+function bindAttachmentIndicator(row, id, ctx) {
+  row.querySelector(".task-attach-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const task = loadTasks(ctx).find((t) => t.id === id);
+    if (task) openTaskMediaViewer(task);
+  });
+}
+
+let mediaViewerUrls = [];
+
+async function openTaskMediaViewer(task) {
+  const dialog = document.getElementById("media-viewer-dialog");
+  const title = document.getElementById("media-viewer-title");
+  const sub = document.getElementById("media-viewer-sub");
+  const notesEl = document.getElementById("media-viewer-notes");
+  const photosEl = document.getElementById("media-viewer-photos");
+  const emptyEl = document.getElementById("media-viewer-empty");
+  if (!dialog || !task) return;
+
+  revokePhotoUrls(mediaViewerUrls);
+  if (title) title.textContent = task.text || "Attachments";
+  if (sub) {
+    const parts = [];
+    if (taskHasNotes(task)) parts.push("Notes");
+    if (taskHasPhotos(task)) {
+      parts.push(`${task.photos.length} photo${task.photos.length === 1 ? "" : "s"}`);
+    }
+    sub.textContent = parts.join(" · ");
+  }
+
+  const note = task.notes?.trim() || "";
+  if (notesEl) {
+    if (note) {
+      notesEl.textContent = note;
+      notesEl.classList.remove("hidden");
+    } else {
+      notesEl.textContent = "";
+      notesEl.classList.add("hidden");
+    }
+  }
+
+  const photos = Array.isArray(task.photos) ? task.photos : [];
+  if (photosEl) {
+    if (!photos.length) {
+      photosEl.innerHTML = "";
+    } else {
+      const items = await Promise.all(
+        photos.map(async (photo) => {
+          const url = await photoObjectUrl(photo.id);
+          if (url) mediaViewerUrls.push(url);
+          return { photo, url };
+        })
+      );
+      photosEl.innerHTML = items
+        .map(
+          ({ photo, url }) => `
+        <figure class="media-viewer-photo">
+          ${
+            url
+              ? `<img src="${url}" alt="${escapeHtml(photo.name || "Photo")}" />`
+              : `<span class="media-viewer-missing">Photo unavailable</span>`
+          }
+        </figure>`
+        )
+        .join("");
+    }
+  }
+
+  emptyEl?.classList.toggle("hidden", photos.length > 0 || Boolean(note));
+  dialog.showModal();
+}
+
+function closeTaskMediaViewer() {
+  const dialog = document.getElementById("media-viewer-dialog");
+  revokePhotoUrls(mediaViewerUrls);
+  dialog?.close();
+}
+
+function setupMediaViewer() {
+  document.getElementById("media-viewer-close")?.addEventListener("click", closeTaskMediaViewer);
+  document.getElementById("media-viewer-dialog")?.addEventListener("click", (e) => {
+    if (e.target?.id === "media-viewer-dialog") closeTaskMediaViewer();
+  });
 }
 
 function formatCompletionTime(iso) {
@@ -5486,6 +5610,8 @@ function bindTaskEvents(card) {
     e.stopPropagation();
     openEdit();
   });
+
+  bindAttachmentIndicator(card, id, ctx);
 
   card.querySelector(".task-text-btn").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -6312,6 +6438,7 @@ setupSidebarTabs();
 setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
 setupTaskCaptureDialog();
+setupMediaViewer();
 setupBrainDumpForms();
 setupDailyRepeatForm();
 setupDataSync();

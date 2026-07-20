@@ -5075,10 +5075,147 @@ dialog {
   opacity: 0.92;
 }
 
-.sidebar-extra-lists {
+.task-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.2rem 0.35rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(14, 48, 48, 0.07);
+  color: #0e3030;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.task-attach-btn:hover,
+.task-attach-btn:focus-visible {
+  background: rgba(14, 48, 48, 0.12);
+  outline: none;
+}
+
+.task-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.task-attach-chip .icon,
+.task-attach-chip svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  display: block;
+}
+
+.task-attach-count {
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.plan-card-task .task-attach-btn,
+.home-card-task .task-attach-btn {
+  margin-left: 0.15rem;
+}
+
+.media-viewer-dialog {
+  border: none;
+  border-radius: 1.5rem;
+  padding: 0;
+  background: #fdf9f4;
+  box-shadow: 0 16px 40px rgba(14, 48, 48, 0.18);
+  width: calc(100% - 2rem);
+  max-width: 28rem;
+  max-height: calc(100dvh - 2rem);
+  color: #11302c;
+}
+
+.media-viewer-dialog::backdrop {
+  background: rgba(14, 48, 48, 0.45);
+}
+
+.media-viewer-inner {
   display: flex;
   flex-direction: column;
-  gap: inherit;
+  gap: 0.85rem;
+  padding: 1.15rem 1.15rem 1.25rem;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+}
+
+.media-viewer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.media-viewer-title {
+  margin: 0;
+  font-family: var(--font-heading, Georgia, serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.media-viewer-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+.media-viewer-close {
+  border: none;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.55);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+}
+
+.media-viewer-notes {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(14, 48, 48, 0.05);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.media-viewer-photos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.media-viewer-photo {
+  margin: 0;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(14, 48, 48, 0.06);
+}
+
+.media-viewer-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  background: #111;
+}
+
+.media-viewer-missing,
+.media-viewer-empty {
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: rgba(17, 48, 44, 0.55);
 }
 
 .dialog-label {
