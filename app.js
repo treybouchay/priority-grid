@@ -6366,9 +6366,9 @@ function renderAll() {
     renderForgetItPanel();
     renderArchivePanel();
     syncSidebarTabs();
-    if (expandedTier && document.getElementById("tier-expand-dialog").open) {
-      refreshTierExpand(expandedTier);
-    }
+  }
+  if (expandedTier && document.getElementById("tier-expand-dialog")?.open) {
+    refreshTierExpand(expandedTier);
   }
   renderFocusTimerChrome();
 }
