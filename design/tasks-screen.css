@@ -92,7 +92,7 @@ body[data-page="tasks"] .tasks-page-notify .icon-header {
 body[data-page="tasks"] .filter-pills {
   order: 0;
   justify-content: flex-start;
-  gap: 0.75rem;
+  gap: 0.35rem;
   padding: 0;
   background: transparent;
   border: none;
@@ -106,7 +106,7 @@ body[data-page="tasks"] .filter-pills::-webkit-scrollbar {
 }
 
 body[data-page="tasks"] .filter-pill {
-  padding: 0.5rem 1.5rem;
+  padding: 0.45rem 0.95rem;
   border-radius: 999px;
   font-size: 0.875rem;
   font-weight: 600;
