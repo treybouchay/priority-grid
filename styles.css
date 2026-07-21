@@ -3371,29 +3371,30 @@ body.task-dragging-lock .app-main {
 
 .plan-135-home-toggle {
   padding: 0.35rem 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--home-accent-link, var(--ds-coral-clay)) 28%, var(--border) 72%);
+  border: 1px solid rgba(14, 48, 48, 0.16);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--home-accent-link, var(--ds-coral-clay)) 14%, var(--surface) 86%);
+  background: rgba(255, 255, 255, 0.72);
   font-family: var(--font-body);
   font-size: var(--type-caption-size);
   font-weight: var(--font-weight-medium);
   line-height: var(--type-caption-lh);
   letter-spacing: 0.02em;
-  color: var(--tag-1st-text, var(--ds-earth-rust));
+  color: #0e3030;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .plan-135-home-toggle:hover {
-  background: color-mix(in srgb, var(--home-accent-link, var(--ds-coral-clay)) 22%, var(--surface) 78%);
-  color: var(--ink);
+  background: rgba(14, 48, 48, 0.06);
+  border-color: rgba(14, 48, 48, 0.28);
+  color: #0e3030;
 }
 
 .plan-135-home-toggle.active {
-  background: var(--home-accent-link, var(--ds-coral-clay));
-  border-color: var(--home-accent-link, var(--ds-coral-clay));
-  color: #ffffff;
+  background: #0e3030;
+  border-color: #0e3030;
+  color: #ffdbd2;
 }
 
 .plan-135-progress {
@@ -3600,7 +3601,7 @@ body.task-dragging-lock .app-main {
 }
 
 .plan-135-change-btn:hover {
-  background: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: rgba(14, 48, 48, 0.05);
 }
 
 .plan-135-remove-btn {
@@ -3678,7 +3679,7 @@ body.task-dragging-lock .app-main {
 }
 
 .plan-135-pick-btn:hover {
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: rgba(14, 48, 48, 0.05);
   color: var(--ink);
 }
 
@@ -4014,19 +4015,19 @@ body.task-dragging-lock .app-main {
   padding: 0.55rem 0.75rem;
   border: none;
   border-radius: 999px;
-  background: var(--ds-coral-clay);
+  background: #0e3030;
   font-family: inherit;
   font-size: var(--type-accent-size);
   font-weight: var(--font-weight-medium);
   line-height: var(--type-accent-lh);
-  color: #ffffff;
+  color: #ffdbd2;
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .brain-panel-add:hover {
   opacity: 0.9;
-  background: var(--ds-coral-clay);
+  background: #0e3030;
 }
 
 /* Daily repeat sidebar panel */
@@ -4166,18 +4167,20 @@ body.task-dragging-lock .app-main {
   margin-top: 0.75rem;
   width: 100%;
   padding: 0.6rem 0.85rem;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--ink);
+  border: none;
+  border-radius: 999px;
+  background: #0e3030;
+  color: #ffdbd2;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 
 .daily-repeat-add:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  opacity: 0.92;
+  border-color: transparent;
+  color: #ffdbd2;
+  background: #0e3030;
 }
 
 /* Forget it box */
@@ -4228,20 +4231,22 @@ body.task-dragging-lock .app-main {
 .forget-it-pick-btn {
   width: 100%;
   padding: 0.55rem 0.75rem;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 30%, var(--surface) 70%);
+  border: none;
+  border-radius: 999px;
+  background: #0e3030;
   font-family: inherit;
   font-size: var(--type-accent-size);
   font-weight: var(--font-weight-medium);
   line-height: var(--type-accent-lh);
-  color: var(--primary);
+  color: #ffdbd2;
   cursor: pointer;
 }
 
 .forget-it-pick-btn:hover {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--accent) 55%, var(--surface) 45%);
+  opacity: 0.92;
+  border-color: transparent;
+  background: #0e3030;
+  color: #ffdbd2;
 }
 
 .forget-it-task {
@@ -4249,9 +4254,9 @@ body.task-dragging-lock .app-main {
   flex-direction: column;
   gap: 0.65rem;
   padding: 0.75rem 0.85rem;
-  background: color-mix(in srgb, var(--accent) 35%, var(--surface) 65%);
+  background: rgba(14, 48, 48, 0.04);
   border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--primary) 15%, var(--border) 85%);
+  border: 1px solid rgba(14, 48, 48, 0.1);
 }
 
 .forget-it-task-text {
@@ -4299,8 +4304,12 @@ body.task-dragging-lock .app-main {
 
 .forget-it-toss-btn {
   border: none;
-  background: var(--primary);
-  color: var(--on-primary);
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+.forget-it-toss-btn:hover {
+  opacity: 0.92;
 }
 
 .forget-it-toss-btn:hover {
@@ -4440,24 +4449,24 @@ body.task-dragging-lock .app-main {
 }
 
 .archive-restore-btn {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--primary);
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  background: #fff;
+  color: #0e3030;
 }
 
 .archive-restore-btn:hover {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--accent) 40%, var(--surface) 60%);
+  border-color: #0e3030;
+  background: rgba(14, 48, 48, 0.05);
 }
 
 .archive-delete-btn {
-  border: 1px solid color-mix(in srgb, #a04040 25%, var(--border) 75%);
+  border: 1px solid rgba(155, 59, 59, 0.28);
   background: transparent;
-  color: #a04040;
+  color: #9b3b3b;
 }
 
 .archive-delete-btn:hover {
-  background: color-mix(in srgb, #a04040 8%, transparent);
+  background: rgba(155, 59, 59, 0.06);
 }
 
 .archive-panel-empty {

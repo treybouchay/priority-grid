@@ -397,6 +397,64 @@ body[data-page="tasks"] .sidebar-tab.active {
   box-shadow: none;
 }
 
+body[data-page="tasks"] .plan-135-home-toggle {
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--forest);
+}
+
+body[data-page="tasks"] .plan-135-home-toggle:hover {
+  background: rgba(14, 48, 48, 0.06);
+  border-color: rgba(14, 48, 48, 0.28);
+  color: var(--forest);
+}
+
+body[data-page="tasks"] .plan-135-home-toggle.active {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: var(--peach-soft);
+}
+
+body[data-page="tasks"] .plan-135-pick-btn:hover,
+body[data-page="tasks"] .plan-135-change-btn:hover {
+  background: rgba(14, 48, 48, 0.05);
+  color: var(--forest);
+}
+
+body[data-page="tasks"] .brain-panel-add,
+body[data-page="tasks"] .daily-repeat-add,
+body[data-page="tasks"] .forget-it-pick-btn {
+  width: 100%;
+  min-height: 2.75rem;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+body[data-page="tasks"] .next-week-bring-back-btn {
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--forest);
+}
+
+body[data-page="tasks"] .next-week-bring-back-btn:hover {
+  border-color: var(--forest);
+  background: rgba(14, 48, 48, 0.05);
+}
+
+body[data-page="tasks"] .archive-restore-btn {
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--forest);
+}
+
+body[data-page="tasks"] .archive-restore-btn:hover {
+  border-color: var(--forest);
+  background: rgba(14, 48, 48, 0.05);
+}
+
 body[data-page="tasks"] .sidebar-tab-panels {
   border: 1px solid rgba(14, 48, 48, 0.08);
   border-top: none;
@@ -519,15 +577,15 @@ body[data-page="tasks"] .brain-empty-sub {
 }
 
 body[data-page="tasks"] .brain-panel-add {
-  background: var(--peach-bright);
+  background: var(--forest);
   font-family: var(--font-body);
   font-weight: 600;
-  color: #ffffff;
+  color: var(--peach-soft);
 }
 
 body[data-page="tasks"] .brain-panel-add:hover {
   opacity: 0.92;
-  background: var(--peach-bright);
+  background: var(--forest);
 }
 
 /* Every Day — Presence card language */
@@ -679,16 +737,17 @@ body[data-page="tasks"] .daily-repeat-empty-sub {
 body[data-page="tasks"] .daily-repeat-add {
   margin-top: 0;
   border: none;
-  background: var(--peach-bright);
+  background: var(--forest);
   font-family: var(--font-body);
   font-weight: 600;
-  color: #ffffff;
+  color: var(--peach-soft);
 }
 
 body[data-page="tasks"] .daily-repeat-add:hover {
   opacity: 0.92;
   border-color: transparent;
-  color: #ffffff;
+  color: var(--peach-soft);
+  background: var(--forest);
 }
 
 /* Next Week — Presence card language */
@@ -741,17 +800,18 @@ body[data-page="tasks"] .forget-it-pick-btn {
   padding: 0.65rem 1rem;
   border: none;
   border-radius: 999px;
-  background: var(--peach-bright);
+  background: var(--forest);
   font-family: var(--font-body);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--peach-soft);
 }
 
 body[data-page="tasks"] .forget-it-pick-btn:hover {
   opacity: 0.92;
   border-color: transparent;
-  background: var(--peach-bright);
+  background: var(--forest);
+  color: var(--peach-soft);
 }
 
 body[data-page="tasks"] .forget-it-task {
