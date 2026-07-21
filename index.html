@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=152" />
+    <link rel="stylesheet" href="styles.css?v=155" />
     <link rel="stylesheet" href="design/task-rows.css?v=13" />
     <link rel="stylesheet" href="design/home-presence.css?v=94" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=33" />
@@ -351,12 +351,13 @@
             <p class="appearance-label">Home layout</p>
             <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-label="Home layout"></div>
             <p class="appearance-label">Lists</p>
-            <p class="sync-hint">Work, Home, Personal, Errands, Health, and Faith are built in. Add your own below.</p>
+            <p class="sync-hint">Work, Home, Personal, Errands, Health, and Faith are built in. Add your own below and pick an icon.</p>
             <ul class="lists-manager" id="lists-manager" aria-label="Lists"></ul>
             <form class="lists-add-form" id="lists-add-form">
               <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
               <button type="submit" class="btn-secondary">Add list</button>
             </form>
+            <div class="list-icon-picker" id="lists-add-icons" role="radiogroup" aria-label="New list icon"></div>
             <p class="appearance-label">Sync data</p>
             <p class="sync-status" id="sync-status">Checking sync…</p>
             <p class="sync-hint">Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.</p>
@@ -749,10 +750,18 @@
                       <header class="forget-it-header">
                         <div>
                           <h3 class="forget-it-title">Next Week Box</h3>
-                          <p class="forget-it-sub">One thing to push to next week.</p>
+                          <p class="forget-it-sub" id="forget-it-sub">Park one task here until next Monday — it returns to the same list.</p>
                         </div>
                       </header>
                       <div class="forget-it-body forget-it-drop-zone" id="forget-it-body"></div>
+                      <section class="next-week-deferred" id="next-week-deferred" aria-label="Tasks waiting for next week">
+                        <header class="next-week-deferred-header">
+                          <h4 class="next-week-deferred-title">Waiting for next week</h4>
+                          <p class="next-week-deferred-count" id="next-week-deferred-count"></p>
+                        </header>
+                        <ul class="next-week-deferred-list" id="next-week-deferred-list"></ul>
+                        <p class="next-week-deferred-empty" id="next-week-deferred-empty">No tasks pushed yet.</p>
+                      </section>
                     </aside>
                   </div>
                   <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-archive" role="tabpanel" data-tab="archive">
@@ -912,11 +921,13 @@
     </dialog>
 
     <dialog class="task-dialog" id="list-dialog">
-      <form method="dialog" id="list-dialog-form">
+      <form id="list-dialog-form">
         <h3 class="dialog-title">New list</h3>
         <p class="dialog-capture-task">Create a custom category for your tasks.</p>
         <label class="dialog-label" for="list-dialog-input">Name</label>
         <input type="text" id="list-dialog-input" placeholder="e.g. Side project, Kids, Travel…" autocomplete="off" maxlength="32" required />
+        <p class="dialog-label" id="list-dialog-icon-label">Icon</p>
+        <div class="list-icon-picker" id="list-dialog-icons" role="radiogroup" aria-labelledby="list-dialog-icon-label"></div>
         <div class="dialog-actions">
           <button type="button" class="btn-ghost" id="list-dialog-cancel">Cancel</button>
           <button type="submit" class="btn-primary">Create list</button>
@@ -934,6 +945,9 @@
           <button type="button" class="plan-135-picker-close" id="focus-timer-picker-close" aria-label="Close">×</button>
         </header>
         <ul class="plan-135-picker-list" id="focus-timer-picker-list"></ul>
+        <footer class="plan-135-picker-footer">
+          <button type="button" class="btn-primary" id="focus-timer-picker-done">OK</button>
+        </footer>
       </div>
     </dialog>
 
@@ -1094,6 +1108,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=210"></script>
+    <script src="app.js?v=213"></script>
   </body>
 </html>

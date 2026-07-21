@@ -3807,6 +3807,21 @@ body.task-dragging-lock .app-main {
   gap: 0.4rem;
 }
 
+.plan-135-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(14, 48, 48, 0.08);
+  flex-shrink: 0;
+}
+
+.plan-135-picker-footer .btn-primary {
+  min-width: 5.5rem;
+  padding: 0.7rem 1.25rem;
+}
+
 .plan-135-picker-tier-heading {
   list-style: none;
   font-size: 0.72rem;
@@ -4793,6 +4808,11 @@ dialog {
   max-width: 400px;
   width: calc(100% - 2rem);
   color: #11302c;
+  z-index: 400;
+}
+
+#list-dialog {
+  z-index: 450;
 }
 
 .task-dialog::backdrop {
@@ -4976,7 +4996,197 @@ dialog {
 .lists-add-form {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.list-icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+}
+
+.list-icon-option {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(14, 48, 48, 0.14);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.65);
+  color: #11302c;
+  cursor: pointer;
+  padding: 0;
+}
+
+.list-icon-option .icon,
+.list-icon-option svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.list-icon-option.is-selected {
+  border-color: #0e3030;
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+.lists-manager-icon-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 0.5rem;
+}
+
+.lists-manager-icon-btn:hover,
+.lists-manager-icon-btn:focus-visible {
+  outline: 2px solid rgba(14, 48, 48, 0.25);
+  outline-offset: 2px;
+}
+
+#list-dialog .list-icon-picker {
+  margin-bottom: 1rem;
+}
+
+.forget-it-destination {
+  margin: 0.55rem 0 0.85rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: rgba(17, 48, 44, 0.72);
+}
+
+.forget-it-destination strong {
+  color: #11302c;
+  font-weight: 700;
+}
+
+.next-week-deferred {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(14, 48, 48, 0.1);
+}
+
+.next-week-deferred-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.next-week-deferred-title {
+  margin: 0;
+  font-family: var(--font-heading, Georgia, serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #11302c;
+}
+
+.next-week-deferred-count {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+.next-week-deferred-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.next-week-deferred-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.85rem;
+  background: rgba(14, 48, 48, 0.04);
+  border: 1px solid rgba(14, 48, 48, 0.08);
+}
+
+.next-week-deferred-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.next-week-deferred-text {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #11302c;
+  word-break: break-word;
+}
+
+.next-week-deferred-meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: rgba(17, 48, 44, 0.62);
+}
+
+.next-week-bring-back-btn {
+  flex-shrink: 0;
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  background: #fff;
+  color: #11302c;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.next-week-bring-back-btn:hover {
+  background: rgba(14, 48, 48, 0.05);
+}
+
+.next-week-deferred-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+.next-week-deferred-empty.hidden {
+  display: none;
+}
+
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(12px);
+  z-index: 320;
+  max-width: min(92vw, 26rem);
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  background: #0e3030;
+  color: #ffdbd2;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(14, 48, 48, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.app-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .btn-add-list {

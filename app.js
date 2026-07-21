@@ -51,6 +51,22 @@ const CONTEXT_ICON_IDS = {
   health: "icon-wellness",
   faith: "icon-leaf",
 };
+const CUSTOM_LIST_ICONS = [
+  "icon-box",
+  "icon-star",
+  "icon-sun",
+  "icon-heart",
+  "icon-cloud",
+  "icon-briefcase",
+  "icon-house",
+  "icon-user",
+  "icon-clipboard",
+  "icon-wellness",
+  "icon-leaf",
+  "icon-calendar",
+  "icon-tasks",
+];
+const DEFAULT_CUSTOM_LIST_ICON = "icon-box";
 const PHOTO_DB_NAME = "priority-grid-media";
 const PHOTO_STORE = "photos";
 const MAX_TASK_PHOTOS = 4;
@@ -58,15 +74,28 @@ const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
 const TIER_LABELS = ["1st", "2nd", "3rd", "4th"];
 const isTouchDevice = () => window.matchMedia("(hover: none), (pointer: coarse)").matches;
 
+function isValidCustomListIcon(icon) {
+  return CUSTOM_LIST_ICONS.includes(icon);
+}
+
+function normalizeCustomContext(item) {
+  if (!item || typeof item.id !== "string" || typeof item.name !== "string") return null;
+  if (BUILTIN_CONTEXTS.includes(item.id)) return null;
+  return {
+    id: item.id,
+    name: item.name,
+    icon: isValidCustomListIcon(item.icon) ? item.icon : DEFAULT_CUSTOM_LIST_ICON,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+  };
+}
+
 function getCustomContexts() {
   try {
     const saved = localStorage.getItem(CUSTOM_CONTEXTS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed.filter(
-          (c) => c && typeof c.id === "string" && typeof c.name === "string" && !BUILTIN_CONTEXTS.includes(c.id)
-        );
+        return parsed.map(normalizeCustomContext).filter(Boolean);
       }
     }
   } catch {
@@ -76,7 +105,10 @@ function getCustomContexts() {
 }
 
 function saveCustomContexts(list, options = {}) {
-  localStorage.setItem(CUSTOM_CONTEXTS_KEY, JSON.stringify(list));
+  localStorage.setItem(
+    CUSTOM_CONTEXTS_KEY,
+    JSON.stringify(list.map(normalizeCustomContext).filter(Boolean))
+  );
   if (!options.skipSync) markSyncDirty();
 }
 
@@ -107,13 +139,18 @@ function slugifyContextName(name) {
   return `${id}-${n}`;
 }
 
-function addCustomContext(name) {
+function addCustomContext(name, icon = DEFAULT_CUSTOM_LIST_ICON) {
   const trimmed = name.trim();
   if (!trimmed) return null;
   const id = slugifyContextName(trimmed);
   saveCustomContexts([
     ...getCustomContexts(),
-    { id, name: trimmed, createdAt: new Date().toISOString() },
+    {
+      id,
+      name: trimmed,
+      icon: isValidCustomListIcon(icon) ? icon : DEFAULT_CUSTOM_LIST_ICON,
+      createdAt: new Date().toISOString(),
+    },
   ]);
   rebuildContextUi();
   return id;
@@ -123,6 +160,14 @@ function renameCustomContext(id, name) {
   const trimmed = name.trim();
   if (!trimmed || BUILTIN_CONTEXTS.includes(id)) return false;
   const next = getCustomContexts().map((c) => (c.id === id ? { ...c, name: trimmed } : c));
+  saveCustomContexts(next);
+  rebuildContextUi();
+  return true;
+}
+
+function setCustomContextIcon(id, icon) {
+  if (BUILTIN_CONTEXTS.includes(id) || !isValidCustomListIcon(icon)) return false;
+  const next = getCustomContexts().map((c) => (c.id === id ? { ...c, icon } : c));
   saveCustomContexts(next);
   rebuildContextUi();
   return true;
@@ -1109,6 +1154,9 @@ function setupFocusTimer() {
   document.getElementById("focus-timer-picker-close")?.addEventListener("click", () => {
     pickerDialog?.close();
   });
+  document.getElementById("focus-timer-picker-done")?.addEventListener("click", () => {
+    pickerDialog?.close();
+  });
   setupFocusCardObserver();
   setupBottomChromeObserver();
   if (mini && typeof ResizeObserver !== "undefined") {
@@ -1196,6 +1244,33 @@ function saveBrainDump(ctx, list, options = {}) {
 function isTaskDeferred(task) {
   if (!task?.deferredUntil) return false;
   return task.deferredUntil > todayKey();
+}
+
+function getDeferredNextWeekTasks() {
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || !isTaskDeferred(t)) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  tasks.sort((a, b) => {
+    const byDate = String(a.deferredUntil).localeCompare(String(b.deferredUntil));
+    if (byDate !== 0) return byDate;
+    return a.tier - b.tier || a.text.localeCompare(b.text);
+  });
+  return tasks;
+}
+
+function undeferTask(id, ctx) {
+  updateTaskInContext(ctx, (list) =>
+    list.map((t) => {
+      if (t.id !== id) return t;
+      const { deferredUntil: _removed, ...rest } = t;
+      return rest;
+    })
+  );
+  renderAll();
 }
 
 function getVisibleTasks() {
@@ -1881,7 +1956,10 @@ function contextLabel(ctx) {
 }
 
 function contextIconId(ctx) {
-  return CONTEXT_ICON_IDS[ctx] || "icon-box";
+  if (CONTEXT_ICON_IDS[ctx]) return CONTEXT_ICON_IDS[ctx];
+  const custom = getCustomContexts().find((c) => c.id === ctx);
+  if (custom?.icon && isValidCustomListIcon(custom.icon)) return custom.icon;
+  return DEFAULT_CUSTOM_LIST_ICON;
 }
 
 function contextIconHtml(ctx, className = "context-icon") {
@@ -2233,6 +2311,34 @@ function getNextMondayKey(fromDate = new Date()) {
   return `${y}-${m}-${dayNum}`;
 }
 
+function formatNextWeekReturnLabel(dayKey = getNextMondayKey()) {
+  const [y, m, d] = String(dayKey).split("-").map(Number);
+  if (!y || !m || !d) return "next Monday";
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function showAppToast(message) {
+  let el = document.getElementById("app-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "app-toast";
+    el.className = "app-toast";
+    el.setAttribute("role", "status");
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add("is-visible");
+  window.clearTimeout(showAppToast._timer);
+  showAppToast._timer = window.setTimeout(() => {
+    el.classList.remove("is-visible");
+  }, 3400);
+}
+
 function clearExpiredDeferredTasks() {
   const today = todayKey();
   getContexts().forEach((ctx) => {
@@ -2344,12 +2450,20 @@ const getForgetItPickerTasks = getNextWeekPickerTasks;
 function deferNextWeekTask() {
   const ref = loadNextWeek();
   if (!ref) return;
+  const task = findTaskByRef(ref);
   const deferredUntil = getNextMondayKey();
   updateTaskInContext(ref.context, (list) =>
     list.map((t) => (t.id === ref.id ? { ...t, deferredUntil } : t))
   );
   clearNextWeek();
   renderAll();
+  const when = formatNextWeekReturnLabel(deferredUntil);
+  const listName = contextLabel(ref.context);
+  if (task?.text) {
+    showAppToast(`“${task.text}” returns ${when} in ${listName}`);
+  } else {
+    showAppToast(`Task returns ${when} in ${listName}`);
+  }
 }
 
 const tossForgetItTask = deferNextWeekTask;
@@ -3154,14 +3268,20 @@ function handleContextSelectChange(selectEl) {
   const iconEl = contextSelectIconEl(selectEl);
   if (selectEl.value === NEW_LIST_SELECT_VALUE) {
     const previous = selectEl.dataset.previousContext || "work";
-    const name = prompt("Name for the new list");
-    if (name == null || !name.trim()) {
-      selectEl.value = isValidContext(previous) ? previous : "work";
-      syncDialogContextIcon(selectEl, iconEl);
-      return;
-    }
-    const id = addCustomContext(name.trim());
-    fillContextSelect(selectEl, id || previous);
+    selectEl.value = isValidContext(previous) ? previous : "work";
+    syncDialogContextIcon(selectEl, iconEl);
+    openListDialog({
+      navigate: false,
+      onCreated: (id) => {
+        if (!id) return;
+        fillContextSelect(selectEl, id);
+      },
+      onCancel: () => {
+        selectEl.value = isValidContext(previous) ? previous : "work";
+        selectEl.dataset.previousContext = selectEl.value;
+        syncDialogContextIcon(selectEl, iconEl);
+      },
+    });
     return;
   }
   selectEl.dataset.previousContext = selectEl.value;
@@ -3236,7 +3356,9 @@ function rebuildContextUi() {
             .map(
               (c) => `
         <li class="lists-manager-item" data-id="${escapeHtml(c.id)}">
-          ${contextIconHtml(c.id, "lists-manager-icon")}
+          <button type="button" class="lists-manager-icon-btn" data-id="${escapeHtml(c.id)}" title="Change icon" aria-label="Change icon for ${escapeHtml(c.name)}">
+            ${contextIconHtml(c.id, "lists-manager-icon")}
+          </button>
           <span class="lists-manager-name">${escapeHtml(c.name)}</span>
           <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Rename</button>
           <button type="button" class="lists-manager-delete" data-id="${escapeHtml(c.id)}">Delete</button>
@@ -3314,20 +3436,68 @@ async function removePhotoFromDraft(draft, photoId, gridEl, urlsBucket, onRemove
   await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
 }
 
-function openListDialog() {
+function renderListIconPicker(container, selected = DEFAULT_CUSTOM_LIST_ICON) {
+  if (!container) return;
+  const current = isValidCustomListIcon(selected) ? selected : DEFAULT_CUSTOM_LIST_ICON;
+  container.innerHTML = CUSTOM_LIST_ICONS.map(
+    (iconId) => `
+    <button type="button" class="list-icon-option${iconId === current ? " is-selected" : ""}" data-icon="${iconId}" aria-pressed="${iconId === current ? "true" : "false"}" aria-label="${iconId.replace("icon-", "")}">
+      <svg class="icon" aria-hidden="true"><use href="#${iconId}"></use></svg>
+    </button>`
+  ).join("");
+  container.dataset.selectedIcon = current;
+  if (container.dataset.iconPickerBound) return;
+  container.dataset.iconPickerBound = "1";
+  container.addEventListener("click", (e) => {
+    const btn = e.target.closest(".list-icon-option");
+    if (!btn) return;
+    const icon = btn.dataset.icon;
+    if (!isValidCustomListIcon(icon)) return;
+    container.dataset.selectedIcon = icon;
+    container.querySelectorAll(".list-icon-option").forEach((option) => {
+      const on = option.dataset.icon === icon;
+      option.classList.toggle("is-selected", on);
+      option.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  });
+}
+
+function getSelectedListIcon(container) {
+  const icon = container?.dataset.selectedIcon;
+  return isValidCustomListIcon(icon) ? icon : DEFAULT_CUSTOM_LIST_ICON;
+}
+
+let listDialogOptions = null;
+
+function openListDialog(options = {}) {
   const dialog = document.getElementById("list-dialog");
   const input = document.getElementById("list-dialog-input");
   if (!dialog || !input) return;
+  listDialogOptions = options;
   input.value = "";
-  dialog.showModal();
-  input.focus();
+  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON);
+  if (typeof dialog.showModal === "function") {
+    if (!dialog.open) dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+  requestAnimationFrame(() => input.focus());
 }
 
-function createListFromName(name) {
+function closeListDialog({ cancelled = false } = {}) {
+  const dialog = document.getElementById("list-dialog");
+  const options = listDialogOptions;
+  listDialogOptions = null;
+  if (dialog?.open) dialog.close();
+  else dialog?.removeAttribute("open");
+  if (cancelled) options?.onCancel?.();
+}
+
+function createListFromName(name, icon = DEFAULT_CUSTOM_LIST_ICON, { navigate = true } = {}) {
   const trimmed = name?.trim();
   if (!trimmed) return null;
-  const id = addCustomContext(trimmed);
-  if (id) setPage("tasks", id);
+  const id = addCustomContext(trimmed, icon);
+  if (id && navigate) setPage("tasks", id);
   return id;
 }
 
@@ -3338,24 +3508,49 @@ function setupListsManager() {
   const listDialog = document.getElementById("list-dialog");
   const listForm = document.getElementById("list-dialog-form");
   const listInput = document.getElementById("list-dialog-input");
+  const settingsIcons = document.getElementById("lists-add-icons");
 
-  const createFromInput = (el) => {
-    const id = createListFromName(el?.value);
+  renderListIconPicker(settingsIcons, DEFAULT_CUSTOM_LIST_ICON);
+  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON);
+
+  const createFromInput = (el, iconContainer, { navigate = true } = {}) => {
+    const id = createListFromName(el?.value, getSelectedListIcon(iconContainer), { navigate });
     if (el) el.value = "";
+    if (iconContainer) renderListIconPicker(iconContainer, DEFAULT_CUSTOM_LIST_ICON);
     return id;
   };
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
-    createFromInput(input);
+    createFromInput(input, settingsIcons, { navigate: true });
   });
 
-  document.getElementById("add-list-btn")?.addEventListener("click", openListDialog);
-  document.getElementById("list-dialog-cancel")?.addEventListener("click", () => listDialog?.close());
+  document.getElementById("add-list-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openListDialog({ navigate: true });
+  });
+  document.getElementById("list-dialog-cancel")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeListDialog({ cancelled: true });
+  });
 
   listForm?.addEventListener("submit", (e) => {
     e.preventDefault();
-    if (createFromInput(listInput)) listDialog?.close();
+    e.stopPropagation();
+    const options = listDialogOptions || { navigate: true };
+    const id = createFromInput(listInput, document.getElementById("list-dialog-icons"), {
+      navigate: options.navigate !== false && !options.onCreated,
+    });
+    if (!id) return;
+    const onCreated = options.onCreated;
+    closeListDialog({ cancelled: false });
+    onCreated?.(id);
+  });
+
+  listDialog?.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closeListDialog({ cancelled: true });
   });
 
   document.getElementById("dialog-context")?.addEventListener("change", (e) => {
@@ -3366,12 +3561,23 @@ function setupListsManager() {
   });
 
   manager?.addEventListener("click", (e) => {
+    const iconBtn = e.target.closest(".lists-manager-icon-btn");
     const renameBtn = e.target.closest(".lists-manager-rename");
     const deleteBtn = e.target.closest(".lists-manager-delete");
+    if (iconBtn) {
+      const id = iconBtn.dataset.id;
+      const current = getCustomContexts().find((c) => c.id === id);
+      if (!current) return;
+      const idx = CUSTOM_LIST_ICONS.indexOf(current.icon || DEFAULT_CUSTOM_LIST_ICON);
+      const nextIcon = CUSTOM_LIST_ICONS[(idx + 1) % CUSTOM_LIST_ICONS.length];
+      setCustomContextIcon(id, nextIcon);
+      renderAll();
+      return;
+    }
     if (renameBtn) {
       const id = renameBtn.dataset.id;
       const current = getCustomContexts().find((c) => c.id === id);
-      const next = prompt("Rename list", current?.name || "");
+      const next = window.prompt("Rename list", current?.name || "");
       if (next == null) return;
       renameCustomContext(id, next);
       renderAll();
@@ -4366,25 +4572,33 @@ function openPlan135Picker(group, index) {
 }
 
 function forgetItTaskHtml(task, { compact = false } = {}) {
+  const returnLabel = formatNextWeekReturnLabel();
+  const listName = contextLabel(task.context);
   return `
     <div class="forget-it-task${compact ? " forget-it-task-compact" : ""}">
       <p class="forget-it-task-text">${escapeHtml(task.text)}</p>
       <p class="forget-it-task-meta">
         <span>${TIER_LABELS[task.tier - 1]} Priority</span>
-        ${filter === "all" || compact ? contextIconHtml(task.context, "plan-135-ctx") : ""}
+        ${contextIconHtml(task.context, "plan-135-ctx")}
+        <span>${escapeHtml(listName)}</span>
+      </p>
+      <p class="forget-it-destination">
+        Goes away until <strong>${escapeHtml(returnLabel)}</strong>, then returns to
+        <strong>${escapeHtml(listName)}</strong>.
       </p>
       <div class="forget-it-actions">
         <button type="button" class="forget-it-change-btn">Change</button>
-        <button type="button" class="forget-it-toss-btn">Move to next week</button>
+        <button type="button" class="forget-it-toss-btn">Send until ${escapeHtml(returnLabel)}</button>
       </div>
     </div>`;
 }
 
 function forgetItEmptyHtml() {
+  const returnLabel = formatNextWeekReturnLabel();
   return `
     <div class="forget-it-empty forget-it-drop-zone">
-      <p>Pick one task to push to next week.</p>
-      <p class="forget-it-drop-hint">Or drag a task here from the grid.</p>
+      <p>Pick one task to push until ${escapeHtml(returnLabel)}.</p>
+      <p class="forget-it-drop-hint">It will leave your lists until then, then come back to the same category.</p>
       <button type="button" class="forget-it-pick-btn">+ Choose task</button>
     </div>`;
 }
@@ -4395,9 +4609,62 @@ function bindForgetItActions(container) {
   container.querySelector(".forget-it-toss-btn")?.addEventListener("click", deferNextWeekTask);
 }
 
+function deferredNextWeekItemHtml(task) {
+  const returnLabel = formatNextWeekReturnLabel(task.deferredUntil);
+  const listName = contextLabel(task.context);
+  return `
+    <li class="next-week-deferred-item" data-id="${escapeHtml(task.id)}" data-context="${escapeHtml(task.context)}">
+      <div class="next-week-deferred-main">
+        <p class="next-week-deferred-text">${escapeHtml(task.text)}</p>
+        <p class="next-week-deferred-meta">
+          ${contextIconHtml(task.context, "plan-135-ctx")}
+          <span>${escapeHtml(listName)}</span>
+          <span>·</span>
+          <span>Returns ${escapeHtml(returnLabel)}</span>
+        </p>
+      </div>
+      <button type="button" class="next-week-bring-back-btn">Bring back</button>
+    </li>`;
+}
+
+function renderDeferredNextWeekList() {
+  const list = document.getElementById("next-week-deferred-list");
+  const empty = document.getElementById("next-week-deferred-empty");
+  const count = document.getElementById("next-week-deferred-count");
+  if (!list || !empty) return;
+
+  const tasks = getDeferredNextWeekTasks();
+  if (count) {
+    count.textContent = tasks.length
+      ? `${tasks.length} task${tasks.length === 1 ? "" : "s"}`
+      : "";
+  }
+
+  if (tasks.length === 0) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  list.innerHTML = tasks.map(deferredNextWeekItemHtml).join("");
+  list.querySelectorAll(".next-week-bring-back-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest(".next-week-deferred-item");
+      if (!row) return;
+      undeferTask(row.dataset.id, row.dataset.context);
+    });
+  });
+}
+
 function renderForgetItPanel() {
   const body = document.getElementById("forget-it-body");
   if (!body) return;
+
+  const sub = document.getElementById("forget-it-sub");
+  if (sub) {
+    sub.textContent = `Park one task until ${formatNextWeekReturnLabel()} — it returns to the same list.`;
+  }
 
   const ref = loadNextWeek();
   const task = findTaskByRef(ref);
@@ -4406,11 +4673,12 @@ function renderForgetItPanel() {
     if (ref) clearNextWeek();
     body.innerHTML = forgetItEmptyHtml();
     bindForgetItActions(body);
-    return;
+  } else {
+    body.innerHTML = forgetItTaskHtml(task);
+    bindForgetItActions(body);
   }
 
-  body.innerHTML = forgetItTaskHtml(task);
-  bindForgetItActions(body);
+  renderDeferredNextWeekList();
 }
 
 function setupForgetItDropDelegation() {
