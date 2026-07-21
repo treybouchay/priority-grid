@@ -249,8 +249,14 @@ body[data-page="tasks"] .tier-expand-list .task-card-actions {
   min-height: 1.75rem;
 }
 
-body[data-page="home"] .tier-expand-list .task-card-actions .task-context-badge,
-body[data-page="tasks"] .tier-expand-list .task-card-actions .task-context-badge,
+body[data-page="home"] .tier-expand-list .task-card-trailing,
+body[data-page="tasks"] .tier-expand-list .task-card-trailing {
+  align-self: flex-start;
+  min-height: 1.75rem;
+}
+
+body[data-page="home"] .tier-expand-list .task-card-trailing .task-context-badge,
+body[data-page="tasks"] .tier-expand-list .task-card-trailing .task-context-badge,
 body[data-page="home"] .tier-expand-list .task-card-actions .edit-btn,
 body[data-page="tasks"] .tier-expand-list .task-card-actions .edit-btn,
 body[data-page="home"] .tier-expand-list .task-card-actions .archive-btn,
@@ -271,8 +277,8 @@ body[data-page="tasks"] .tier-expand-list .task-card-actions .archive-btn {
   box-sizing: border-box;
 }
 
-body[data-page="home"] .tier-expand-list .task-card-actions .task-context-badge .icon,
-body[data-page="tasks"] .tier-expand-list .task-card-actions .task-context-badge .icon {
+body[data-page="home"] .tier-expand-list .task-card-trailing .task-context-badge .icon,
+body[data-page="tasks"] .tier-expand-list .task-card-trailing .task-context-badge .icon {
   width: 0.95rem;
   height: 0.95rem;
   display: block;

@@ -4209,22 +4209,25 @@ function moveTask(taskId, taskContext, tier, beforeId = null, atTierStart = fals
 function taskCardHtml(task) {
   const inForgetIt = isTaskForgetIt(task);
   const contextBadge = contextIconHtml(task.context, "task-context-badge");
+  const attachHtml = taskAttachmentIndicatorHtml(task);
   return `
     <li class="task-card${task.done ? " done" : ""}" draggable="${isTouchDevice() ? "false" : "true"}"
       data-id="${task.id}" data-context="${task.context}">
       <div class="task-card-main">
-        ${taskDragHandleHtml()}
         <label class="task-check">
           <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
         </label>
         <div class="task-card-body">
           <button type="button" class="task-text-btn">${escapeHtml(task.text)}</button>
         </div>
+        <div class="task-card-trailing">
+          ${contextBadge}
+          ${attachHtml}
+          ${taskDragHandleHtml()}
+        </div>
       </div>
       <div class="task-card-actions">
         ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
-        ${contextBadge}
-        ${taskAttachmentIndicatorHtml(task)}
         <button type="button" class="edit-btn" aria-label="Edit task"><svg class="icon icon-edit" aria-hidden="true"><use href="#icon-pencil"></use></svg></button>
         ${archiveButtonHtml()}
       </div>
@@ -5016,7 +5019,7 @@ function setupMode135() {
 
 function tasksFlatRowHtml(task) {
   const inForgetIt = isTaskForgetIt(task);
-  const contextBadge = filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : "";
+  const contextBadge = contextIconHtml(task.context, "brain-ctx-tag");
   return `
     <li class="history-item task-card tasks-flat-item${task.done ? " done" : ""}" draggable="false"
       data-id="${task.id}" data-context="${task.context}">
@@ -5029,6 +5032,7 @@ function tasksFlatRowHtml(task) {
         <span class="history-meta tasks-flat-meta">
           <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
           ${contextBadge}
+          ${taskAttachmentIndicatorHtml(task)}
           ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         </span>
       </div>

@@ -2863,6 +2863,27 @@ body[data-page="home"] .appearance-panel[open] {
   min-width: 0;
 }
 
+.task-card-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.task-card-trailing .task-context-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: rgba(17, 48, 44, 0.45);
+}
+
+.task-card-trailing .task-attach-btn {
+  flex-shrink: 0;
+}
+
 .task-card-actions {
   display: flex;
   align-items: center;
@@ -5700,7 +5721,13 @@ dialog {
   min-height: 1.75rem;
 }
 
-.tier-expand-list .task-card-actions .task-context-badge,
+.tier-expand-list .task-card-trailing {
+  align-self: flex-start;
+  padding-top: 0;
+  min-height: 1.75rem;
+}
+
+.tier-expand-list .task-card-trailing .task-context-badge,
 .tier-expand-list .task-card-actions .edit-btn,
 .tier-expand-list .task-card-actions .archive-btn,
 .tier-expand-list .task-card-actions .forget-it-indicator {
@@ -5721,11 +5748,15 @@ dialog {
   vertical-align: middle;
 }
 
-.tier-expand-list .task-card-actions .task-context-badge .icon,
-.tier-expand-list .task-card-actions .task-context-badge svg {
+.tier-expand-list .task-card-trailing .task-context-badge .icon,
+.tier-expand-list .task-card-trailing .task-context-badge svg {
   width: 0.95rem;
   height: 0.95rem;
   display: block;
+}
+
+.tier-expand-list .task-card-trailing .task-attach-btn {
+  align-self: center;
 }
 
 .tier-expand-list .task-card-actions .edit-btn .icon,
@@ -6041,12 +6072,19 @@ dialog {
     gap: 0.15rem;
   }
 
-  .tasks-board-area .task-card-actions .task-context-badge {
-    display: none;
-  }
-
   .tasks-board-area .task-card-body {
     padding-right: 0.15rem;
+  }
+
+  .tasks-board-area .task-card-trailing .task-context-badge {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .tasks-board-area .task-card-trailing .task-context-badge .icon,
+  .tasks-board-area .task-card-trailing .task-context-badge svg {
+    width: 0.8rem;
+    height: 0.8rem;
   }
 
   .tasks-board-area .task-card .archive-btn {
