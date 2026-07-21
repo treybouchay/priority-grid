@@ -5215,7 +5215,8 @@ dialog {
   background: rgba(14, 48, 48, 0.05);
 }
 
-.lists-add-form input {
+.lists-add-form input,
+.display-name-input {
   flex: 1;
   min-width: 0;
   padding: 0.55rem 0.75rem;
@@ -5223,6 +5224,12 @@ dialog {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.7);
   font-size: 0.875rem;
+}
+
+.display-name-input {
+  width: 100%;
+  margin-bottom: 0.35rem;
+  box-sizing: border-box;
 }
 
 .dialog-list-field {

@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=156" />
+    <link rel="stylesheet" href="styles.css?v=157" />
     <link rel="stylesheet" href="design/task-rows.css?v=13" />
     <link rel="stylesheet" href="design/home-presence.css?v=94" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=34" />
@@ -292,7 +292,7 @@
             <span class="sidebar-profile-card">
               <img class="sidebar-profile-avatar" src="assets/sidebar-avatar.png?v=39" alt="" width="24" height="24" decoding="async" />
               <span class="sidebar-profile-text">
-                <span class="sidebar-profile-name">Trey</span>
+                <span class="sidebar-profile-name" data-display-name>Friend</span>
                 <span class="sidebar-profile-link">view profile</span>
               </span>
               <svg class="icon icon-sidebar-arrow" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
@@ -308,7 +308,7 @@
               <h2 class="page-title" id="page-title">Home</h2>
               <div class="tasks-page-intro hidden" id="tasks-page-intro">
                 <p class="tasks-page-greeting" id="tasks-greeting-line">Good afternoon,</p>
-                <h1 class="tasks-page-name">Trey <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
+                <h1 class="tasks-page-name"><span data-display-name>Friend</span> <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
                 <p class="tasks-page-date" id="tasks-date"></p>
               </div>
             </div>
@@ -340,6 +340,16 @@
         <details class="appearance-panel" id="appearance-panel">
           <summary class="appearance-breadcrumb">Settings</summary>
           <div class="appearance-content">
+            <p class="appearance-label">Your name</p>
+            <input
+              type="text"
+              id="display-name-input"
+              class="display-name-input"
+              placeholder="What should we call you?"
+              maxlength="24"
+              autocomplete="nickname"
+            />
+            <p class="sync-hint">Shown in greetings and your profile.</p>
             <p class="appearance-label">Time of day</p>
             <div class="theme-picker" id="time-preview-picker" role="radiogroup" aria-label="Time of day preview"></div>
             <p class="sync-hint" id="time-preview-status"></p>
@@ -400,7 +410,7 @@
               <div class="presence-hero-top">
                 <div class="presence-greeting">
                   <p class="presence-greeting-time" id="home-greeting-line">Good morning,</p>
-                  <h1 class="presence-greeting-name">Trey <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
+                  <h1 class="presence-greeting-name"><span data-display-name>Friend</span> <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
                   <p class="presence-greeting-date" id="home-date"></p>
                 </div>
                 <button type="button" class="presence-notify-btn" aria-label="Notifications">
@@ -1108,6 +1118,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=213"></script>
+    <script src="app.js?v=214"></script>
   </body>
 </html>

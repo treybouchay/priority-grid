@@ -21,6 +21,8 @@ const SYNC_POLL_MS = 5000;
 
 const HOME_DESIGN_KEY = "priority-grid-home-design";
 const TIME_PREVIEW_KEY = "priority-grid-time-preview";
+const DISPLAY_NAME_KEY = "priority-grid-display-name";
+const DEFAULT_DISPLAY_NAME = "Friend";
 
 const HOME_DESIGNS = [
   { id: "apple", name: "Apple Music" },
@@ -1332,6 +1334,7 @@ function exportAllData() {
     customContexts: getCustomContexts(),
     customTasks: collectCustomTasksPayload(),
     customBrainDump: collectCustomBrainDumpPayload(),
+    displayName: getDisplayName(),
     theme: getTheme(),
     font: getFont(),
   };
@@ -1365,6 +1368,7 @@ function importAllData(file) {
       }
       if (data.theme && THEMES.some((t) => t.id === data.theme)) setTheme(data.theme);
       if (data.font && FONTS.some((f) => f.id === data.font)) setFont(data.font);
+      if (typeof data.displayName === "string") setDisplayName(data.displayName, { skipSync: true });
       rebuildContextUi();
       renderAll();
       markSyncDirty();
@@ -1460,6 +1464,7 @@ function buildSyncPayload() {
     plans: collectPlan135FromStorage(),
     nextWeek: collectNextWeekFromStorage(),
     forgetIt: collectNextWeekFromStorage(),
+    displayName: getDisplayName(),
   };
 }
 
@@ -1538,6 +1543,12 @@ function applySyncPayload(payload, options = {}) {
       mergeCustomContextMeta(getCustomContexts(), payload.customContexts || [], preferRemote),
       skipSync
     );
+  }
+
+  if (typeof payload.displayName === "string" && payload.displayName.trim()) {
+    if (preferRemote || getDisplayName() === DEFAULT_DISPLAY_NAME) {
+      setDisplayName(payload.displayName, { skipSync: true });
+    }
   }
 
   const remoteCustomTasks = payload.customTasks || {};
@@ -2093,6 +2104,61 @@ function formatHomeDate(date = new Date()) {
   return `${weekday}, ${month} ${day}${suffix}`;
 }
 
+function getDisplayName() {
+  try {
+    const saved = localStorage.getItem(DISPLAY_NAME_KEY);
+    if (typeof saved === "string") {
+      const trimmed = saved.trim();
+      if (trimmed) return trimmed.slice(0, 24);
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_DISPLAY_NAME;
+}
+
+function setDisplayName(name, options = {}) {
+  const trimmed = String(name || "").trim().slice(0, 24);
+  const next = trimmed || DEFAULT_DISPLAY_NAME;
+  try {
+    localStorage.setItem(DISPLAY_NAME_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  if (!options.skipSync) markSyncDirty();
+  syncDisplayNameUi();
+  return next;
+}
+
+function syncDisplayNameUi() {
+  const name = getDisplayName();
+  document.querySelectorAll("[data-display-name]").forEach((el) => {
+    el.textContent = name;
+  });
+  const input = document.getElementById("display-name-input");
+  if (input && document.activeElement !== input) input.value = name === DEFAULT_DISPLAY_NAME ? "" : name;
+}
+
+function setupDisplayName() {
+  const input = document.getElementById("display-name-input");
+  syncDisplayNameUi();
+  if (!input || input.dataset.bound) return;
+  input.dataset.bound = "1";
+  input.value = getDisplayName() === DEFAULT_DISPLAY_NAME ? "" : getDisplayName();
+
+  const commit = () => {
+    setDisplayName(input.value);
+  };
+  input.addEventListener("change", commit);
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.blur();
+    }
+  });
+}
+
 function setupDateHeader() {
   const now = new Date();
   const slot = getActiveTimeSlot(now.getHours());
@@ -2110,6 +2176,8 @@ function setupDateHeader() {
 
   const tasksDateEl = document.getElementById("tasks-date");
   if (tasksDateEl) tasksDateEl.textContent = dateText;
+
+  syncDisplayNameUi();
 }
 
 function todayKey() {
@@ -6656,6 +6724,7 @@ document.documentElement.dataset.font = getFont();
 applyTheme();
 
 setupDateHeader();
+setupDisplayName();
 setupThemePicker();
 setupTimePreviewPicker();
 setupThemeSchedule();
