@@ -69,6 +69,8 @@ const CUSTOM_LIST_ICONS = [
   "icon-tasks",
 ];
 const DEFAULT_CUSTOM_LIST_ICON = "icon-box";
+const LIST_ICON_EDGE = 96;
+const MAX_LIST_ICON_DATA_URL = 100000;
 const PHOTO_DB_NAME = "priority-grid-media";
 const PHOTO_STORE = "photos";
 const MAX_TASK_PHOTOS = 4;
@@ -80,15 +82,26 @@ function isValidCustomListIcon(icon) {
   return CUSTOM_LIST_ICONS.includes(icon);
 }
 
+function isValidIconImage(value) {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= MAX_LIST_ICON_DATA_URL &&
+    /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(value)
+  );
+}
+
 function normalizeCustomContext(item) {
   if (!item || typeof item.id !== "string" || typeof item.name !== "string") return null;
   if (BUILTIN_CONTEXTS.includes(item.id)) return null;
-  return {
+  const normalized = {
     id: item.id,
     name: item.name,
     icon: isValidCustomListIcon(item.icon) ? item.icon : DEFAULT_CUSTOM_LIST_ICON,
     createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
   };
+  if (isValidIconImage(item.iconImage)) normalized.iconImage = item.iconImage;
+  return normalized;
 }
 
 function getCustomContexts() {
@@ -141,19 +154,18 @@ function slugifyContextName(name) {
   return `${id}-${n}`;
 }
 
-function addCustomContext(name, icon = DEFAULT_CUSTOM_LIST_ICON) {
+function addCustomContext(name, icon = DEFAULT_CUSTOM_LIST_ICON, iconImage = null) {
   const trimmed = name.trim();
   if (!trimmed) return null;
   const id = slugifyContextName(trimmed);
-  saveCustomContexts([
-    ...getCustomContexts(),
-    {
-      id,
-      name: trimmed,
-      icon: isValidCustomListIcon(icon) ? icon : DEFAULT_CUSTOM_LIST_ICON,
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+  const entry = {
+    id,
+    name: trimmed,
+    icon: isValidCustomListIcon(icon) ? icon : DEFAULT_CUSTOM_LIST_ICON,
+    createdAt: new Date().toISOString(),
+  };
+  if (isValidIconImage(iconImage)) entry.iconImage = iconImage;
+  saveCustomContexts([...getCustomContexts(), entry]);
   rebuildContextUi();
   return id;
 }
@@ -167,9 +179,23 @@ function renameCustomContext(id, name) {
   return true;
 }
 
-function setCustomContextIcon(id, icon) {
-  if (BUILTIN_CONTEXTS.includes(id) || !isValidCustomListIcon(icon)) return false;
-  const next = getCustomContexts().map((c) => (c.id === id ? { ...c, icon } : c));
+function setCustomContextIcon(id, icon, iconImage = null) {
+  if (BUILTIN_CONTEXTS.includes(id)) return false;
+  const nextIcon = isValidCustomListIcon(icon) ? icon : null;
+  if (!nextIcon && !isValidIconImage(iconImage)) return false;
+  const next = getCustomContexts().map((c) => {
+    if (c.id !== id) return c;
+    const updated = {
+      ...c,
+      icon: nextIcon || c.icon || DEFAULT_CUSTOM_LIST_ICON,
+    };
+    if (isValidIconImage(iconImage)) {
+      updated.iconImage = iconImage;
+    } else if (iconImage === null && nextIcon) {
+      delete updated.iconImage;
+    }
+    return updated;
+  });
   saveCustomContexts(next);
   rebuildContextUi();
   return true;
@@ -281,15 +307,19 @@ function readFileAsDataUrl(file) {
   });
 }
 
-async function compressImageFile(file, maxEdge = 1600, quality = 0.82) {
-  if (!file?.type?.startsWith("image/")) throw new Error("Not an image");
-  const dataUrl = await readFileAsDataUrl(file);
-  const img = await new Promise((resolve, reject) => {
+async function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
     el.onerror = reject;
     el.src = dataUrl;
   });
+}
+
+async function compressImageFile(file, maxEdge = 1600, quality = 0.82) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Not an image");
+  const dataUrl = await readFileAsDataUrl(file);
+  const img = await loadImageFromDataUrl(dataUrl);
   const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
   const width = Math.max(1, Math.round(img.width * scale));
   const height = Math.max(1, Math.round(img.height * scale));
@@ -302,6 +332,34 @@ async function compressImageFile(file, maxEdge = 1600, quality = 0.82) {
   if (!blob) throw new Error("Could not compress image");
   if (blob.size > MAX_PHOTO_BYTES) throw new Error("Photo is too large");
   return blob;
+}
+
+async function listIconDataUrlFromFile(file) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Choose an image file");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Image is too large");
+  const dataUrl = await readFileAsDataUrl(file);
+  const img = await loadImageFromDataUrl(dataUrl);
+  const scale = Math.min(1, LIST_ICON_EDGE / Math.max(img.width, img.height));
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = LIST_ICON_EDGE;
+  canvas.height = LIST_ICON_EDGE;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, LIST_ICON_EDGE, LIST_ICON_EDGE);
+  ctx.drawImage(
+    img,
+    Math.round((LIST_ICON_EDGE - width) / 2),
+    Math.round((LIST_ICON_EDGE - height) / 2),
+    width,
+    height
+  );
+  let out = canvas.toDataURL("image/png");
+  if (out.length > MAX_LIST_ICON_DATA_URL) {
+    out = canvas.toDataURL("image/jpeg", 0.88);
+  }
+  if (!isValidIconImage(out)) throw new Error("Icon is too large after compression");
+  return out;
 }
 
 async function storeTaskPhotoFromFile(file) {
@@ -1973,10 +2031,19 @@ function contextIconId(ctx) {
   return DEFAULT_CUSTOM_LIST_ICON;
 }
 
+function contextIconImage(ctx) {
+  const custom = getCustomContexts().find((c) => c.id === ctx);
+  return isValidIconImage(custom?.iconImage) ? custom.iconImage : null;
+}
+
 function contextIconHtml(ctx, className = "context-icon") {
   const label = contextLabel(ctx);
+  const image = contextIconImage(ctx);
+  if (image) {
+    return `<span class="${className} ${className}--image context-icon--image" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><img class="context-icon-img" src="${image}" alt="" /></span>`;
+  }
   const iconId = contextIconId(ctx);
-  return `<span class="${className}" title="${label}" aria-label="${label}"><svg class="icon ${className}-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
+  return `<span class="${className}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><svg class="icon ${className}-svg" aria-hidden="true"><use href="#${iconId}"></use></svg></span>`;
 }
 
 function archiveButtonHtml() {
@@ -2968,7 +3035,6 @@ function updatePageTitle() {
   const isTasks = page === "tasks";
   document.getElementById("filter-pills").classList.toggle("hidden", !isTasks);
   document.getElementById("add-task-btn").classList.toggle("hidden", !(isHome || isTasks));
-  document.getElementById("add-list-btn")?.classList.toggle("hidden", !isTasks);
   syncMode135Toggle();
   updateTasksLayout();
 }
@@ -3311,8 +3377,12 @@ function syncDialogContextIcon(selectEl, iconEl) {
   if (!iconEl) return;
   const ctx = selectEl?.value || "work";
   if (ctx === NEW_LIST_SELECT_VALUE) return;
-  iconEl.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${contextIconId(ctx)}"></use></svg>`;
+  const image = contextIconImage(ctx);
+  iconEl.innerHTML = image
+    ? `<img class="context-icon-img" src="${image}" alt="" />`
+    : `<svg class="icon" aria-hidden="true"><use href="#${contextIconId(ctx)}"></use></svg>`;
   iconEl.title = contextLabel(ctx);
+  iconEl.classList.toggle("dialog-list-icon--image", Boolean(image));
 }
 
 function contextSelectIconEl(selectEl) {
@@ -3393,7 +3463,7 @@ function rebuildContextUi() {
       .map(
         (ctx) => `
       <button type="button" class="nav-item" data-page="tasks" data-filter="${escapeHtml(ctx)}" data-extra="true">
-        <svg class="icon icon-nav" aria-hidden="true"><use href="#${contextIconId(ctx)}"></use></svg>
+        ${contextIconHtml(ctx, "icon-nav")}
         <span class="nav-item-label">${escapeHtml(contextLabel(ctx))}</span>
       </button>`
       )
@@ -3424,8 +3494,11 @@ function rebuildContextUi() {
             .map(
               (c) => `
         <li class="lists-manager-item" data-id="${escapeHtml(c.id)}">
-          <button type="button" class="lists-manager-icon-btn" data-id="${escapeHtml(c.id)}" title="Change icon" aria-label="Change icon for ${escapeHtml(c.name)}">
+          <button type="button" class="lists-manager-icon-btn" data-id="${escapeHtml(c.id)}" title="Cycle preset icon" aria-label="Change preset icon for ${escapeHtml(c.name)}">
             ${contextIconHtml(c.id, "lists-manager-icon")}
+          </button>
+          <button type="button" class="lists-manager-upload-btn" data-id="${escapeHtml(c.id)}" title="Upload custom icon" aria-label="Upload icon for ${escapeHtml(c.name)}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg>
           </button>
           <span class="lists-manager-name">${escapeHtml(c.name)}</span>
           <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Rename</button>
@@ -3504,35 +3577,63 @@ async function removePhotoFromDraft(draft, photoId, gridEl, urlsBucket, onRemove
   await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
 }
 
-function renderListIconPicker(container, selected = DEFAULT_CUSTOM_LIST_ICON) {
+function renderListIconPicker(container, selected = DEFAULT_CUSTOM_LIST_ICON, selectedImage = null) {
   if (!container) return;
+  const hasImage = isValidIconImage(selectedImage);
   const current = isValidCustomListIcon(selected) ? selected : DEFAULT_CUSTOM_LIST_ICON;
-  container.innerHTML = CUSTOM_LIST_ICONS.map(
-    (iconId) => `
-    <button type="button" class="list-icon-option${iconId === current ? " is-selected" : ""}" data-icon="${iconId}" aria-pressed="${iconId === current ? "true" : "false"}" aria-label="${iconId.replace("icon-", "")}">
+  container.dataset.selectedIcon = current;
+  container.dataset.selectedIconImage = hasImage ? selectedImage : "";
+  const uploadPreview = hasImage
+    ? `<img class="list-icon-custom-preview" src="${selectedImage}" alt="" />`
+    : `<svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg>`;
+  container.innerHTML = `
+    <label class="list-icon-option list-icon-option--upload${hasImage ? " is-selected" : ""}" title="Upload custom icon" aria-label="Upload custom icon">
+      <input type="file" accept="image/*" class="list-icon-upload-input" hidden />
+      ${uploadPreview}
+    </label>
+    ${CUSTOM_LIST_ICONS.map(
+      (iconId) => `
+    <button type="button" class="list-icon-option${!hasImage && iconId === current ? " is-selected" : ""}" data-icon="${iconId}" aria-pressed="${!hasImage && iconId === current ? "true" : "false"}" aria-label="${iconId.replace("icon-", "")}">
       <svg class="icon" aria-hidden="true"><use href="#${iconId}"></use></svg>
     </button>`
-  ).join("");
-  container.dataset.selectedIcon = current;
+    ).join("")}
+  `;
   if (container.dataset.iconPickerBound) return;
   container.dataset.iconPickerBound = "1";
   container.addEventListener("click", (e) => {
-    const btn = e.target.closest(".list-icon-option");
-    if (!btn) return;
+    const btn = e.target.closest("button.list-icon-option");
+    if (!btn || !container.contains(btn)) return;
     const icon = btn.dataset.icon;
     if (!isValidCustomListIcon(icon)) return;
-    container.dataset.selectedIcon = icon;
-    container.querySelectorAll(".list-icon-option").forEach((option) => {
-      const on = option.dataset.icon === icon;
-      option.classList.toggle("is-selected", on);
-      option.setAttribute("aria-pressed", on ? "true" : "false");
-    });
+    renderListIconPicker(container, icon, null);
+  });
+  container.addEventListener("change", async (e) => {
+    const input = e.target.closest(".list-icon-upload-input");
+    if (!input || !container.contains(input)) return;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await listIconDataUrlFromFile(file);
+      renderListIconPicker(
+        container,
+        container.dataset.selectedIcon || DEFAULT_CUSTOM_LIST_ICON,
+        dataUrl
+      );
+    } catch (err) {
+      alert(err?.message || "Could not use that image.");
+    }
   });
 }
 
 function getSelectedListIcon(container) {
   const icon = container?.dataset.selectedIcon;
   return isValidCustomListIcon(icon) ? icon : DEFAULT_CUSTOM_LIST_ICON;
+}
+
+function getSelectedListIconImage(container) {
+  const image = container?.dataset.selectedIconImage;
+  return isValidIconImage(image) ? image : null;
 }
 
 let listDialogOptions = null;
@@ -3543,7 +3644,7 @@ function openListDialog(options = {}) {
   if (!dialog || !input) return;
   listDialogOptions = options;
   input.value = "";
-  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON);
+  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON, null);
   if (typeof dialog.showModal === "function") {
     if (!dialog.open) dialog.showModal();
   } else {
@@ -3561,10 +3662,10 @@ function closeListDialog({ cancelled = false } = {}) {
   if (cancelled) options?.onCancel?.();
 }
 
-function createListFromName(name, icon = DEFAULT_CUSTOM_LIST_ICON, { navigate = true } = {}) {
+function createListFromName(name, icon = DEFAULT_CUSTOM_LIST_ICON, { navigate = true, iconImage = null } = {}) {
   const trimmed = name?.trim();
   if (!trimmed) return null;
-  const id = addCustomContext(trimmed, icon);
+  const id = addCustomContext(trimmed, icon, iconImage);
   if (id && navigate) setPage("tasks", id);
   return id;
 }
@@ -3577,14 +3678,19 @@ function setupListsManager() {
   const listForm = document.getElementById("list-dialog-form");
   const listInput = document.getElementById("list-dialog-input");
   const settingsIcons = document.getElementById("lists-add-icons");
+  const listIconFileInput = document.getElementById("list-icon-file-input");
+  let uploadTargetListId = null;
 
-  renderListIconPicker(settingsIcons, DEFAULT_CUSTOM_LIST_ICON);
-  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON);
+  renderListIconPicker(settingsIcons, DEFAULT_CUSTOM_LIST_ICON, null);
+  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON, null);
 
   const createFromInput = (el, iconContainer, { navigate = true } = {}) => {
-    const id = createListFromName(el?.value, getSelectedListIcon(iconContainer), { navigate });
+    const id = createListFromName(el?.value, getSelectedListIcon(iconContainer), {
+      navigate,
+      iconImage: getSelectedListIconImage(iconContainer),
+    });
     if (el) el.value = "";
-    if (iconContainer) renderListIconPicker(iconContainer, DEFAULT_CUSTOM_LIST_ICON);
+    if (iconContainer) renderListIconPicker(iconContainer, DEFAULT_CUSTOM_LIST_ICON, null);
     return id;
   };
 
@@ -3628,8 +3734,25 @@ function setupListsManager() {
     handleContextSelectChange(e.target);
   });
 
+  listIconFileInput?.addEventListener("change", async () => {
+    const file = listIconFileInput.files?.[0];
+    const id = uploadTargetListId;
+    listIconFileInput.value = "";
+    uploadTargetListId = null;
+    if (!file || !id) return;
+    try {
+      const dataUrl = await listIconDataUrlFromFile(file);
+      const current = getCustomContexts().find((c) => c.id === id);
+      setCustomContextIcon(id, current?.icon || DEFAULT_CUSTOM_LIST_ICON, dataUrl);
+      renderAll();
+    } catch (err) {
+      alert(err?.message || "Could not use that image.");
+    }
+  });
+
   manager?.addEventListener("click", (e) => {
     const iconBtn = e.target.closest(".lists-manager-icon-btn");
+    const uploadBtn = e.target.closest(".lists-manager-upload-btn");
     const renameBtn = e.target.closest(".lists-manager-rename");
     const deleteBtn = e.target.closest(".lists-manager-delete");
     if (iconBtn) {
@@ -3638,8 +3761,13 @@ function setupListsManager() {
       if (!current) return;
       const idx = CUSTOM_LIST_ICONS.indexOf(current.icon || DEFAULT_CUSTOM_LIST_ICON);
       const nextIcon = CUSTOM_LIST_ICONS[(idx + 1) % CUSTOM_LIST_ICONS.length];
-      setCustomContextIcon(id, nextIcon);
+      setCustomContextIcon(id, nextIcon, null);
       renderAll();
+      return;
+    }
+    if (uploadBtn) {
+      uploadTargetListId = uploadBtn.dataset.id;
+      listIconFileInput?.click();
       return;
     }
     if (renameBtn) {

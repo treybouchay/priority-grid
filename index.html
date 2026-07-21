@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=157" />
+    <link rel="stylesheet" href="styles.css?v=158" />
     <link rel="stylesheet" href="design/task-rows.css?v=13" />
     <link rel="stylesheet" href="design/home-presence.css?v=94" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=34" />
@@ -274,6 +274,10 @@
             <span class="nav-item-label">Home</span>
           </button>
           <div class="sidebar-extra-lists" id="sidebar-extra-lists"></div>
+          <button type="button" class="nav-item nav-item--add-list" id="add-list-btn">
+            <span class="nav-add-list-mark" aria-hidden="true">+</span>
+            <span class="nav-item-label">New list</span>
+          </button>
           <button type="button" class="nav-item" data-page="history">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-calendar"></use></svg>
             <span class="nav-item-label">History</span>
@@ -332,7 +336,6 @@
               <button type="button" class="filter-pill" data-filter="work" role="tab">Work</button>
               <button type="button" class="filter-pill" data-filter="home" role="tab">Home</button>
             </div>
-            <button type="button" class="btn-add-list hidden" id="add-list-btn">+ New list</button>
             <button type="button" class="btn-add-task hidden" id="add-task-btn">+ Add Task</button>
           </div>
         </header>
@@ -361,13 +364,14 @@
             <p class="appearance-label">Home layout</p>
             <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-label="Home layout"></div>
             <p class="appearance-label">Lists</p>
-            <p class="sync-hint">Work, Home, Personal, Errands, Health, and Faith are built in. Add your own below and pick an icon.</p>
+            <p class="sync-hint">Work, Home, Personal, Errands, Health, and Faith are built in. Add your own below — pick a preset icon or upload your own.</p>
             <ul class="lists-manager" id="lists-manager" aria-label="Lists"></ul>
             <form class="lists-add-form" id="lists-add-form">
               <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
               <button type="submit" class="btn-secondary">Add list</button>
             </form>
             <div class="list-icon-picker" id="lists-add-icons" role="radiogroup" aria-label="New list icon"></div>
+            <input type="file" id="list-icon-file-input" accept="image/*" hidden />
             <p class="appearance-label">Sync data</p>
             <p class="sync-status" id="sync-status">Checking sync…</p>
             <p class="sync-hint">Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.</p>
@@ -937,6 +941,7 @@
         <label class="dialog-label" for="list-dialog-input">Name</label>
         <input type="text" id="list-dialog-input" placeholder="e.g. Side project, Kids, Travel…" autocomplete="off" maxlength="32" required />
         <p class="dialog-label" id="list-dialog-icon-label">Icon</p>
+        <p class="dialog-capture-task dialog-icon-hint">Choose a preset or upload an image.</p>
         <div class="list-icon-picker" id="list-dialog-icons" role="radiogroup" aria-labelledby="list-dialog-icon-label"></div>
         <div class="dialog-actions">
           <button type="button" class="btn-ghost" id="list-dialog-cancel">Cancel</button>
@@ -1118,6 +1123,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=214"></script>
+    <script src="app.js?v=215"></script>
   </body>
 </html>

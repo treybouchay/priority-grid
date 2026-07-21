@@ -445,6 +445,17 @@
   width: 1.25rem;
   height: 1.25rem;
   color: var(--primary);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-nav svg,
+.icon-nav .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: block;
 }
 
 .icon-sun {
@@ -3062,6 +3073,48 @@ body.task-dragging-lock .app-main {
   height: 0.95rem;
 }
 
+.context-icon-img {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  display: block;
+}
+
+.icon-nav .context-icon-img {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.filter-pill-icon .context-icon-img,
+.lists-manager-icon .context-icon-img {
+  width: 1rem;
+  height: 1rem;
+}
+
+.nav-item--add-list {
+  color: #ffdbd2;
+}
+
+.nav-item--add-list:hover,
+.nav-item--add-list:focus-visible {
+  background: rgba(255, 219, 210, 0.12);
+  color: #ffdbd2;
+}
+
+.nav-add-list-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #ffdbd2;
+}
+
 .context-pill.context-pill-work,
 .context-pill.context-pill-home {
   padding: 0.28rem;
@@ -5035,26 +5088,75 @@ dialog {
   height: 1.15rem;
 }
 
+.list-icon-option--upload {
+  position: relative;
+  overflow: hidden;
+}
+
+.list-icon-custom-preview {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  display: block;
+}
+
 .list-icon-option.is-selected {
   border-color: #0e3030;
   background: #0e3030;
   color: #ffdbd2;
 }
 
-.lists-manager-icon-btn {
+.lists-manager-icon-btn,
+.lists-manager-upload-btn {
   border: none;
   background: transparent;
   padding: 0;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: inherit;
   border-radius: 0.5rem;
 }
 
+.lists-manager-upload-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: rgba(17, 48, 44, 0.45);
+}
+
+.lists-manager-upload-btn .icon,
+.lists-manager-upload-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
 .lists-manager-icon-btn:hover,
-.lists-manager-icon-btn:focus-visible {
+.lists-manager-icon-btn:focus-visible,
+.lists-manager-upload-btn:hover,
+.lists-manager-upload-btn:focus-visible {
   outline: 2px solid rgba(14, 48, 48, 0.25);
   outline-offset: 2px;
+  color: #0e3030;
+}
+
+.dialog-icon-hint {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.8125rem;
+  color: rgba(17, 48, 44, 0.65);
+}
+
+.dialog-list-icon--image,
+.dialog-list-icon .context-icon-img {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.dialog-list-icon .context-icon-img {
+  object-fit: cover;
+  border-radius: 0.35rem;
+  display: block;
 }
 
 #list-dialog .list-icon-picker {
