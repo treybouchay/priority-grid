@@ -431,20 +431,20 @@ function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
   return "morning";
 }
 
-const REFLECTION_TEAL_SHIFT_REVIEW = 25;
+const REFLECTION_TEAL_SHIFT_REVIEW = 25; // legacy no-op for wallpaper helpers
 
 function getActiveReflectionTab() {
   return document.querySelector(".reflection-tab.active")?.dataset.tab || "review";
 }
 
-function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
-  const shiftPx = tab === "review" ? REFLECTION_TEAL_SHIFT_REVIEW : 0;
-  reflectionScreen.style.backgroundColor = "#f3eee4";
-  reflectionScreen.style.backgroundImage = `linear-gradient(to bottom, rgba(13, 43, 43, 0) 0%, rgba(13, 43, 43, 0.1) 20%, rgb(13, 43, 43) 55%), url("${assets.mobile}")`;
-  reflectionScreen.style.backgroundSize = "100% 100%, 100% auto";
-  reflectionScreen.style.backgroundRepeat = "no-repeat";
-  reflectionScreen.style.backgroundPosition = `center ${shiftPx}px, center ${shiftPx}px`;
-  reflectionScreen.dataset.tealOffset = String(shiftPx);
+function applyReflectionScreenBackground(reflectionScreen) {
+  if (!reflectionScreen) return;
+  reflectionScreen.style.backgroundColor = "";
+  reflectionScreen.style.backgroundImage = "";
+  reflectionScreen.style.backgroundSize = "";
+  reflectionScreen.style.backgroundRepeat = "";
+  reflectionScreen.style.backgroundPosition = "";
+  reflectionScreen.removeAttribute("data-teal-offset");
 }
 
 function applyHomeHeroWallpaper(hour = new Date().getHours()) {
@@ -459,10 +459,7 @@ function applyHomeHeroWallpaper(hour = new Date().getHours()) {
     source.setAttribute("srcset", assets.desktop);
   }
 
-  const reflectionScreen = document.querySelector(".reflection-screen");
-  if (reflectionScreen) {
-    applyReflectionScreenBackground(reflectionScreen, assets, getActiveReflectionTab());
-  }
+  applyReflectionScreenBackground(document.querySelector(".reflection-screen"));
 }
 
 function getTimePreviewPreference() {
@@ -4413,16 +4410,24 @@ function getTasksCompletedYesterday() {
 }
 
 const REFLECTION_JOURNAL_KEY = "priority-grid-reflection-journal";
+const REFLECTION_CHECKIN_KEY = "priority-grid-reflection-checkin";
 
-const REFLECTION_PROMPT_POOL = [
-  { emoji: "🏆", text: "A small win I'm proud of" },
-  { emoji: "😊", text: "A moment that made me smile" },
-  { emoji: "💛", text: "Someone I'm grateful for" },
-  { emoji: "⚡", text: "Something that energized me" },
-  { emoji: "🌿", text: "A quiet moment I noticed" },
-  { emoji: "🎯", text: "Something I moved forward on" },
-  { emoji: "☀️", text: "What felt easy today" },
-  { emoji: "🤝", text: "A kind gesture I received" },
+const REFLECTION_MOODS = [
+  { id: "calm", label: "Calm" },
+  { id: "glad", label: "Glad" },
+  { id: "heavy", label: "Heavy" },
+  { id: "tired", label: "Tired" },
+  { id: "steady", label: "Steady" },
+  { id: "open", label: "Open" },
+];
+
+const REFLECTION_NEEDS = [
+  { id: "rest", label: "Rest" },
+  { id: "focus", label: "Focus" },
+  { id: "care", label: "Care" },
+  { id: "clarity", label: "Clarity" },
+  { id: "space", label: "Space" },
+  { id: "progress", label: "Progress" },
 ];
 
 function reflectionTodayKey() {
@@ -4446,34 +4451,247 @@ function saveReflectionJournal(text) {
   localStorage.setItem(REFLECTION_JOURNAL_KEY, JSON.stringify(journal));
 }
 
-function shuffleReflectionPrompts(count = 4) {
-  const pool = [...REFLECTION_PROMPT_POOL];
-  for (let i = pool.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+function loadReflectionCheckins() {
+  try {
+    const raw = localStorage.getItem(REFLECTION_CHECKIN_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
   }
-  return pool.slice(0, count);
 }
 
-function renderReflectionPrompts(prompts) {
-  const list = document.getElementById("reflection-prompts-list");
-  if (!list) return;
-  list.innerHTML = prompts
-    .map(
-      (prompt) => `
-    <button type="button" class="reflection-prompt-btn" data-prompt="${escapeHtml(prompt.text)}">
-      <span class="reflection-prompt-emoji" aria-hidden="true">${prompt.emoji}</span>
-      <span>${escapeHtml(prompt.text)}</span>
-    </button>`
-    )
-    .join("");
+function getReflectionCheckin() {
+  const entry = loadReflectionCheckins()[reflectionTodayKey()];
+  if (!entry || typeof entry !== "object") {
+    return { mood: "", needs: [], note: "" };
+  }
+  return {
+    mood: typeof entry.mood === "string" ? entry.mood : "",
+    needs: Array.isArray(entry.needs) ? entry.needs.filter((id) => REFLECTION_NEEDS.some((n) => n.id === id)) : [],
+    note: typeof entry.note === "string" ? entry.note : "",
+  };
+}
+
+function saveReflectionCheckin( partial = {}) {
+  const all = loadReflectionCheckins();
+  const current = getReflectionCheckin();
+  const next = {
+    mood: partial.mood !== undefined ? partial.mood : current.mood,
+    needs: partial.needs !== undefined ? partial.needs : current.needs,
+    note: partial.note !== undefined ? partial.note : current.note,
+  };
+  all[reflectionTodayKey()] = next;
+  localStorage.setItem(REFLECTION_CHECKIN_KEY, JSON.stringify(all));
+  if (partial.note !== undefined) saveReflectionJournal(partial.note);
+  return next;
 }
 
 function updateReflectionCharCount() {
   const textarea = document.getElementById("reflection-text");
   const countEl = document.getElementById("reflection-char-count");
   if (!textarea || !countEl) return;
-  countEl.textContent = `${textarea.value.length} / 500`;
+  countEl.textContent = `${textarea.value.length} / 160`;
+}
+
+function reflectionWinChipHtml(task) {
+  return `
+    <li class="reflection-win-chip" title="${escapeHtml(task.text)}">
+      ${contextIconHtml(task.context, "reflection-review-ctx")}
+      <span class="reflection-win-chip-text">${escapeHtml(task.text)}</span>
+    </li>`;
+}
+
+function renderReflectionMoodPicker(selected = "") {
+  const picker = document.getElementById("reflection-mood-picker");
+  if (!picker) return;
+  picker.innerHTML = REFLECTION_MOODS.map(
+    (mood) => `
+    <button type="button" class="reflection-feel-chip${mood.id === selected ? " is-selected" : ""}"
+      data-mood="${mood.id}" role="radio" aria-checked="${mood.id === selected ? "true" : "false"}">
+      ${escapeHtml(mood.label)}
+    </button>`
+  ).join("");
+}
+
+function renderReflectionNeedsPicker(selected = []) {
+  const picker = document.getElementById("reflection-needs-picker");
+  if (!picker) return;
+  const selectedSet = new Set(selected);
+  picker.innerHTML = REFLECTION_NEEDS.map(
+    (need) => `
+    <button type="button" class="reflection-feel-chip${selectedSet.has(need.id) ? " is-selected" : ""}"
+      data-need="${need.id}" aria-pressed="${selectedSet.has(need.id) ? "true" : "false"}">
+      ${escapeHtml(need.label)}
+    </button>`
+  ).join("");
+}
+
+function renderReflectionCheckinEcho() {
+  const echo = document.getElementById("reflection-checkin-echo");
+  if (!echo) return;
+  const checkin = getReflectionCheckin();
+  const chips = [];
+  const mood = REFLECTION_MOODS.find((m) => m.id === checkin.mood);
+  if (mood) chips.push(mood.label);
+  checkin.needs.forEach((id) => {
+    const need = REFLECTION_NEEDS.find((n) => n.id === id);
+    if (need) chips.push(need.label);
+  });
+  if (!chips.length) {
+    echo.classList.add("hidden");
+    echo.innerHTML = "";
+    return;
+  }
+  echo.classList.remove("hidden");
+  echo.innerHTML = chips
+    .map((label) => `<span class="reflection-echo-chip">${escapeHtml(label)}</span>`)
+    .join("");
+}
+
+function renderReflectionReview() {
+  const list = document.getElementById("reflection-review-list");
+  const empty = document.getElementById("reflection-review-empty");
+  const subtitle = document.getElementById("reflection-review-subtitle");
+  const heading = document.getElementById("reflection-review-heading");
+  if (!list || !empty) return;
+
+  const { completedCount, completed } = getYesterdayDailySummary();
+  const checkin = getReflectionCheckin();
+
+  if (subtitle) {
+    subtitle.textContent =
+      completedCount === 0 ? "How did yesterday land?" : "Feel into yesterday — then name what was needed.";
+  }
+  if (heading) {
+    heading.textContent = completedCount === 0 ? "Wins" : `Wins · ${completedCount}`;
+  }
+
+  renderReflectionMoodPicker(checkin.mood);
+  renderReflectionNeedsPicker(checkin.needs);
+
+  if (completed.length === 0) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  const shown = completed.slice(0, 5);
+  const extra = completed.length - shown.length;
+  list.innerHTML =
+    shown.map(reflectionWinChipHtml).join("") +
+    (extra > 0 ? `<li class="reflection-win-more">+${extra} more</li>` : "");
+}
+
+function setReflectionTab(tab) {
+  const nextTab = tab === "thoughts" ? "thoughts" : "review";
+  document.querySelectorAll(".reflection-tab").forEach((btn) => {
+    const active = btn.dataset.tab === nextTab;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+    const step = btn.querySelector(".reflection-progress-step");
+    if (!step) return;
+    step.classList.toggle("reflection-progress-step--active", active);
+    let dot = step.querySelector(".reflection-progress-dot");
+    if (active) {
+      if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "reflection-progress-dot";
+        dot.setAttribute("aria-hidden", "true");
+        step.appendChild(dot);
+      }
+    } else if (dot) {
+      dot.remove();
+    }
+  });
+  document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
+    panel.classList.toggle("active", panel.dataset.tab === nextTab);
+  });
+  if (nextTab === "thoughts") {
+    renderReflectionCheckinEcho();
+    document.getElementById("reflection-text")?.focus();
+  }
+}
+
+function openReflectionDialog() {
+  const dialog = document.getElementById("reflection-dialog");
+  const textarea = document.getElementById("reflection-text");
+  if (!dialog || !textarea) return;
+
+  const checkin = getReflectionCheckin();
+  const journal = loadReflectionJournal();
+  textarea.value = checkin.note || journal[reflectionTodayKey()] || "";
+  updateReflectionCharCount();
+  renderReflectionReview();
+  setReflectionTab("review");
+  applyReflectionScreenBackground(document.querySelector(".reflection-screen"));
+  dialog.showModal();
+}
+
+function handleReflectionBack() {
+  const dialog = document.getElementById("reflection-dialog");
+  if (getActiveReflectionTab() === "thoughts") {
+    setReflectionTab("review");
+    return;
+  }
+  dialog?.close();
+}
+
+function setupReflection() {
+  const dialog = document.getElementById("reflection-dialog");
+  const textarea = document.getElementById("reflection-text");
+  const continueBtn = document.getElementById("reflection-continue");
+  const reviewContinueBtn = document.getElementById("reflection-review-continue");
+  const backBtn = document.getElementById("reflection-back");
+
+  document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
+
+  setupFocusTimer();
+
+  backBtn?.addEventListener("click", handleReflectionBack);
+
+  document.querySelectorAll(".reflection-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setReflectionTab(btn.dataset.tab);
+    });
+  });
+
+  textarea?.addEventListener("input", () => {
+    updateReflectionCharCount();
+    saveReflectionCheckin({ note: textarea.value.trim() });
+  });
+
+  document.getElementById("reflection-mood-picker")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mood]");
+    if (!btn) return;
+    const mood = btn.dataset.mood === getReflectionCheckin().mood ? "" : btn.dataset.mood;
+    saveReflectionCheckin({ mood });
+    renderReflectionMoodPicker(mood);
+  });
+
+  document.getElementById("reflection-needs-picker")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-need]");
+    if (!btn) return;
+    const id = btn.dataset.need;
+    const current = new Set(getReflectionCheckin().needs);
+    if (current.has(id)) current.delete(id);
+    else current.add(id);
+    const needs = [...current];
+    saveReflectionCheckin({ needs });
+    renderReflectionNeedsPicker(needs);
+  });
+
+  reviewContinueBtn?.addEventListener("click", () => {
+    setReflectionTab("thoughts");
+  });
+
+  continueBtn?.addEventListener("click", () => {
+    if (textarea) saveReflectionCheckin({ note: textarea.value.trim() });
+    dialog?.close();
+  });
 }
 
 function getOpenTasksSnapshot() {
@@ -4514,260 +4732,6 @@ function getCompletedYesterdayTasks() {
   return tasks.sort(
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
-}
-
-function buildYesterdayAccomplishStory(completed) {
-  if (!completed.length) {
-    return {
-      title: "A quieter day",
-      body: "Nothing was checked off yesterday — that can still be a rest day worth noticing. When you're ready, write what you want to carry forward.",
-      highlights: [],
-    };
-  }
-
-  const byContext = new Map();
-  const byTier = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  completed.forEach((task) => {
-    const label = contextLabel(task.context);
-    byContext.set(label, (byContext.get(label) || 0) + 1);
-    if (byTier[task.tier] != null) byTier[task.tier] += 1;
-  });
-
-  const topLists = [...byContext.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([name, count]) => (count > 1 ? `${name} (${count})` : name));
-
-  const highPriority = byTier[1] + byTier[2];
-  const first = completed[completed.length - 1];
-  const latest = completed[0];
-  const withNotes = completed.filter((t) => t.notes?.trim()).length;
-
-  const countPhrase =
-    completed.length === 1
-      ? "You finished one thing yesterday"
-      : `You finished ${completed.length} things yesterday`;
-
-  let body = countPhrase;
-  if (topLists.length === 1) {
-    body += ` — all in ${topLists[0]}.`;
-  } else if (topLists.length > 1) {
-    body += `, mostly across ${topLists.slice(0, -1).join(", ")} and ${topLists[topLists.length - 1]}.`;
-  } else {
-    body += ".";
-  }
-
-  if (highPriority > 0) {
-    body +=
-      highPriority === completed.length
-        ? " Every one was a top priority."
-        : ` ${highPriority} of them were 1st or 2nd priority.`;
-  }
-
-  const highlights = [];
-  if (latest?.text) {
-    highlights.push({
-      label: "Last win",
-      text: latest.text,
-      meta: `${contextLabel(latest.context)}${formatCompletionTime(latest.completedAt) ? ` · ${formatCompletionTime(latest.completedAt)}` : ""}`,
-    });
-  }
-  if (first?.id !== latest?.id && first?.text) {
-    highlights.push({
-      label: "Started with",
-      text: first.text,
-      meta: contextLabel(first.context),
-    });
-  }
-  if (withNotes > 0) {
-    highlights.push({
-      label: "Noted along the way",
-      text: `${withNotes} completion${withNotes === 1 ? "" : "s"} carried notes you can revisit below.`,
-      meta: "",
-    });
-  }
-
-  return {
-    title: completed.length === 1 ? "Yesterday's win" : "What you accomplished",
-    body,
-    highlights,
-  };
-}
-
-function reflectionReviewItemHtml(task) {
-  const time = formatCompletionTime(task.completedAt);
-  const note = task.notes?.trim()
-    ? `<p class="reflection-review-note">${escapeHtml(task.notes.trim())}</p>`
-    : "";
-  return `
-    <li class="reflection-review-item">
-      <span class="reflection-review-check" aria-hidden="true">✓</span>
-      <div class="reflection-review-body">
-        <span class="reflection-review-text">${escapeHtml(task.text)}</span>
-        ${note}
-        <span class="reflection-review-tier">
-          ${contextIconHtml(task.context, "reflection-review-ctx")}
-          ${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""} · ${escapeHtml(contextLabel(task.context))}
-        </span>
-      </div>
-    </li>`;
-}
-
-function renderReflectionReview() {
-  const list = document.getElementById("reflection-review-list");
-  const empty = document.getElementById("reflection-review-empty");
-  const subtitle = document.getElementById("reflection-review-subtitle");
-  const summary = document.getElementById("reflection-summary");
-  const heading = document.getElementById("reflection-review-heading");
-  if (!list || !empty) return;
-
-  const { completedCount, completed } = getYesterdayDailySummary();
-  const story = buildYesterdayAccomplishStory(completed);
-
-  if (summary) {
-    const highlightHtml = story.highlights
-      .map(
-        (item) => `
-      <div class="reflection-story-highlight">
-        <p class="reflection-story-highlight-label">${escapeHtml(item.label)}</p>
-        <p class="reflection-story-highlight-text">${escapeHtml(item.text)}</p>
-        ${item.meta ? `<p class="reflection-story-highlight-meta">${escapeHtml(item.meta)}</p>` : ""}
-      </div>`
-      )
-      .join("");
-    summary.innerHTML = `
-      <div class="reflection-story">
-        <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
-        <p class="reflection-story-body">${escapeHtml(story.body)}</p>
-        ${highlightHtml ? `<div class="reflection-story-highlights">${highlightHtml}</div>` : ""}
-      </div>`;
-  }
-
-  if (subtitle) {
-    subtitle.textContent =
-      completedCount === 0
-        ? "Look back gently — even a quiet day has something to notice."
-        : "Sit with what moved forward before writing how it felt.";
-  }
-
-  if (heading) {
-    heading.textContent =
-      completedCount === 0 ? "Wins from yesterday" : `Wins from yesterday (${completedCount})`;
-  }
-
-  if (completed.length === 0) {
-    list.innerHTML = "";
-    empty.classList.remove("hidden");
-    empty.textContent =
-      "No tasks were checked off yesterday. Use the next step to note what still mattered.";
-    return;
-  }
-
-  empty.classList.add("hidden");
-  list.innerHTML = completed.map(reflectionReviewItemHtml).join("");
-}
-
-function setReflectionTab(tab) {
-  const nextTab = tab === "thoughts" ? "thoughts" : "review";
-  document.querySelectorAll(".reflection-tab").forEach((btn) => {
-    const active = btn.dataset.tab === nextTab;
-    btn.classList.toggle("active", active);
-    btn.setAttribute("aria-selected", active ? "true" : "false");
-    const step = btn.querySelector(".reflection-progress-step");
-    if (!step) return;
-    step.classList.toggle("reflection-progress-step--active", active);
-    let dot = step.querySelector(".reflection-progress-dot");
-    if (active) {
-      if (!dot) {
-        dot = document.createElement("span");
-        dot.className = "reflection-progress-dot";
-        dot.setAttribute("aria-hidden", "true");
-        step.appendChild(dot);
-      }
-    } else if (dot) {
-      dot.remove();
-    }
-  });
-  document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
-    panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
-    panel.classList.toggle("active", panel.dataset.tab === nextTab);
-  });
-  if (nextTab === "thoughts") {
-    document.getElementById("reflection-text")?.focus();
-  }
-  applyHomeHeroWallpaper();
-}
-
-function openReflectionDialog() {
-  const dialog = document.getElementById("reflection-dialog");
-  const textarea = document.getElementById("reflection-text");
-  if (!dialog || !textarea) return;
-
-  const journal = loadReflectionJournal();
-  textarea.value = journal[reflectionTodayKey()] || "";
-  updateReflectionCharCount();
-  renderReflectionPrompts(shuffleReflectionPrompts());
-  renderReflectionReview();
-  setReflectionTab("review");
-  applyHomeHeroWallpaper();
-  dialog.showModal();
-}
-
-function handleReflectionBack() {
-  const dialog = document.getElementById("reflection-dialog");
-  if (getActiveReflectionTab() === "thoughts") {
-    setReflectionTab("review");
-    return;
-  }
-  dialog?.close();
-}
-
-function setupReflection() {
-  const dialog = document.getElementById("reflection-dialog");
-  const textarea = document.getElementById("reflection-text");
-  const refreshBtn = document.getElementById("reflection-prompts-refresh");
-  const continueBtn = document.getElementById("reflection-continue");
-  const reviewContinueBtn = document.getElementById("reflection-review-continue");
-  const backBtn = document.getElementById("reflection-back");
-  const promptsList = document.getElementById("reflection-prompts-list");
-
-  document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
-
-  setupFocusTimer();
-
-  backBtn?.addEventListener("click", handleReflectionBack);
-
-  document.querySelectorAll(".reflection-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setReflectionTab(btn.dataset.tab);
-    });
-  });
-
-  textarea?.addEventListener("input", updateReflectionCharCount);
-
-  refreshBtn?.addEventListener("click", () => {
-    renderReflectionPrompts(shuffleReflectionPrompts());
-  });
-
-  promptsList?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".reflection-prompt-btn");
-    if (!btn || !textarea) return;
-    const prompt = btn.dataset.prompt;
-    if (!prompt) return;
-    const prefix = textarea.value.trim() ? `${textarea.value.trim()}\n\n` : "";
-    textarea.value = `${prefix}${prompt}: `;
-    updateReflectionCharCount();
-    textarea.focus();
-  });
-
-  reviewContinueBtn?.addEventListener("click", () => {
-    setReflectionTab("thoughts");
-  });
-
-  continueBtn?.addEventListener("click", () => {
-    if (textarea) saveReflectionJournal(textarea.value.trim());
-    dialog?.close();
-  });
 }
 
 function markTaskDone(id, ctx, extras = {}) {

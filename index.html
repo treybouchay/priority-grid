@@ -73,6 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=36" />
     <link rel="stylesheet" href="design/history-wins.css?v=5" />
     <link rel="stylesheet" href="design/settings-page.css?v=2" />
+    <link rel="stylesheet" href="design/reflection.css?v=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1038,8 +1039,12 @@
           </svg>
           <span>Back</span>
         </button>
+
         <header class="reflection-screen-header">
-          <span class="reflection-screen-label">Reflection</span>
+          <div class="presence-plan-heading">
+            <h1 class="reflection-screen-title">Reflection</h1>
+            <div class="presence-plan-accent" aria-hidden="true"></div>
+          </div>
           <div class="reflection-tabs" role="tablist" aria-label="Reflection steps">
             <button
               type="button"
@@ -1048,7 +1053,7 @@
               data-tab="review"
               aria-selected="true"
               id="reflection-tab-review"
-              aria-label="Review of the tasks completed yesterday"
+              aria-label="How yesterday felt"
             >
               <span class="reflection-progress-step reflection-progress-step--active">
                 <span class="reflection-progress-dot"></span>
@@ -1061,7 +1066,7 @@
               data-tab="thoughts"
               aria-selected="false"
               id="reflection-tab-thoughts"
-              aria-label="Thoughts about those tasks"
+              aria-label="One thing to keep"
             >
               <span class="reflection-progress-step"></span>
             </button>
@@ -1070,19 +1075,27 @@
 
         <div class="reflection-tab-panels">
           <section class="reflection-tab-panel active" id="reflection-panel-review" role="tabpanel" data-tab="review" aria-labelledby="reflection-tab-review">
-            <section class="reflection-hero reflection-hero--review">
-              <h1 class="reflection-hero-title">What moved<br>forward yesterday</h1>
-              <p class="reflection-hero-subtitle" id="reflection-review-subtitle">Sit with what you accomplished before writing how it felt.</p>
-              <div class="reflection-summary" id="reflection-summary" aria-label="Yesterday's accomplishments"></div>
-            </section>
-            <section class="reflection-review">
-              <h2 class="reflection-review-heading" id="reflection-review-heading">Wins from yesterday</h2>
-              <ul class="reflection-review-list" id="reflection-review-list"></ul>
-              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were checked off yesterday.</p>
-            </section>
+            <p class="reflection-lead" id="reflection-review-subtitle">How did yesterday land?</p>
+
+            <div class="reflection-card" aria-label="Yesterday's wins">
+              <p class="reflection-card-label" id="reflection-review-heading">Wins</p>
+              <ul class="reflection-win-chips" id="reflection-review-list"></ul>
+              <p class="reflection-review-empty hidden" id="reflection-review-empty">No checks yesterday — still worth noticing how you feel.</p>
+            </div>
+
+            <div class="reflection-card">
+              <p class="reflection-card-label" id="reflection-mood-label">How did you feel?</p>
+              <div class="reflection-chip-grid" id="reflection-mood-picker" role="radiogroup" aria-labelledby="reflection-mood-label"></div>
+            </div>
+
+            <div class="reflection-card">
+              <p class="reflection-card-label" id="reflection-needs-label">What felt needed?</p>
+              <div class="reflection-chip-grid" id="reflection-needs-picker" role="group" aria-labelledby="reflection-needs-label"></div>
+            </div>
+
             <footer class="reflection-footer">
               <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
-                <span>Continue to thoughts</span>
+                <span>Next</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -1091,54 +1104,27 @@
           </section>
 
           <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="tabpanel" data-tab="thoughts" aria-labelledby="reflection-tab-thoughts">
-        <section class="reflection-hero">
-          <h1 class="reflection-hero-title">How did that<br>land with you?</h1>
-          <p class="reflection-hero-subtitle">What are you glad moved, and what still wants care?</p>
-        </section>
+            <p class="reflection-lead">One thing to keep</p>
+            <p class="reflection-sublead">Optional — a word, a feeling, or leave it blank.</p>
 
-        <section class="reflection-input">
-          <div class="reflection-input-card">
-            <div class="reflection-input-main">
+            <div class="reflection-card reflection-card--note">
               <textarea
                 id="reflection-text"
                 class="reflection-textarea"
-                maxlength="500"
-                placeholder="Write your thoughts..."
-                rows="4"
+                maxlength="160"
+                placeholder="What stays with you…"
+                rows="3"
               ></textarea>
-              <svg class="reflection-input-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2l2.4 7.2h7.6l-6.1 4.4 2.3 7.2-6.2-4.5-6.2 4.5 2.3-7.2-6.1-4.4h7.6z" />
-              </svg>
+              <span class="reflection-char-count" id="reflection-char-count">0 / 160</span>
             </div>
-            <div class="reflection-input-footer">
-              <svg class="reflection-input-star reflection-input-star--small" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2l2.4 7.2h7.6l-6.1 4.4 2.3 7.2-6.2-4.5-6.2 4.5 2.3-7.2-6.1-4.4h7.6z" />
-              </svg>
-              <span class="reflection-char-count" id="reflection-char-count">0 / 500</span>
-            </div>
-          </div>
-        </section>
 
-        <section class="reflection-prompts">
-          <div class="reflection-prompts-header">
-            <h2 class="reflection-prompts-title">Quick prompts</h2>
-            <button type="button" class="reflection-prompts-refresh" id="reflection-prompts-refresh" aria-label="Refresh prompts">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
-          </div>
-          <div class="reflection-prompts-list" id="reflection-prompts-list"></div>
-        </section>
+            <div class="reflection-checkin-echo hidden" id="reflection-checkin-echo" aria-live="polite"></div>
 
-        <footer class="reflection-footer">
-          <button type="button" class="reflection-continue-btn" id="reflection-continue">
-            <span>Continue</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </footer>
+            <footer class="reflection-footer">
+              <button type="button" class="reflection-continue-btn" id="reflection-continue">
+                <span>Done</span>
+              </button>
+            </footer>
           </section>
         </div>
       </div>
@@ -1173,6 +1159,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=221"></script>
+    <script src="app.js?v=222"></script>
   </body>
 </html>
