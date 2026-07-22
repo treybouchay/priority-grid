@@ -6376,92 +6376,10 @@ function syncDialogParsePreview() {
   setTaskDialogSubmitLabel(`Add ${tasks.length} tasks`);
 }
 
-let dialogSpeechRecognition = null;
-
-function stopDialogVoiceCapture() {
-  const btn = document.getElementById("dialog-voice-btn");
-  try {
-    dialogSpeechRecognition?.stop?.();
-  } catch {
-    /* ignore */
-  }
-  dialogSpeechRecognition = null;
-  btn?.classList.remove("is-listening");
-  btn?.setAttribute("aria-pressed", "false");
-  if (btn) {
-    const label = btn.querySelector(".dialog-voice-label");
-    if (label) label.textContent = "Speak";
-  }
-}
-
-function toggleDialogVoiceCapture() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const btn = document.getElementById("dialog-voice-btn");
-  const input = document.getElementById("dialog-input");
-  if (!btn || !input) return;
-
-  if (!SpeechRecognition) {
-    alert("Voice capture isn’t supported in this browser. Try Chrome or Safari, or paste a paragraph instead.");
-    return;
-  }
-
-  if (dialogSpeechRecognition) {
-    stopDialogVoiceCapture();
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = navigator.language || "en-US";
-
-  let committed = input.value.trim();
-  let interim = "";
-
-  recognition.onresult = (event) => {
-    interim = "";
-    let newlyFinal = "";
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const result = event.results[i];
-      const chunk = result?.[0]?.transcript?.trim();
-      if (!chunk) continue;
-      if (result.isFinal) newlyFinal += `${chunk} `;
-      else interim += `${chunk} `;
-    }
-    if (newlyFinal) {
-      committed = `${committed}${committed ? "\n" : ""}${newlyFinal.trim()}`.trim();
-    }
-    const next = `${committed}${interim ? `${committed ? "\n" : ""}${interim.trim()}` : ""}`.trim();
-    input.value = next;
-    syncDialogParsePreview();
-  };
-
-  recognition.onerror = () => {
-    stopDialogVoiceCapture();
-  };
-  recognition.onend = () => {
-    if (dialogSpeechRecognition === recognition) stopDialogVoiceCapture();
-    syncDialogParsePreview();
-  };
-
-  dialogSpeechRecognition = recognition;
-  btn.classList.add("is-listening");
-  btn.setAttribute("aria-pressed", "true");
-  const label = btn.querySelector(".dialog-voice-label");
-  if (label) label.textContent = "Listening…";
-  try {
-    recognition.start();
-  } catch {
-    stopDialogVoiceCapture();
-    alert("Could not start voice capture. Check microphone permission and try again.");
-  }
-}
-
 async function openTaskDialog(tier = 1) {
   const dialog = document.getElementById("task-dialog");
   const defaultCtx = filter === "all" ? "work" : filter;
 
-  stopDialogVoiceCapture();
   clearDialogBrainFields();
   resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Add Task";
@@ -6480,7 +6398,6 @@ async function openTaskDialog(tier = 1) {
 async function openEditTaskDialog(task, ctx) {
   const dialog = document.getElementById("task-dialog");
 
-  stopDialogVoiceCapture();
   clearDialogBrainFields();
   dialogPhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
   document.getElementById("dialog-title").textContent = "Edit Task";
@@ -6506,7 +6423,6 @@ async function openEditTaskDialog(task, ctx) {
 function openBrainDumpSendDialog(item, ctx) {
   const dialog = document.getElementById("task-dialog");
 
-  stopDialogVoiceCapture();
   clearDialogBrainFields();
   resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Send to Priority";
