@@ -3950,6 +3950,20 @@ body.task-dragging-lock .app-main {
   flex-shrink: 0;
 }
 
+.plan-135-picker-item-meta .task-attach-btn--static {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  color: rgba(17, 48, 44, 0.55);
+  pointer-events: none;
+}
+
+.plan-135-picker-item-meta .task-attach-chip .icon,
+.plan-135-picker-item-meta .task-attach-chip svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .plan-135-picker-empty {
   text-align: center;
   color: var(--ink-muted);

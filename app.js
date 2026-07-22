@@ -805,11 +805,24 @@ function setupFocusTimer() {
         .map(
           (task) => `
         <li class="focus-timer-attach-item" data-id="${task.id}" data-context="${task.context}">
-          <span class="focus-timer-attach-text">${escapeHtml(task.text)}</span>
+          <button type="button" class="focus-timer-attach-text" title="View details">${escapeHtml(task.text)}</button>
+          <span class="focus-timer-attach-meta">
+            ${contextIconHtml(task.context, "focus-timer-task-ctx")}
+            ${taskAttachmentIndicatorHtml(task)}
+          </span>
           <button type="button" class="focus-timer-attach-remove" aria-label="Remove task">×</button>
         </li>`
         )
         .join("");
+      attachList.querySelectorAll(".focus-timer-attach-item").forEach((row) => {
+        const id = row.dataset.id;
+        const ctx = row.dataset.context;
+        bindAttachmentIndicator(row, id, ctx);
+        row.querySelector(".focus-timer-attach-text")?.addEventListener("click", () => {
+          const task = loadTasks(ctx).find((t) => t.id === id);
+          if (task) openTaskMediaViewer(task);
+        });
+      });
       attachList.querySelectorAll(".focus-timer-attach-remove").forEach((btn) => {
         btn.addEventListener("click", () => {
           const item = btn.closest(".focus-timer-attach-item");
@@ -871,7 +884,10 @@ function setupFocusTimer() {
           <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
         </label>
         <button type="button" class="${textClass}" title="View details">${escapeHtml(task.text)}</button>
-        ${taskAttachmentIndicatorHtml(task)}
+        <span class="focus-timer-task-meta">
+          ${contextIconHtml(task.context, "focus-timer-task-ctx")}
+          ${taskAttachmentIndicatorHtml(task)}
+        </span>
       </li>`;
   }
 
@@ -2058,7 +2074,7 @@ function taskHasPhotos(task) {
   return Array.isArray(task?.photos) && task.photos.length > 0;
 }
 
-function taskAttachmentIndicatorHtml(task) {
+function taskAttachmentIndicatorHtml(task, options = {}) {
   const hasNotes = taskHasNotes(task);
   const hasPhotos = taskHasPhotos(task);
   if (!hasNotes && !hasPhotos) return "";
@@ -2080,6 +2096,9 @@ function taskAttachmentIndicatorHtml(task) {
   ]
     .filter(Boolean)
     .join(" and ");
+  if (options.interactive === false) {
+    return `<span class="task-attach-btn task-attach-btn--static" aria-label="Has ${label}" title="Has ${label}">${bits.join("")}</span>`;
+  }
   return `<button type="button" class="task-attach-btn" aria-label="View ${label}" title="View ${label}">${bits.join("")}</button>`;
 }
 
@@ -2672,7 +2691,8 @@ function buildPickerListHtml(tasks) {
         <button type="button" class="plan-135-picker-item" data-id="${task.id}" data-context="${task.context}">
           <span class="plan-135-picker-item-text">${escapeHtml(task.text)}</span>
           <span class="plan-135-picker-item-meta">
-            ${filter === "all" ? contextIconHtml(task.context, "plan-135-ctx") : ""}
+            ${contextIconHtml(task.context, "plan-135-ctx")}
+            ${taskAttachmentIndicatorHtml(task, { interactive: false })}
           </span>
         </button>
       </li>`
@@ -6532,14 +6552,12 @@ function setupTaskDialog() {
   });
 
   document.getElementById("dialog-cancel").addEventListener("click", () => {
-    stopDialogVoiceCapture();
     clearDialogBrainFields();
     resetDialogMediaFields();
     dialog.close();
   });
 
   dialog.addEventListener("close", () => {
-    stopDialogVoiceCapture();
     clearDialogBrainFields();
     resetDialogMediaFields();
     setTaskDialogSubmitLabel("Save");
@@ -6547,10 +6565,6 @@ function setupTaskDialog() {
   });
 
   input?.addEventListener("input", syncDialogParsePreview);
-  document.getElementById("dialog-voice-btn")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    toggleDialogVoiceCapture();
-  });
 
   photoInput?.addEventListener("change", async () => {
     const file = photoInput.files?.[0];
@@ -6566,7 +6580,6 @@ function setupTaskDialog() {
 
   document.getElementById("task-dialog-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    stopDialogVoiceCapture();
     saveTaskFromDialog();
     dialog.close();
     renderAll();
