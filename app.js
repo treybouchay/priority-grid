@@ -1873,9 +1873,9 @@ async function initRemoteSync() {
 function getPage() {
   try {
     const saved = localStorage.getItem(PAGE_KEY);
-    if (saved === "home" || saved === "tasks" || saved === "history") return saved;
+    if (saved === "home" || saved === "tasks" || saved === "history" || saved === "settings") return saved;
     if (saved === "brain-dump") return "tasks";
-    if (saved === "settings") return "home";
+    if (saved === "profile") return "settings";
   } catch {
     /* ignore */
   }
@@ -3016,6 +3016,8 @@ function updatePageTitle() {
   let title = "My Day";
   if (page === "history") {
     title = "History";
+  } else if (page === "settings") {
+    title = "Settings";
   } else if (page === "tasks") {
     if (filter === "all") title = "All Tasks";
     else if (filter === "work") title = "Work Tasks";
@@ -3023,8 +3025,8 @@ function updatePageTitle() {
     else title = `${contextLabel(filter)} Tasks`;
   }
   document.getElementById("page-title").textContent = title;
-  document.getElementById("page-title").classList.toggle("hidden", page === "home" || page === "tasks");
-  document.getElementById("page-header").classList.toggle("hidden", page === "home");
+  document.getElementById("page-title").classList.toggle("hidden", page === "home" || page === "tasks" || page === "settings");
+  document.getElementById("page-header").classList.toggle("hidden", page === "home" || page === "settings");
   document.getElementById("page-header").classList.toggle("page-header--home", page === "home");
   document.getElementById("page-header").classList.toggle("page-header--tasks", page === "tasks");
   document.getElementById("page-header-actions").classList.toggle("hidden", page !== "home");
@@ -3046,6 +3048,8 @@ function syncNavActive() {
       active = btn.dataset.page === "home";
     } else if (page === "history") {
       active = btn.dataset.page === "history";
+    } else if (page === "settings") {
+      active = btn.dataset.page === "settings";
     } else if (page === "tasks") {
       if (btn.dataset.focusBrain === "true") {
         active = false;
@@ -3058,12 +3062,12 @@ function syncNavActive() {
 
   document.querySelectorAll(".mobile-nav-item").forEach((btn) => {
     let active = false;
-    if (btn.dataset.nav === "profile" || btn.dataset.nav === "settings") {
-      active = false;
-    } else if (page === "home") {
+    if (page === "home") {
       active = btn.dataset.page === "home";
     } else if (page === "history") {
       active = btn.dataset.page === "history";
+    } else if (page === "settings") {
+      active = btn.dataset.page === "settings";
     } else if (page === "tasks" && btn.dataset.page === "tasks") {
       active = !btn.dataset.focusBrain && btn.dataset.filter === filter && !btn.dataset.nav;
     }
@@ -3097,11 +3101,9 @@ function setPage(nextPage, nextFilter = filter, options = {}) {
   document.getElementById("home-page").classList.toggle("hidden", page !== "home");
   document.getElementById("tasks-page").classList.toggle("hidden", page !== "tasks");
   document.getElementById("history-page").classList.toggle("hidden", page !== "history");
+  document.getElementById("settings-page")?.classList.toggle("hidden", page !== "settings");
 
   document.body.dataset.page = page;
-
-  const appearance = document.getElementById("appearance-panel");
-  if (appearance && page !== "home") appearance.removeAttribute("open");
 
   syncNavActive();
   updatePageTitle();
@@ -3124,10 +3126,10 @@ function setFilter(nextFilter) {
 }
 
 function openAppearancePanel() {
-  const panel = document.getElementById("appearance-panel");
-  if (!panel) return;
-  panel.open = true;
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  setPage("settings");
+  requestAnimationFrame(() => {
+    document.getElementById("settings-page")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function setupScribbleCaptureGesture() {
@@ -3831,7 +3833,7 @@ function setupNavigation() {
 
   const sidebarProfileBtn = document.getElementById("sidebar-profile-btn");
   if (sidebarProfileBtn) {
-    sidebarProfileBtn.addEventListener("click", openAppearancePanel);
+    sidebarProfileBtn.addEventListener("click", () => setPage("settings"));
   }
 
   document.getElementById("capture-clip-fab")?.addEventListener("click", (e) => {

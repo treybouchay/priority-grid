@@ -1943,7 +1943,8 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
 
   .main,
   body[data-page="tasks"] .main,
-  body[data-page="history"] .main {
+  body[data-page="history"] .main,
+  body[data-page="settings"] .main {
     padding-bottom: var(--bottom-chrome-height, calc(6.5rem + env(safe-area-inset-bottom, 0px)));
   }
 

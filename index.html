@@ -67,11 +67,12 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=159" />
+    <link rel="stylesheet" href="styles.css?v=160" />
     <link rel="stylesheet" href="design/task-rows.css?v=14" />
-    <link rel="stylesheet" href="design/home-presence.css?v=94" />
+    <link rel="stylesheet" href="design/home-presence.css?v=95" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=36" />
     <link rel="stylesheet" href="design/history-wins.css?v=5" />
+    <link rel="stylesheet" href="design/settings-page.css?v=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -282,7 +283,7 @@
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-calendar"></use></svg>
             <span class="nav-item-label">History</span>
           </button>
-          <button type="button" class="nav-item" data-nav="settings">
+          <button type="button" class="nav-item" data-page="settings">
             <svg class="icon icon-nav" aria-hidden="true"><use href="#icon-user"></use></svg>
             <span class="nav-item-label">Settings</span>
           </button>
@@ -292,12 +293,12 @@
           <div class="sidebar-landscape" aria-hidden="true">
             <img class="sidebar-landscape-img" src="assets/sidebar-landscape.png?v=39" alt="" decoding="async" />
           </div>
-          <button type="button" class="sidebar-profile" id="sidebar-profile-btn" aria-label="View profile">
+          <button type="button" class="sidebar-profile" id="sidebar-profile-btn" aria-label="Open settings">
             <span class="sidebar-profile-card">
               <img class="sidebar-profile-avatar" src="assets/sidebar-avatar.png?v=39" alt="" width="24" height="24" decoding="async" />
               <span class="sidebar-profile-text">
                 <span class="sidebar-profile-name" data-display-name>Friend</span>
-                <span class="sidebar-profile-link">view profile</span>
+                <span class="sidebar-profile-link">settings</span>
               </span>
               <svg class="icon icon-sidebar-arrow" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
             </span>
@@ -339,52 +340,6 @@
             <button type="button" class="btn-add-task hidden" id="add-task-btn">+ Add Task</button>
           </div>
         </header>
-
-        <details class="appearance-panel" id="appearance-panel">
-          <summary class="appearance-breadcrumb">Settings</summary>
-          <div class="appearance-content">
-            <p class="appearance-label">Your name</p>
-            <input
-              type="text"
-              id="display-name-input"
-              class="display-name-input"
-              placeholder="What should we call you?"
-              maxlength="24"
-              autocomplete="nickname"
-            />
-            <p class="sync-hint">Shown in greetings and your profile.</p>
-            <p class="appearance-label">Time of day</p>
-            <div class="theme-picker" id="time-preview-picker" role="radiogroup" aria-label="Time of day preview"></div>
-            <p class="sync-hint" id="time-preview-status"></p>
-            <p class="appearance-label">Color scheme</p>
-            <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Color scheme"></div>
-            <p class="sync-hint theme-schedule-status" id="theme-schedule-status"></p>
-            <p class="appearance-label">Font pairing</p>
-            <div class="font-picker" id="font-picker" role="radiogroup" aria-label="Font pairing"></div>
-            <p class="appearance-label">Home layout</p>
-            <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-label="Home layout"></div>
-            <p class="appearance-label">Lists</p>
-            <p class="sync-hint">Work, Home, Personal, Errands, Health, and Faith are built in. Add your own below — pick a preset icon or upload your own.</p>
-            <ul class="lists-manager" id="lists-manager" aria-label="Lists"></ul>
-            <form class="lists-add-form" id="lists-add-form">
-              <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
-              <button type="submit" class="btn-secondary">Add list</button>
-            </form>
-            <div class="list-icon-picker" id="lists-add-icons" role="radiogroup" aria-label="New list icon"></div>
-            <input type="file" id="list-icon-file-input" accept="image/*" hidden />
-            <p class="appearance-label">Sync data</p>
-            <p class="sync-status" id="sync-status">Checking sync…</p>
-            <p class="sync-hint">Run ./serve.sh and open the same URL on phone and computer to sync automatically. Export/import still works as backup.</p>
-            <div class="sync-actions">
-              <button type="button" class="btn-secondary" id="sync-now-btn">Sync now</button>
-              <button type="button" class="btn-secondary" id="export-data-btn">Export backup</button>
-              <label class="btn-secondary import-label">
-                Import backup
-                <input type="file" id="import-data-input" accept="application/json,.json" hidden />
-              </label>
-            </div>
-          </div>
-        </details>
 
         <div class="sync-banner hidden" id="sync-banner">
           <p>Start <strong>./serve.sh</strong> on your Mac and open the same address on each device to sync tasks automatically.</p>
@@ -814,6 +769,104 @@
             <p class="history-empty hidden" id="history-empty">No completed tasks yet. Check something off to start building your history.</p>
           </section>
         </div>
+
+        <!-- Settings -->
+        <div class="page-panel hidden" id="settings-page">
+          <section class="settings-page-section" aria-label="Settings">
+            <header class="settings-page-header">
+              <div class="presence-plan-heading">
+                <h1 class="section-title section-title--plan" id="settings-page-title">Settings</h1>
+                <div class="presence-plan-accent" aria-hidden="true"></div>
+              </div>
+              <p class="settings-page-subtitle">Tune Presence to how you work — name, look, lists, and sync.</p>
+            </header>
+
+            <article class="settings-card" aria-labelledby="settings-profile-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-profile-heading">Profile</h2>
+                <p class="settings-card-desc">How you show up in greetings across the app.</p>
+              </header>
+              <div class="settings-profile-row">
+                <img
+                  class="settings-profile-avatar"
+                  src="assets/sidebar-avatar.png?v=39"
+                  alt=""
+                  width="56"
+                  height="56"
+                  decoding="async"
+                />
+                <div class="settings-profile-fields">
+                  <label class="settings-field-label" for="display-name-input">Your name</label>
+                  <input
+                    type="text"
+                    id="display-name-input"
+                    class="display-name-input settings-text-input"
+                    placeholder="What should we call you?"
+                    maxlength="24"
+                    autocomplete="nickname"
+                  />
+                  <p class="settings-hint">Shown on Home and Tasks.</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="settings-card" aria-labelledby="settings-appearance-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-appearance-heading">Appearance</h2>
+                <p class="settings-card-desc">Colors, type, and how Home feels.</p>
+              </header>
+              <div class="settings-field">
+                <p class="settings-field-label" id="time-preview-label">Time of day</p>
+                <div class="theme-picker" id="time-preview-picker" role="radiogroup" aria-labelledby="time-preview-label"></div>
+                <p class="settings-hint" id="time-preview-status"></p>
+              </div>
+              <div class="settings-field">
+                <p class="settings-field-label" id="theme-picker-label">Color scheme</p>
+                <div class="theme-picker" id="theme-picker" role="radiogroup" aria-labelledby="theme-picker-label"></div>
+                <p class="settings-hint theme-schedule-status" id="theme-schedule-status"></p>
+              </div>
+              <div class="settings-field">
+                <p class="settings-field-label" id="font-picker-label">Font pairing</p>
+                <div class="font-picker" id="font-picker" role="radiogroup" aria-labelledby="font-picker-label"></div>
+              </div>
+              <div class="settings-field">
+                <p class="settings-field-label" id="home-design-label">Home layout</p>
+                <div class="theme-picker" id="home-design-picker" role="radiogroup" aria-labelledby="home-design-label"></div>
+              </div>
+            </article>
+
+            <article class="settings-card" aria-labelledby="settings-lists-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-lists-heading">Lists</h2>
+                <p class="settings-card-desc">Built-in categories stay put. Add your own with a preset or uploaded icon.</p>
+              </header>
+              <ul class="lists-manager" id="lists-manager" aria-label="Lists"></ul>
+              <form class="lists-add-form" id="lists-add-form">
+                <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
+                <button type="submit" class="btn-secondary">Add list</button>
+              </form>
+              <div class="list-icon-picker" id="lists-add-icons" role="radiogroup" aria-label="New list icon"></div>
+              <input type="file" id="list-icon-file-input" accept="image/*" hidden />
+            </article>
+
+            <article class="settings-card" aria-labelledby="settings-sync-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-sync-heading">Data &amp; sync</h2>
+                <p class="settings-card-desc">Keep phone and computer in sync, or export a backup.</p>
+              </header>
+              <p class="sync-status" id="sync-status">Checking sync…</p>
+              <p class="settings-hint">Run ./serve.sh and open the same URL on each device to sync automatically.</p>
+              <div class="sync-actions">
+                <button type="button" class="btn-secondary" id="sync-now-btn">Sync now</button>
+                <button type="button" class="btn-secondary" id="export-data-btn">Export backup</button>
+                <label class="btn-secondary import-label">
+                  Import backup
+                  <input type="file" id="import-data-input" accept="application/json,.json" hidden />
+                </label>
+              </div>
+            </article>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -860,9 +913,9 @@
           <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-calendar"></use></svg>
           <span class="mobile-nav-label">History</span>
         </button>
-        <button type="button" class="mobile-nav-item" data-nav="profile" aria-label="Profile">
+        <button type="button" class="mobile-nav-item" data-page="settings" aria-label="Settings">
           <svg class="icon icon-mobile" aria-hidden="true"><use href="#icon-user"></use></svg>
-          <span class="mobile-nav-label">Profile</span>
+          <span class="mobile-nav-label">Settings</span>
         </button>
       </nav>
     </div>
@@ -1123,6 +1176,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=216"></script>
+    <script src="app.js?v=217"></script>
   </body>
 </html>

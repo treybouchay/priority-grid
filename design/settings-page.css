@@ -1,0 +1,318 @@
+/* Settings page — match History / Presence cream + forest language */
+
+body[data-page="settings"] {
+  background: #fdf9f4;
+  color: #11302c;
+  --font-heading: "Source Serif 4", Georgia, serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+  --cream: #fdf9f4;
+  --forest: #0e3030;
+  --forest-ink: #11302c;
+  --peach-soft: #ffdbd2;
+}
+
+body[data-page="settings"] .shell,
+body[data-page="settings"] .main {
+  background: #fdf9f4;
+}
+
+body[data-page="settings"] .page-header {
+  display: none;
+}
+
+body[data-page="settings"] #settings-page.page-panel {
+  max-width: none;
+  width: 100%;
+  padding: 1.25rem clamp(0.75rem, 3vw, 1.5rem) calc(1.5rem + var(--bottom-chrome-height, 0px));
+  background: transparent;
+  box-sizing: border-box;
+}
+
+body[data-page="settings"] .settings-page-section {
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+body[data-page="settings"] .settings-page-header {
+  margin-bottom: 0.25rem;
+}
+
+body[data-page="settings"] .settings-page-header .section-title--plan {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 5vw, 1.75rem);
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="settings"] .settings-page-header .presence-plan-accent {
+  display: block;
+  width: 3rem;
+  height: 0.25rem;
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: #fc9174;
+}
+
+body[data-page="settings"] .settings-page-subtitle {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+body[data-page="settings"] .settings-card {
+  position: relative;
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 1.15rem 1.2rem 1.25rem;
+  overflow: hidden;
+}
+
+body[data-page="settings"] .settings-card-header {
+  margin-bottom: 1rem;
+}
+
+body[data-page="settings"] .settings-card-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="settings"] .settings-card-desc {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+body[data-page="settings"] .settings-field {
+  margin-bottom: 1.1rem;
+}
+
+body[data-page="settings"] .settings-field:last-child {
+  margin-bottom: 0;
+}
+
+body[data-page="settings"] .settings-field-label,
+body[data-page="settings"] .appearance-label {
+  display: block;
+  margin: 0 0 0.45rem;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="settings"] .settings-hint,
+body[data-page="settings"] .sync-hint {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="settings"] .settings-profile-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+body[data-page="settings"] .settings-profile-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1.15rem;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #0e3030;
+  box-shadow: 0 4px 12px rgba(14, 48, 48, 0.12);
+}
+
+body[data-page="settings"] .settings-profile-fields {
+  flex: 1;
+  min-width: 0;
+}
+
+body[data-page="settings"] .settings-text-input,
+body[data-page="settings"] .display-name-input,
+body[data-page="settings"] .lists-add-form input {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 0.7rem 0.95rem;
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #11302c;
+}
+
+body[data-page="settings"] .settings-text-input:focus,
+body[data-page="settings"] .display-name-input:focus,
+body[data-page="settings"] .lists-add-form input:focus {
+  outline: 2px solid rgba(14, 48, 48, 0.22);
+  outline-offset: 1px;
+}
+
+body[data-page="settings"] .theme-picker,
+body[data-page="settings"] .font-picker {
+  margin-bottom: 0;
+}
+
+body[data-page="settings"] .theme-option,
+body[data-page="settings"] .font-option {
+  border-radius: 1rem;
+  border: 1.5px solid rgba(14, 48, 48, 0.1);
+  background: rgba(255, 255, 255, 0.7);
+  color: #11302c;
+}
+
+body[data-page="settings"] .theme-option.active,
+body[data-page="settings"] .font-option.active {
+  border-color: #0e3030;
+  box-shadow: 0 0 0 1px rgba(14, 48, 48, 0.15);
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+body[data-page="settings"] .theme-option.active .theme-name,
+body[data-page="settings"] .font-option.active .font-option-name,
+body[data-page="settings"] .font-option.active .font-option-sample {
+  color: #ffdbd2;
+}
+
+body[data-page="settings"] .theme-name,
+body[data-page="settings"] .font-option-name {
+  color: inherit;
+}
+
+body[data-page="settings"] .font-option-sample {
+  color: rgba(17, 48, 44, 0.55);
+}
+
+body[data-page="settings"] .lists-manager {
+  margin: 0 0 0.85rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+body[data-page="settings"] .lists-manager-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(14, 48, 48, 0.06);
+}
+
+body[data-page="settings"] .lists-manager-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #11302c;
+}
+
+body[data-page="settings"] .lists-manager-rename,
+body[data-page="settings"] .lists-manager-delete {
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.55);
+  cursor: pointer;
+  padding: 0.25rem 0.35rem;
+}
+
+body[data-page="settings"] .lists-manager-delete {
+  color: rgba(160, 64, 64, 0.85);
+}
+
+body[data-page="settings"] .lists-add-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+body[data-page="settings"] .lists-add-form .btn-secondary,
+body[data-page="settings"] .sync-actions .btn-secondary,
+body[data-page="settings"] .sync-actions .import-label {
+  background: #0e3030;
+  color: #ffdbd2;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+body[data-page="settings"] .list-icon-picker {
+  margin: 0;
+}
+
+body[data-page="settings"] .list-icon-option {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(14, 48, 48, 0.12);
+  color: #11302c;
+}
+
+body[data-page="settings"] .list-icon-option.is-selected {
+  background: #0e3030;
+  border-color: #0e3030;
+  color: #ffdbd2;
+}
+
+body[data-page="settings"] .sync-status {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0e3030;
+}
+
+body[data-page="settings"] .sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+body[data-page="settings"] .capture-clip-fab {
+  display: none !important;
+}
+
+@media (min-width: 900px) {
+  body[data-page="settings"] #settings-page.page-panel {
+    padding-top: 1.75rem;
+    padding-bottom: 2.5rem;
+  }
+
+  body[data-page="settings"] .settings-card {
+    padding: 1.35rem 1.4rem 1.45rem;
+  }
+}
