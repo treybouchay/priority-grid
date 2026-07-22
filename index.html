@@ -67,9 +67,9 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=160" />
+    <link rel="stylesheet" href="styles.css?v=161" />
     <link rel="stylesheet" href="design/task-rows.css?v=14" />
-    <link rel="stylesheet" href="design/home-presence.css?v=95" />
+    <link rel="stylesheet" href="design/home-presence.css?v=96" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=36" />
     <link rel="stylesheet" href="design/history-wins.css?v=5" />
     <link rel="stylesheet" href="design/settings-page.css?v=2" />
@@ -935,7 +935,27 @@
     <dialog class="task-dialog" id="task-dialog">
       <form method="dialog" id="task-dialog-form">
         <h3 class="dialog-title" id="dialog-title">Add Task</h3>
-        <input type="text" id="dialog-input" placeholder="What needs to be done?" autocomplete="off" required />
+        <div class="dialog-task-compose">
+          <textarea
+            id="dialog-input"
+            class="dialog-task-input"
+            placeholder="One task — or paste / speak a few lines to split into several"
+            rows="3"
+            maxlength="2000"
+            autocomplete="off"
+            required
+          ></textarea>
+          <button type="button" class="dialog-voice-btn" id="dialog-voice-btn" aria-label="Dictate tasks" title="Dictate tasks" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0" stroke-linecap="round" />
+              <path d="M12 18v3" stroke-linecap="round" />
+            </svg>
+            <span class="dialog-voice-label">Speak</span>
+          </button>
+        </div>
+        <p class="dialog-parse-hint hidden" id="dialog-parse-hint"></p>
+        <ul class="dialog-parse-preview hidden" id="dialog-parse-preview" aria-live="polite"></ul>
         <label class="dialog-label" for="dialog-context">List</label>
         <div class="dialog-list-field">
           <span class="dialog-list-icon" id="dialog-context-icon" aria-hidden="true"></span>
@@ -969,7 +989,7 @@
         <input type="hidden" id="dialog-brain-context" value="" />
         <div class="dialog-actions">
           <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
-          <button type="submit" class="btn-primary">Save</button>
+          <button type="submit" class="btn-primary" id="dialog-submit">Save</button>
         </div>
       </form>
     </dialog>
@@ -1061,14 +1081,14 @@
         <div class="reflection-tab-panels">
           <section class="reflection-tab-panel active" id="reflection-panel-review" role="tabpanel" data-tab="review" aria-labelledby="reflection-tab-review">
             <section class="reflection-hero reflection-hero--review">
-              <h1 class="reflection-hero-title">Yesterday's<br>daily summary</h1>
-              <p class="reflection-hero-subtitle" id="reflection-review-subtitle">Review what you finished before reflecting.</p>
-              <div class="reflection-summary" id="reflection-summary" aria-label="Yesterday summary"></div>
+              <h1 class="reflection-hero-title">What moved<br>forward yesterday</h1>
+              <p class="reflection-hero-subtitle" id="reflection-review-subtitle">Sit with what you accomplished before writing how it felt.</p>
+              <div class="reflection-summary" id="reflection-summary" aria-label="Yesterday's accomplishments"></div>
             </section>
             <section class="reflection-review">
-              <h2 class="reflection-review-heading" id="reflection-review-heading">Completed yesterday</h2>
+              <h2 class="reflection-review-heading" id="reflection-review-heading">Wins from yesterday</h2>
               <ul class="reflection-review-list" id="reflection-review-list"></ul>
-              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were completed yesterday.</p>
+              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were checked off yesterday.</p>
             </section>
             <footer class="reflection-footer">
               <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
@@ -1082,8 +1102,8 @@
 
           <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="tabpanel" data-tab="thoughts" aria-labelledby="reflection-tab-thoughts">
         <section class="reflection-hero">
-          <h1 class="reflection-hero-title">Take care of<br>what sparks joy.</h1>
-          <p class="reflection-hero-subtitle">What brought you joy today?</p>
+          <h1 class="reflection-hero-title">How did that<br>land with you?</h1>
+          <p class="reflection-hero-subtitle">What are you glad moved, and what still wants care?</p>
         </section>
 
         <section class="reflection-input">
@@ -1163,6 +1183,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=218"></script>
+    <script src="app.js?v=219"></script>
   </body>
 </html>

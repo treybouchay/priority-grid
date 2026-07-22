@@ -4469,12 +4469,9 @@ function getOpenTasksSnapshot() {
 
 function getYesterdayDailySummary() {
   const completed = getCompletedYesterdayTasks();
-  const leftOpen = getOpenTasksSnapshot();
   return {
     completedCount: completed.length,
-    leftCount: leftOpen.length,
     completed,
-    leftOpen,
   };
 }
 
@@ -4499,6 +4496,84 @@ function getCompletedYesterdayTasks() {
   );
 }
 
+function buildYesterdayAccomplishStory(completed) {
+  if (!completed.length) {
+    return {
+      title: "A quieter day",
+      body: "Nothing was checked off yesterday — that can still be a rest day worth noticing. When you're ready, write what you want to carry forward.",
+      highlights: [],
+    };
+  }
+
+  const byContext = new Map();
+  const byTier = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  completed.forEach((task) => {
+    const label = contextLabel(task.context);
+    byContext.set(label, (byContext.get(label) || 0) + 1);
+    if (byTier[task.tier] != null) byTier[task.tier] += 1;
+  });
+
+  const topLists = [...byContext.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, count]) => (count > 1 ? `${name} (${count})` : name));
+
+  const highPriority = byTier[1] + byTier[2];
+  const first = completed[completed.length - 1];
+  const latest = completed[0];
+  const withNotes = completed.filter((t) => t.notes?.trim()).length;
+
+  const countPhrase =
+    completed.length === 1
+      ? "You finished one thing yesterday"
+      : `You finished ${completed.length} things yesterday`;
+
+  let body = countPhrase;
+  if (topLists.length === 1) {
+    body += ` — all in ${topLists[0]}.`;
+  } else if (topLists.length > 1) {
+    body += `, mostly across ${topLists.slice(0, -1).join(", ")} and ${topLists[topLists.length - 1]}.`;
+  } else {
+    body += ".";
+  }
+
+  if (highPriority > 0) {
+    body +=
+      highPriority === completed.length
+        ? " Every one was a top priority."
+        : ` ${highPriority} of them were 1st or 2nd priority.`;
+  }
+
+  const highlights = [];
+  if (latest?.text) {
+    highlights.push({
+      label: "Last win",
+      text: latest.text,
+      meta: `${contextLabel(latest.context)}${formatCompletionTime(latest.completedAt) ? ` · ${formatCompletionTime(latest.completedAt)}` : ""}`,
+    });
+  }
+  if (first?.id !== latest?.id && first?.text) {
+    highlights.push({
+      label: "Started with",
+      text: first.text,
+      meta: contextLabel(first.context),
+    });
+  }
+  if (withNotes > 0) {
+    highlights.push({
+      label: "Noted along the way",
+      text: `${withNotes} completion${withNotes === 1 ? "" : "s"} carried notes you can revisit below.`,
+      meta: "",
+    });
+  }
+
+  return {
+    title: completed.length === 1 ? "Yesterday's win" : "What you accomplished",
+    body,
+    highlights,
+  };
+}
+
 function reflectionReviewItemHtml(task) {
   const time = formatCompletionTime(task.completedAt);
   const note = task.notes?.trim()
@@ -4510,7 +4585,10 @@ function reflectionReviewItemHtml(task) {
       <div class="reflection-review-body">
         <span class="reflection-review-text">${escapeHtml(task.text)}</span>
         ${note}
-        <span class="reflection-review-tier">${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""} · ${escapeHtml(contextLabel(task.context))}</span>
+        <span class="reflection-review-tier">
+          ${contextIconHtml(task.context, "reflection-review-ctx")}
+          ${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""} · ${escapeHtml(contextLabel(task.context))}
+        </span>
       </div>
     </li>`;
 }
@@ -4523,37 +4601,45 @@ function renderReflectionReview() {
   const heading = document.getElementById("reflection-review-heading");
   if (!list || !empty) return;
 
-  const { completedCount, leftCount, completed } = getYesterdayDailySummary();
+  const { completedCount, completed } = getYesterdayDailySummary();
+  const story = buildYesterdayAccomplishStory(completed);
 
   if (summary) {
+    const highlightHtml = story.highlights
+      .map(
+        (item) => `
+      <div class="reflection-story-highlight">
+        <p class="reflection-story-highlight-label">${escapeHtml(item.label)}</p>
+        <p class="reflection-story-highlight-text">${escapeHtml(item.text)}</p>
+        ${item.meta ? `<p class="reflection-story-highlight-meta">${escapeHtml(item.meta)}</p>` : ""}
+      </div>`
+      )
+      .join("");
     summary.innerHTML = `
-      <div class="reflection-summary-stat">
-        <span class="reflection-summary-value">${completedCount}</span>
-        <span class="reflection-summary-label">completed</span>
-      </div>
-      <div class="reflection-summary-stat">
-        <span class="reflection-summary-value">${leftCount}</span>
-        <span class="reflection-summary-label">still open</span>
+      <div class="reflection-story">
+        <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
+        <p class="reflection-story-body">${escapeHtml(story.body)}</p>
+        ${highlightHtml ? `<div class="reflection-story-highlights">${highlightHtml}</div>` : ""}
       </div>`;
   }
 
   if (subtitle) {
     subtitle.textContent =
-      completedCount === 0 && leftCount === 0
-        ? "A quiet day — nothing completed, nothing left open."
-        : completedCount === 0
-          ? `${leftCount} task${leftCount === 1 ? "" : "s"} still open. Reflect on what mattered.`
-          : `${completedCount} finished yesterday · ${leftCount} still open today.`;
+      completedCount === 0
+        ? "Look back gently — even a quiet day has something to notice."
+        : "Sit with what moved forward before writing how it felt.";
   }
 
   if (heading) {
     heading.textContent =
-      completedCount === 0 ? "Completed yesterday" : `Completed yesterday (${completedCount})`;
+      completedCount === 0 ? "Wins from yesterday" : `Wins from yesterday (${completedCount})`;
   }
 
   if (completed.length === 0) {
     list.innerHTML = "";
     empty.classList.remove("hidden");
+    empty.textContent =
+      "No tasks were checked off yesterday. Use the next step to note what still mattered.";
     return;
   }
 
@@ -5142,7 +5228,10 @@ function planCardTaskHtml(task) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
-      ${taskAttachmentIndicatorHtml(task)}
+      <span class="plan-card-task-meta">
+        ${contextIconHtml(task.context, "plan-card-task-ctx")}
+        ${taskAttachmentIndicatorHtml(task)}
+      </span>
       <button type="button" class="plan-card-drag task-drag-handle" tabindex="-1" aria-label="Drag to reorder">
         <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
           <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
@@ -5212,7 +5301,10 @@ function homeCardTaskHtml(task, options = {}) {
         <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
         ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
       </div>
-      ${taskAttachmentIndicatorHtml(task)}
+      <span class="home-card-task-meta">
+        ${contextIconHtml(task.context, "home-card-task-ctx")}
+        ${taskAttachmentIndicatorHtml(task)}
+      </span>
     </li>`;
 }
 
@@ -6193,14 +6285,183 @@ function resetDialogMediaFields() {
 }
 
 function setTaskDialogSubmitLabel(label) {
-  const btn = document.querySelector("#task-dialog-form button[type='submit']");
+  const btn = document.getElementById("dialog-submit") || document.querySelector("#task-dialog-form button[type='submit']");
   if (btn) btn.textContent = label;
+}
+
+function stripTaskBulletPrefix(line) {
+  return line
+    .replace(/^(?:[-*•·▪︎◦]|\d+[\.\)])\s+/, "")
+    .replace(/^(?:todo|task)\s*[:\-–—]\s*/i, "")
+    .trim();
+}
+
+function parseTasksFromText(raw) {
+  if (typeof raw !== "string") return [];
+  const text = raw.replace(/\u00a0/g, " ").trim();
+  if (!text) return [];
+
+  let lines = text
+    .split(/\r?\n+/)
+    .map((line) => stripTaskBulletPrefix(line.trim()))
+    .filter(Boolean);
+
+  if (lines.length === 1) {
+    const single = lines[0];
+    let parts = null;
+    if (/[•·▪︎◦]/.test(single)) {
+      parts = single.split(/\s*[•·▪︎◦]\s*/);
+    } else if (/(?:^|\s)\d+[\.\)]\s+\S/.test(single)) {
+      parts = single.split(/(?:^|\s+)\d+[\.\)]\s+/);
+    } else if (/;\s+/.test(single)) {
+      parts = single.split(/;\s+/);
+    } else if (/\b(?:and then|also|plus)\b/i.test(single)) {
+      parts = single.split(/\s*(?:,\s*and\s+|,\s*|\band then\b|\balso\b|\bplus\b)\s*/i);
+    }
+    if (parts) {
+      const cleaned = parts.map((part) => stripTaskBulletPrefix(part.trim())).filter((part) => part.length > 1);
+      if (cleaned.length > 1) lines = cleaned;
+    }
+  }
+
+  const seen = new Set();
+  const tasks = [];
+  for (const line of lines) {
+    const normalized = line.replace(/\s+/g, " ").trim();
+    if (!normalized || normalized.length > 180) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tasks.push(normalized);
+    if (tasks.length >= 20) break;
+  }
+  return tasks;
+}
+
+function isTaskDialogMultiAddMode() {
+  const editId = document.getElementById("dialog-edit-id")?.value;
+  const brainId = document.getElementById("dialog-brain-id")?.value;
+  return !editId && !brainId;
+}
+
+function syncDialogParsePreview() {
+  const hint = document.getElementById("dialog-parse-hint");
+  const preview = document.getElementById("dialog-parse-preview");
+  const input = document.getElementById("dialog-input");
+  if (!hint || !preview || !input) return;
+
+  if (!isTaskDialogMultiAddMode()) {
+    hint.classList.add("hidden");
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    setTaskDialogSubmitLabel(document.getElementById("dialog-title")?.textContent === "Edit Task" ? "Save" : "Send");
+    return;
+  }
+
+  const tasks = parseTasksFromText(input.value);
+  if (tasks.length <= 1) {
+    hint.classList.add("hidden");
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    setTaskDialogSubmitLabel("Save");
+    return;
+  }
+
+  hint.classList.remove("hidden");
+  hint.textContent = `Will add ${tasks.length} tasks to the selected list.`;
+  preview.classList.remove("hidden");
+  preview.innerHTML = tasks
+    .map((text, index) => `<li><span class="dialog-parse-index">${index + 1}</span><span>${escapeHtml(text)}</span></li>`)
+    .join("");
+  setTaskDialogSubmitLabel(`Add ${tasks.length} tasks`);
+}
+
+let dialogSpeechRecognition = null;
+
+function stopDialogVoiceCapture() {
+  const btn = document.getElementById("dialog-voice-btn");
+  try {
+    dialogSpeechRecognition?.stop?.();
+  } catch {
+    /* ignore */
+  }
+  dialogSpeechRecognition = null;
+  btn?.classList.remove("is-listening");
+  btn?.setAttribute("aria-pressed", "false");
+  if (btn) {
+    const label = btn.querySelector(".dialog-voice-label");
+    if (label) label.textContent = "Speak";
+  }
+}
+
+function toggleDialogVoiceCapture() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById("dialog-voice-btn");
+  const input = document.getElementById("dialog-input");
+  if (!btn || !input) return;
+
+  if (!SpeechRecognition) {
+    alert("Voice capture isn’t supported in this browser. Try Chrome or Safari, or paste a paragraph instead.");
+    return;
+  }
+
+  if (dialogSpeechRecognition) {
+    stopDialogVoiceCapture();
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = navigator.language || "en-US";
+
+  let committed = input.value.trim();
+  let interim = "";
+
+  recognition.onresult = (event) => {
+    interim = "";
+    let newlyFinal = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i];
+      const chunk = result?.[0]?.transcript?.trim();
+      if (!chunk) continue;
+      if (result.isFinal) newlyFinal += `${chunk} `;
+      else interim += `${chunk} `;
+    }
+    if (newlyFinal) {
+      committed = `${committed}${committed ? "\n" : ""}${newlyFinal.trim()}`.trim();
+    }
+    const next = `${committed}${interim ? `${committed ? "\n" : ""}${interim.trim()}` : ""}`.trim();
+    input.value = next;
+    syncDialogParsePreview();
+  };
+
+  recognition.onerror = () => {
+    stopDialogVoiceCapture();
+  };
+  recognition.onend = () => {
+    if (dialogSpeechRecognition === recognition) stopDialogVoiceCapture();
+    syncDialogParsePreview();
+  };
+
+  dialogSpeechRecognition = recognition;
+  btn.classList.add("is-listening");
+  btn.setAttribute("aria-pressed", "true");
+  const label = btn.querySelector(".dialog-voice-label");
+  if (label) label.textContent = "Listening…";
+  try {
+    recognition.start();
+  } catch {
+    stopDialogVoiceCapture();
+    alert("Could not start voice capture. Check microphone permission and try again.");
+  }
 }
 
 async function openTaskDialog(tier = 1) {
   const dialog = document.getElementById("task-dialog");
   const defaultCtx = filter === "all" ? "work" : filter;
 
+  stopDialogVoiceCapture();
   clearDialogBrainFields();
   resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Add Task";
@@ -6210,6 +6471,7 @@ async function openTaskDialog(tier = 1) {
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
   setTaskDialogSubmitLabel("Save");
+  syncDialogParsePreview();
 
   dialog.showModal();
   document.getElementById("dialog-input").focus();
@@ -6218,6 +6480,7 @@ async function openTaskDialog(tier = 1) {
 async function openEditTaskDialog(task, ctx) {
   const dialog = document.getElementById("task-dialog");
 
+  stopDialogVoiceCapture();
   clearDialogBrainFields();
   dialogPhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
   document.getElementById("dialog-title").textContent = "Edit Task";
@@ -6228,6 +6491,7 @@ async function openEditTaskDialog(task, ctx) {
   document.getElementById("dialog-original-context").value = ctx;
   document.getElementById("dialog-notes").value = task.notes || "";
   setTaskDialogSubmitLabel("Save");
+  syncDialogParsePreview();
   await renderPhotoGrid(
     document.getElementById("dialog-photo-grid"),
     dialogPhotoDraft,
@@ -6242,6 +6506,7 @@ async function openEditTaskDialog(task, ctx) {
 function openBrainDumpSendDialog(item, ctx) {
   const dialog = document.getElementById("task-dialog");
 
+  stopDialogVoiceCapture();
   clearDialogBrainFields();
   resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Send to Priority";
@@ -6253,6 +6518,7 @@ function openBrainDumpSendDialog(item, ctx) {
   document.getElementById("dialog-brain-id").value = item.id;
   document.getElementById("dialog-brain-context").value = ctx;
   setTaskDialogSubmitLabel("Send");
+  syncDialogParsePreview();
 
   dialog.showModal();
   document.getElementById("dialog-input").focus();
@@ -6274,9 +6540,7 @@ function sendBrainDumpToTier(id, ctx, tier, textOverride) {
 }
 
 function saveTaskFromDialog() {
-  const text = document.getElementById("dialog-input").value.trim();
-  if (!text) return;
-
+  const raw = document.getElementById("dialog-input").value;
   const tier = Number(document.getElementById("dialog-tier-select").value);
   const newCtx = document.getElementById("dialog-context").value;
   if (!isValidContext(newCtx)) return;
@@ -6288,6 +6552,8 @@ function saveTaskFromDialog() {
   const photos = dialogPhotoDraft.map((p) => ({ ...p }));
 
   if (brainId) {
+    const text = raw.trim();
+    if (!text) return;
     saveTasks(newCtx, [
       ...loadTasks(newCtx),
       { id: createId(), text, tier, done: false, notes, photos },
@@ -6298,6 +6564,8 @@ function saveTaskFromDialog() {
   }
 
   if (editId) {
+    const text = raw.trim();
+    if (!text) return;
     const oldList = loadTasks(oldCtx);
     const task = oldList.find((t) => t.id === editId);
     if (!task) return;
@@ -6316,17 +6584,26 @@ function saveTaskFromDialog() {
       );
       saveTasks(newCtx, [...loadTasks(newCtx), updated]);
     }
-  } else {
-    saveTasks(newCtx, [
-      ...loadTasks(newCtx),
-      { id: createId(), text, tier, done: false, notes, photos },
-    ]);
+    return;
   }
+
+  const parsed = parseTasksFromText(raw);
+  if (!parsed.length) return;
+  const created = parsed.map((text, index) => ({
+    id: createId(),
+    text,
+    tier,
+    done: false,
+    notes: index === 0 ? notes : "",
+    photos: index === 0 ? photos : [],
+  }));
+  saveTasks(newCtx, [...loadTasks(newCtx), ...created]);
 }
 
 function setupTaskDialog() {
   const dialog = document.getElementById("task-dialog");
   const photoInput = document.getElementById("dialog-photo-input");
+  const input = document.getElementById("dialog-input");
 
   document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(1));
 
@@ -6339,15 +6616,24 @@ function setupTaskDialog() {
   });
 
   document.getElementById("dialog-cancel").addEventListener("click", () => {
+    stopDialogVoiceCapture();
     clearDialogBrainFields();
     resetDialogMediaFields();
     dialog.close();
   });
 
   dialog.addEventListener("close", () => {
+    stopDialogVoiceCapture();
     clearDialogBrainFields();
     resetDialogMediaFields();
     setTaskDialogSubmitLabel("Save");
+    syncDialogParsePreview();
+  });
+
+  input?.addEventListener("input", syncDialogParsePreview);
+  document.getElementById("dialog-voice-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleDialogVoiceCapture();
   });
 
   photoInput?.addEventListener("change", async () => {
@@ -6364,6 +6650,7 @@ function setupTaskDialog() {
 
   document.getElementById("task-dialog-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    stopDialogVoiceCapture();
     saveTaskFromDialog();
     dialog.close();
     renderAll();
