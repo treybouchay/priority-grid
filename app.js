@@ -1948,7 +1948,7 @@ function applyTheme() {
   document.documentElement.dataset.themeMode = preference;
   updateThemeMeta(effective);
 
-  document.querySelectorAll(".theme-option").forEach((btn) => {
+  document.querySelectorAll(".theme-option[data-theme]").forEach((btn) => {
     const isActive = btn.dataset.theme === preference;
     btn.classList.toggle("active", isActive);
     btn.setAttribute("aria-checked", isActive);
@@ -3934,6 +3934,7 @@ function setupFontPicker() {
   const picker = document.getElementById("font-picker");
   const current = getFont();
   document.documentElement.dataset.font = current;
+  if (!picker) return;
 
   picker.innerHTML = FONTS.map(
     (font) => `
