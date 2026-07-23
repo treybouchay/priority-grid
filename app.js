@@ -4611,114 +4611,202 @@ function truncateReflectionLabel(text, max = 28) {
   return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
-/** Warm, short Presence-toned reads from yesterday's completed tasks. */
+function reflectionInsightTaskHour(task) {
+  if (!task?.completedAt) return null;
+  const hour = new Date(task.completedAt).getHours();
+  return Number.isNaN(hour) ? null : hour;
+}
+
+function reflectionInsightTimeOfDay(hour) {
+  if (hour == null) return "";
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
+}
+
+function reflectionInsightTaskName(task, max = 34) {
+  return truncateReflectionLabel(task?.text || "that task", max);
+}
+
+/** Concrete, task-referencing reads from yesterday's completed work. */
 function buildReflectionInsights(completed) {
   if (!completed.length) return [];
 
-  const byContext = new Map();
-  const byTier = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  let morning = 0;
-  let afternoon = 0;
-  let evening = 0;
-  let withNotes = 0;
+  const sorted = [...completed].sort(
+    (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
+  );
+  const usedIds = new Set();
+  const insights = [];
 
-  completed.forEach((task) => {
+  const pushInsight = (insight, taskId) => {
+    if (!insight?.text || insights.length >= 4) return false;
+    if (insights.some((item) => item.text === insight.text)) return false;
+    insights.push(insight);
+    if (taskId) usedIds.add(taskId);
+    return true;
+  };
+
+  const unused = () => sorted.filter((task) => !usedIds.has(task.id));
+
+  // 1) Name a high-priority finish with time + list
+  const priorityWin =
+    unused().find((task) => task.tier === 1) || unused().find((task) => task.tier === 2);
+  if (priorityWin) {
+    const name = reflectionInsightTaskName(priorityWin);
+    const time = formatCompletionTime(priorityWin.completedAt);
+    const list = contextLabel(priorityWin.context);
+    const tier = TIER_LABELS[priorityWin.tier - 1] || "priority";
+    pushInsight(
+      {
+        text: time
+          ? `You cleared <strong>${escapeHtml(name)}</strong> by ${escapeHtml(time)} — a ${escapeHtml(tier)} win in ${escapeHtml(list)}.`
+          : `You cleared <strong>${escapeHtml(name)}</strong> — a ${escapeHtml(tier)} win in ${escapeHtml(list)}.`,
+        accent: "forest",
+        icon: "check",
+        tags: [list, time || tier].filter(Boolean),
+        html: true,
+      },
+      priorityWin.id
+    );
+  }
+
+  // 2) Morning or evening task callback
+  const morningTask = unused().find((task) => {
+    const hour = reflectionInsightTaskHour(task);
+    return hour != null && hour < 12;
+  });
+  const eveningTask = unused().find((task) => {
+    const hour = reflectionInsightTaskHour(task);
+    return hour != null && hour >= 17;
+  });
+  const dayPartTask = eveningTask || morningTask;
+  if (dayPartTask) {
+    const name = reflectionInsightTaskName(dayPartTask);
+    const time = formatCompletionTime(dayPartTask.completedAt);
+    const hour = reflectionInsightTaskHour(dayPartTask);
+    const part = reflectionInsightTimeOfDay(hour);
+    const list = contextLabel(dayPartTask.context);
+    const lead =
+      part === "evening"
+        ? "Evening closed with"
+        : part === "morning"
+          ? "Morning opened with"
+          : "You finished";
+    pushInsight(
+      {
+        text: time
+          ? `${lead} <strong>${escapeHtml(name)}</strong> at ${escapeHtml(time)} — ${escapeHtml(list)} care that stuck.`
+          : `${lead} <strong>${escapeHtml(name)}</strong> — ${escapeHtml(list)} care that stuck.`,
+        accent: part === "evening" ? "peach" : "sun",
+        icon: part === "evening" ? "moon" : "sun",
+        tags: [list, part].filter(Boolean),
+        html: true,
+      },
+      dayPartTask.id
+    );
+  }
+
+  // 3) Note left on a specific task
+  const notedTask = unused().find((task) => task.notes?.trim());
+  if (notedTask) {
+    const name = reflectionInsightTaskName(notedTask, 28);
+    const note = truncateReflectionLabel(notedTask.notes.trim(), 52);
+    const list = contextLabel(notedTask.context);
+    pushInsight(
+      {
+        text: `On <strong>${escapeHtml(name)}</strong> you wrote “${escapeHtml(note)}” — you were paying attention.`,
+        accent: "peach",
+        icon: "note",
+        tags: [list, "note"],
+        html: true,
+      },
+      notedTask.id
+    );
+  }
+
+  // 4) Pair two tasks from the same list, or call out a remaining specific task
+  const byContext = new Map();
+  unused().forEach((task) => {
+    const key = task.context || "other";
+    if (!byContext.has(key)) byContext.set(key, []);
+    byContext.get(key).push(task);
+  });
+  const paired = [...byContext.values()].find((group) => group.length >= 2);
+  if (paired) {
+    const a = reflectionInsightTaskName(paired[0], 24);
+    const b = reflectionInsightTaskName(paired[1], 24);
+    const list = contextLabel(paired[0].context);
+    pushInsight(
+      {
+        text: `<strong>${escapeHtml(a)}</strong> and <strong>${escapeHtml(b)}</strong> both landed in ${escapeHtml(list)} — that list got real follow-through.`,
+        accent: "forest",
+        icon: "spark",
+        tags: [list, `${paired.length} wins`],
+        html: true,
+      },
+      paired[0].id
+    );
+    usedIds.add(paired[1].id);
+  } else {
+    const leftover = unused()[0];
+    if (leftover) {
+      const name = reflectionInsightTaskName(leftover);
+      const time = formatCompletionTime(leftover.completedAt);
+      const list = contextLabel(leftover.context);
+      const tier = TIER_LABELS[leftover.tier - 1] || "";
+      pushInsight(
+        {
+          text: time
+            ? `<strong>${escapeHtml(name)}</strong> at ${escapeHtml(time)} kept ${escapeHtml(list)} moving.`
+            : `<strong>${escapeHtml(name)}</strong> kept ${escapeHtml(list)} moving.`,
+          accent: "sun",
+          icon: "leaf",
+          tags: [list, tier].filter(Boolean),
+          html: true,
+        },
+        leftover.id
+      );
+    }
+  }
+
+  // Chips for the insights card header (categories + count)
+  const chipLabels = [];
+  const seenLabels = new Set();
+  sorted.forEach((task) => {
     const label = contextLabel(task.context);
-    byContext.set(label, (byContext.get(label) || 0) + 1);
-    if (byTier[task.tier] != null) byTier[task.tier] += 1;
-    if (task.notes?.trim()) withNotes += 1;
-    if (!task.completedAt) return;
-    const hour = new Date(task.completedAt).getHours();
-    if (Number.isNaN(hour)) return;
-    if (hour < 12) morning += 1;
-    else if (hour < 17) afternoon += 1;
-    else evening += 1;
+    if (seenLabels.has(label)) return;
+    seenLabels.add(label);
+    chipLabels.push(label);
   });
 
-  const insights = [];
-  const rankedContexts = [...byContext.entries()].sort((a, b) => b[1] - a[1]);
-  const topContext = rankedContexts[0];
-  const secondContext = rankedContexts[1];
-  const total = completed.length;
+  return {
+    items: insights.slice(0, 4),
+    chips: [
+      { label: `${completed.length} finished`, tone: "forest" },
+      ...chipLabels.slice(0, 3).map((label, index) => ({
+        label,
+        tone: index === 0 ? "peach" : index === 1 ? "sun" : "cream",
+      })),
+    ],
+  };
+}
 
-  if (topContext && topContext[1] >= Math.ceil(total / 2) && rankedContexts.length > 1) {
-    insights.push({
-      text: `You leaned into ${topContext[0]} — that got most of your care.`,
-      peach: false,
-    });
-  } else if (topContext && rankedContexts.length === 1) {
-    insights.push({
-      text: `All in on ${topContext[0]} — a focused kind of day.`,
-      peach: false,
-    });
-  } else if (topContext && secondContext && topContext[1] === secondContext[1]) {
-    insights.push({
-      text: `${topContext[0]} and ${secondContext[0]} shared the spotlight.`,
-      peach: false,
-    });
-  } else if (rankedContexts.length >= 3) {
-    insights.push({
-      text: `You moved across ${rankedContexts.length} corners of life — variety looks good on you.`,
-      peach: false,
-    });
+function reflectionInsightIconSvg(icon) {
+  switch (icon) {
+    case "sun":
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.4" fill="currentColor"/><path d="M12 3.2v2M12 18.8v2M4.8 4.8l1.4 1.4M17.8 17.8l1.4 1.4M3.2 12h2M18.8 12h2M4.8 19.2l1.4-1.4M17.8 6.2l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    case "moon":
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16.4 13.6A6.2 6.2 0 0 1 10 6.4a6.4 6.4 0 1 0 6.4 7.2z" fill="currentColor"/></svg>`;
+    case "note":
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4.5h7.2L17.5 8v11.5H7V4.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 4.5V8h3.5M9.2 12h5.6M9.2 15.2h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    case "spark":
+      return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l1.35 5.1 5.15.2-4.05 3.25 1.45 5.05L12 13.9l-3.9 2.9 1.45-5.05-4.05-3.25 5.15-.2L12 3.2z"/></svg>`;
+    case "leaf":
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.5 16.5c6.2.9 10.2-3 11-9.3-6.2-.8-10.1 3.1-11 9.3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.2 15.8c2.4-2.1 5-3.5 8.2-4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    case "check":
+    default:
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5.5 12.2l4.1 4.1 8.9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
-
-  const timeBuckets = [
-    { key: "morning", count: morning, text: "Morning carried a lot of the wins." },
-    { key: "afternoon", count: afternoon, text: "Afternoon was when things clicked." },
-    { key: "evening", count: evening, text: "Evening wins closed the day gently." },
-  ].sort((a, b) => b.count - a.count);
-
-  if (timeBuckets[0].count > 0 && timeBuckets[0].count >= Math.ceil(total / 2)) {
-    insights.push({ text: timeBuckets[0].text, peach: true });
-  } else if (morning > 0 && evening > 0 && afternoon === 0) {
-    insights.push({
-      text: "Bookended the day — morning spark and evening finish.",
-      peach: true,
-    });
-  }
-
-  const highPriority = (byTier[1] || 0) + (byTier[2] || 0);
-  const lowPriority = (byTier[3] || 0) + (byTier[4] || 0);
-  if (highPriority > 0 && highPriority >= lowPriority && highPriority >= Math.ceil(total / 2)) {
-    insights.push({
-      text: "First priorities got real attention.",
-      peach: false,
-    });
-  } else if (lowPriority > highPriority && lowPriority >= 2) {
-    insights.push({
-      text: "You cleared space with smaller, steady finishes.",
-      peach: false,
-    });
-  }
-
-  if (withNotes >= 2 || (withNotes === 1 && total === 1)) {
-    insights.push({
-      text:
-        withNotes === 1
-          ? "You left a note for yourself — that counts as noticing."
-          : "A few notes along the way — you were paying attention.",
-      peach: true,
-    });
-  }
-
-  if (total >= 4 && insights.length < 2) {
-    insights.push({
-      text: `${total} checkmarks — momentum you can feel.`,
-      peach: false,
-    });
-  }
-
-  // Prefer distinct tones; keep 1–3
-  const seen = new Set();
-  const unique = [];
-  for (const insight of insights) {
-    if (seen.has(insight.text)) continue;
-    seen.add(insight.text);
-    unique.push(insight);
-    if (unique.length >= 3) break;
-  }
-  return unique;
 }
 
 function buildYesterdayAccomplishStory(completed) {
@@ -4907,25 +4995,6 @@ function renderReflectionReview() {
       )
       .join("");
 
-    const insights = story.insights || [];
-    const insightsHtml = insights.length
-      ? `
-      <div class="reflection-story-insights">
-        <h3 class="reflection-story-insights-title">What you did yesterday says about you</h3>
-        <ul class="reflection-story-insight-list">
-          ${insights
-            .map(
-              (insight) => `
-            <li class="reflection-story-insight${insight.peach ? " reflection-story-insight--peach" : ""}">
-              <span class="reflection-story-insight-mark" aria-hidden="true"></span>
-              <p class="reflection-story-insight-text">${escapeHtml(insight.text)}</p>
-            </li>`
-            )
-            .join("")}
-        </ul>
-      </div>`
-      : "";
-
     let visualsHtml = "";
     if (story.quietNote) {
       visualsHtml = `
@@ -4956,9 +5025,6 @@ function renderReflectionReview() {
             <div class="reflection-story-thumbs">${thumbsHtml}</div>
           </div>`);
       }
-      if (insightsHtml) {
-        parts.push(insightsHtml);
-      }
       visualsHtml = parts.length ? `<div class="reflection-story-visuals">${parts.join("")}</div>` : "";
     }
 
@@ -4973,7 +5039,7 @@ function renderReflectionReview() {
         </svg>
       </span>`;
 
-    summary.innerHTML = `
+    const storyCardHtml = `
       <div class="reflection-story" aria-label="${escapeHtml(story.ariaSummary || story.title)}">
         ${sunHtml}
         <div class="reflection-story-top">
@@ -4981,6 +5047,79 @@ function renderReflectionReview() {
         </div>
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
         ${visualsHtml}
+      </div>`;
+
+    const insightBundle = story.insights || {};
+    const insightItems = Array.isArray(insightBundle)
+      ? insightBundle
+      : insightBundle.items || [];
+    const insightChips = Array.isArray(insightBundle) ? [] : insightBundle.chips || [];
+
+    let insightsCardHtml = "";
+    if (insightItems.length) {
+      const chipsHtml = insightChips.length
+        ? `<div class="reflection-insights-chips" aria-hidden="true">
+            ${insightChips
+              .map((chip) => {
+                const tone = chip.tone === "peach" || chip.tone === "sun" || chip.tone === "forest"
+                  ? ` reflection-insights-chip--${chip.tone}`
+                  : "";
+                return `<span class="reflection-insights-chip${tone}"><span class="reflection-insights-chip-dot"></span>${escapeHtml(chip.label)}</span>`;
+              })
+              .join("")}
+          </div>`
+        : "";
+
+      const itemsHtml = insightItems
+        .map((insight) => {
+          const accent =
+            insight.accent === "peach" || insight.accent === "sun" || insight.accent === "forest"
+              ? ` reflection-story-insight--${insight.accent}`
+              : insight.peach
+                ? " reflection-story-insight--peach"
+                : "";
+          const textHtml = insight.html
+            ? insight.text
+            : escapeHtml(insight.text);
+          const tagsHtml = (insight.tags || [])
+            .filter(Boolean)
+            .map((tag) => `<span class="reflection-story-insight-tag">${escapeHtml(tag)}</span>`)
+            .join("");
+          return `
+            <li class="reflection-story-insight${accent}">
+              <span class="reflection-story-insight-icon" aria-hidden="true">${reflectionInsightIconSvg(insight.icon)}</span>
+              <div class="reflection-story-insight-body">
+                <p class="reflection-story-insight-text">${textHtml}</p>
+                ${tagsHtml ? `<div class="reflection-story-insight-meta">${tagsHtml}</div>` : ""}
+              </div>
+            </li>`;
+        })
+        .join("");
+
+      insightsCardHtml = `
+        <div class="reflection-story reflection-story--insights" aria-label="What yesterday's tasks say about you">
+          <span class="reflection-insights-deco" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#e8b423"/>
+              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#fff0b8" opacity="0.35"/>
+              <path d="M12 2.4v1.7M12 19.9v1.7M5 5l1.2 1.2M17.8 17.8l1.2 1.2M2.4 12h1.7M19.9 12h1.7M5 19l1.2-1.2M17.8 6.2l1.2-1.2" stroke="#e8b423" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+            </svg>
+          </span>
+          <div class="reflection-story-top">
+            <p class="reflection-story-kicker">Insights</p>
+          </div>
+          <h2 class="reflection-story-title">What you did yesterday says about you</h2>
+          ${chipsHtml}
+          <ul class="reflection-story-insight-list">
+            ${itemsHtml}
+          </ul>
+        </div>`;
+    }
+
+    summary.innerHTML = `
+      <div class="reflection-summary-stack">
+        ${storyCardHtml}
+        ${insightsCardHtml}
       </div>`;
   }
 
