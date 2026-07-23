@@ -453,7 +453,7 @@ html.reflection-open .capture-clip-fab {
   margin: 0 0 0.85rem;
   padding-right: 2.5rem;
   font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(1.15rem, 4.5vw, 1.35rem);
+  font-size: 1.28rem;
   font-weight: 700;
   line-height: 1.25;
   color: #0e3030;
@@ -675,7 +675,7 @@ html.reflection-open .capture-clip-fab {
 .reflection-persona-name {
   margin: 0 0 0.25rem;
   font-family: "Source Serif 4", Georgia, serif;
-  font-size: 1.28rem;
+  font-size: clamp(1.15rem, 4.5vw, 1.35rem);
   font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -1394,7 +1394,7 @@ html.reflection-open .capture-clip-fab {
   }
 
   .reflection-story-title {
-    font-size: 1.2rem;
+    font-size: 1.08rem;
     padding-right: 2.25rem;
   }
 
@@ -1410,7 +1410,7 @@ html.reflection-open .capture-clip-fab {
   }
 
   .reflection-persona-name {
-    font-size: 1.08rem;
+    font-size: 1.2rem;
   }
 
   .reflection-persona-meaning {
