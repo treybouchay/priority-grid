@@ -4832,8 +4832,8 @@ function renderReflectionReview() {
           <g class="reflection-story-sun-rays">
             <path d="M12 2.2v2.1M12 19.7v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>
           </g>
-          <circle class="reflection-story-sun-core" cx="12" cy="12" r="4.1" fill="#fc9174"/>
-          <circle class="reflection-story-sun-core" cx="12" cy="12" r="4.1" fill="#ffdbd2" opacity="0.35"/>
+          <circle class="reflection-story-sun-core" cx="12" cy="12" r="4.1" fill="#e8b423"/>
+          <circle class="reflection-story-sun-core" cx="12" cy="12" r="4.1" fill="#fff0b8" opacity="0.4"/>
         </svg>
       </span>`;
 
