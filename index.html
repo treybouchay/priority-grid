@@ -69,11 +69,11 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=164" />
     <link rel="stylesheet" href="design/task-rows.css?v=14" />
-    <link rel="stylesheet" href="design/home-presence.css?v=97" />
+    <link rel="stylesheet" href="design/home-presence.css?v=98" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=37" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=4" />
-    <link rel="stylesheet" href="design/reflection.css?v=16" />
+    <link rel="stylesheet" href="design/reflection.css?v=17" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -349,12 +349,15 @@
 
         <!-- Home / Dashboard -->
         <div class="page-panel" id="home-page">
-          <section class="presence-hero" aria-label="Focus">
+          <!-- Sticky wallpaper: stays put while hero + plan content scroll over it -->
+          <div class="presence-hero-wallpaper" aria-hidden="true">
             <picture class="presence-hero-picture">
               <source id="presence-hero-source-desktop" media="(min-width: 769px)" srcset="assets/home-hero-morning-wide.png?v=1" />
               <img class="presence-hero-bg" id="presence-hero-bg" src="assets/home-hero-morning.png?v=1" alt="" decoding="async" />
             </picture>
-            <div class="presence-hero-gradient" aria-hidden="true"></div>
+            <div class="presence-hero-gradient"></div>
+          </div>
+          <section class="presence-hero" aria-label="Focus">
             <div class="presence-hero-toolbar" aria-label="Quick actions">
               <button type="button" class="presence-toolbar-btn" aria-label="Search">
                 <svg class="icon icon-header" aria-hidden="true"><use href="#icon-search"></use></svg>

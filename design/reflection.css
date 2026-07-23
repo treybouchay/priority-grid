@@ -226,7 +226,7 @@
 }
 
 #reflection-panel-review .reflection-hero--review {
-  /* Mid-hero like Home FOCUS (~52% of wallpaper), then ~200px to the card */
+  /* Mid-hero like Home FOCUS (~52% of wallpaper), then 50px to the card */
   margin-top: clamp(7.5rem, 24vh, 12rem);
   margin-bottom: 1.15rem;
 }
@@ -282,7 +282,7 @@
 }
 
 #reflection-panel-review .reflection-hero--review .reflection-summary {
-  margin-top: 200px;
+  margin-top: 50px;
 }
 
 .reflection-reveal {
