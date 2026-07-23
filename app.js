@@ -4475,6 +4475,9 @@ function renderReflectionPrompts(prompts) {
     </button>`
     )
     .join("");
+  if (getActiveReflectionTab() === "thoughts") {
+    observeReflectionScrollCards(document.getElementById("reflection-panel-thoughts"));
+  }
 }
 
 function updateReflectionCharCount() {
@@ -4633,45 +4636,63 @@ function reflectionReviewItemHtml(task, index = 0) {
     </li>`;
 }
 
-let reflectionStoryObserver = null;
+let reflectionRevealObserver = null;
 
-function observeReflectionStoryCard() {
-  const card = document.querySelector("#reflection-summary .reflection-story");
-  if (!card) return;
-
-  reflectionStoryObserver?.disconnect();
-  card.classList.remove("reflection-story--in");
-
-  const preferReduced =
+function prefersReflectionReducedMotion() {
+  return (
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
 
-  if (preferReduced) {
-    card.classList.add("reflection-story--in");
+function observeReflectionScrollCards(container) {
+  const root = container || document.querySelector(".reflection-screen");
+  if (!root) return;
+
+  const cards = [
+    ...root.querySelectorAll(
+      ".reflection-story, .reflection-review-item, .reflection-input-card, .reflection-prompt-btn"
+    ),
+  ];
+  if (!cards.length) return;
+
+  reflectionRevealObserver?.disconnect();
+
+  const preferReduced = prefersReflectionReducedMotion();
+  const screen = document.querySelector(".reflection-screen");
+
+  cards.forEach((card, index) => {
+    card.classList.add("reflection-reveal");
+    card.classList.remove("reflection-reveal--in");
+    card.style.setProperty("--reveal-i", String(Math.min(index, 6)));
+  });
+
+  if (preferReduced || !screen) {
+    cards.forEach((card) => card.classList.add("reflection-reveal--in"));
     return;
   }
 
-  reflectionStoryObserver = new IntersectionObserver(
+  reflectionRevealObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
-        entry.target.classList.add("reflection-story--in");
-        reflectionStoryObserver?.unobserve(entry.target);
+        entry.target.classList.add("reflection-reveal--in");
+        reflectionRevealObserver?.unobserve(entry.target);
       });
     },
     {
-      root: document.querySelector(".reflection-screen"),
-      threshold: 0.22,
-      rootMargin: "0px 0px -8% 0px",
+      root: screen,
+      threshold: 0.14,
+      rootMargin: "0px 0px -5% 0px",
     }
   );
-  reflectionStoryObserver.observe(card);
+
+  cards.forEach((card) => reflectionRevealObserver.observe(card));
 }
 
 function renderReflectionReview() {
   const list = document.getElementById("reflection-review-list");
   const empty = document.getElementById("reflection-review-empty");
-  const subtitle = document.getElementById("reflection-review-subtitle");
   const summary = document.getElementById("reflection-summary");
   const heading = document.getElementById("reflection-review-heading");
   if (!list || !empty) return;
@@ -4766,14 +4787,6 @@ function renderReflectionReview() {
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
         ${visualsHtml}
       </div>`;
-    observeReflectionStoryCard();
-  }
-
-  if (subtitle) {
-    subtitle.textContent =
-      completedCount === 0
-        ? "Even a quiet day has something to notice — take a breath, then write."
-        : "Yesterday's wins deserve a little applause before you write how it felt.";
   }
 
   if (heading) {
@@ -4790,11 +4803,13 @@ function renderReflectionReview() {
     empty.classList.remove("hidden");
     empty.textContent =
       "No tasks were checked off yesterday. Use the next step to note what still mattered.";
+    observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
     return;
   }
 
   empty.classList.add("hidden");
   list.innerHTML = completed.map((task, index) => reflectionReviewItemHtml(task, index)).join("");
+  observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
 }
 
 function setReflectionTab(tab) {
@@ -4826,6 +4841,13 @@ function setReflectionTab(tab) {
   applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   if (nextTab === "thoughts") {
     document.getElementById("reflection-text")?.focus();
+    requestAnimationFrame(() => {
+      observeReflectionScrollCards(document.getElementById("reflection-panel-thoughts"));
+    });
+  } else {
+    requestAnimationFrame(() => {
+      observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
+    });
   }
   updateReflectionHeroOnCream();
 }
@@ -4842,11 +4864,12 @@ function updateReflectionHeroOnCream() {
   if (!title) return;
   const header = screen.querySelector(".reflection-screen-header");
   const screenRect = screen.getBoundingClientRect();
-  // Switch when the title reaches the sticky frosted header / cream veil band.
+  // Switch earlier — cream veil is readable well below the sticky frosted header.
   const headerBottom = header
-    ? header.getBoundingClientRect().bottom + 12
-    : screenRect.top + Math.min(Math.max(screen.clientHeight * 0.22, 140), 210);
-  const onCream = title.getBoundingClientRect().top <= headerBottom;
+    ? header.getBoundingClientRect().bottom
+    : screenRect.top + Math.min(Math.max(screen.clientHeight * 0.18, 120), 180);
+  const creamLead = Math.min(Math.max(screen.clientHeight * 0.14, 88), 140);
+  const onCream = title.getBoundingClientRect().top <= headerBottom + creamLead;
   hero.classList.toggle("reflection-hero--on-cream", onCream);
 }
 
