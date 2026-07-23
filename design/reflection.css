@@ -656,6 +656,13 @@ html.reflection-open .capture-clip-fab {
   z-index: 1;
 }
 
+.reflection-persona--bookend .reflection-persona-mark {
+  top: 0.05rem;
+  right: 0.05rem;
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
 .reflection-persona-mark-svg {
   display: block;
   width: 100%;
@@ -1482,6 +1489,13 @@ html.reflection-open .capture-clip-fab {
     right: -0.05rem;
     width: 2.1rem;
     height: 2.1rem;
+  }
+
+  .reflection-persona--bookend .reflection-persona-mark {
+    top: 0.05rem;
+    right: 0.05rem;
+    width: 1.5rem;
+    height: 1.5rem;
   }
 
   .reflection-persona-name {
