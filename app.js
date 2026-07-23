@@ -4611,6 +4611,116 @@ function truncateReflectionLabel(text, max = 28) {
   return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+/** Warm, short Presence-toned reads from yesterday's completed tasks. */
+function buildReflectionInsights(completed) {
+  if (!completed.length) return [];
+
+  const byContext = new Map();
+  const byTier = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let morning = 0;
+  let afternoon = 0;
+  let evening = 0;
+  let withNotes = 0;
+
+  completed.forEach((task) => {
+    const label = contextLabel(task.context);
+    byContext.set(label, (byContext.get(label) || 0) + 1);
+    if (byTier[task.tier] != null) byTier[task.tier] += 1;
+    if (task.notes?.trim()) withNotes += 1;
+    if (!task.completedAt) return;
+    const hour = new Date(task.completedAt).getHours();
+    if (Number.isNaN(hour)) return;
+    if (hour < 12) morning += 1;
+    else if (hour < 17) afternoon += 1;
+    else evening += 1;
+  });
+
+  const insights = [];
+  const rankedContexts = [...byContext.entries()].sort((a, b) => b[1] - a[1]);
+  const topContext = rankedContexts[0];
+  const secondContext = rankedContexts[1];
+  const total = completed.length;
+
+  if (topContext && topContext[1] >= Math.ceil(total / 2) && rankedContexts.length > 1) {
+    insights.push({
+      text: `You leaned into ${topContext[0]} — that got most of your care.`,
+      peach: false,
+    });
+  } else if (topContext && rankedContexts.length === 1) {
+    insights.push({
+      text: `All in on ${topContext[0]} — a focused kind of day.`,
+      peach: false,
+    });
+  } else if (topContext && secondContext && topContext[1] === secondContext[1]) {
+    insights.push({
+      text: `${topContext[0]} and ${secondContext[0]} shared the spotlight.`,
+      peach: false,
+    });
+  } else if (rankedContexts.length >= 3) {
+    insights.push({
+      text: `You moved across ${rankedContexts.length} corners of life — variety looks good on you.`,
+      peach: false,
+    });
+  }
+
+  const timeBuckets = [
+    { key: "morning", count: morning, text: "Morning carried a lot of the wins." },
+    { key: "afternoon", count: afternoon, text: "Afternoon was when things clicked." },
+    { key: "evening", count: evening, text: "Evening wins closed the day gently." },
+  ].sort((a, b) => b.count - a.count);
+
+  if (timeBuckets[0].count > 0 && timeBuckets[0].count >= Math.ceil(total / 2)) {
+    insights.push({ text: timeBuckets[0].text, peach: true });
+  } else if (morning > 0 && evening > 0 && afternoon === 0) {
+    insights.push({
+      text: "Bookended the day — morning spark and evening finish.",
+      peach: true,
+    });
+  }
+
+  const highPriority = (byTier[1] || 0) + (byTier[2] || 0);
+  const lowPriority = (byTier[3] || 0) + (byTier[4] || 0);
+  if (highPriority > 0 && highPriority >= lowPriority && highPriority >= Math.ceil(total / 2)) {
+    insights.push({
+      text: "First priorities got real attention.",
+      peach: false,
+    });
+  } else if (lowPriority > highPriority && lowPriority >= 2) {
+    insights.push({
+      text: "You cleared space with smaller, steady finishes.",
+      peach: false,
+    });
+  }
+
+  if (withNotes >= 2 || (withNotes === 1 && total === 1)) {
+    insights.push({
+      text:
+        withNotes === 1
+          ? "You left a note for yourself — that counts as noticing."
+          : "A few notes along the way — you were paying attention.",
+      peach: true,
+    });
+  }
+
+  if (total >= 4 && insights.length < 2) {
+    insights.push({
+      text: `${total} checkmarks — momentum you can feel.`,
+      peach: false,
+    });
+  }
+
+  // Prefer distinct tones; keep 1–3
+  const seen = new Set();
+  const unique = [];
+  for (const insight of insights) {
+    if (seen.has(insight.text)) continue;
+    seen.add(insight.text);
+    unique.push(insight);
+    if (unique.length >= 3) break;
+  }
+  return unique;
+}
+
 function buildYesterdayAccomplishStory(completed) {
   if (!completed.length) {
     return {
@@ -4618,6 +4728,7 @@ function buildYesterdayAccomplishStory(completed) {
       categories: [],
       priorityBars: [],
       thumbs: [],
+      insights: [],
       quietNote: "Nothing checked off — still a day worth noticing.",
       ariaSummary: "Nothing was checked off yesterday.",
     };
@@ -4656,6 +4767,8 @@ function buildYesterdayAccomplishStory(completed) {
     text: truncateReflectionLabel(task.text, 26),
   }));
 
+  const insights = buildReflectionInsights(completed);
+
   const listNames = categories.map((c) => c.name).join(", ");
   const ariaSummary =
     completed.length === 1
@@ -4667,6 +4780,7 @@ function buildYesterdayAccomplishStory(completed) {
     categories,
     priorityBars,
     thumbs,
+    insights,
     quietNote: "",
     ariaSummary,
   };
@@ -4793,6 +4907,25 @@ function renderReflectionReview() {
       )
       .join("");
 
+    const insights = story.insights || [];
+    const insightsHtml = insights.length
+      ? `
+      <div class="reflection-story-insights">
+        <h3 class="reflection-story-insights-title">What you did yesterday says about you</h3>
+        <ul class="reflection-story-insight-list">
+          ${insights
+            .map(
+              (insight) => `
+            <li class="reflection-story-insight${insight.peach ? " reflection-story-insight--peach" : ""}">
+              <span class="reflection-story-insight-mark" aria-hidden="true"></span>
+              <p class="reflection-story-insight-text">${escapeHtml(insight.text)}</p>
+            </li>`
+            )
+            .join("")}
+        </ul>
+      </div>`
+      : "";
+
     let visualsHtml = "";
     if (story.quietNote) {
       visualsHtml = `
@@ -4822,6 +4955,9 @@ function renderReflectionReview() {
             <p class="reflection-story-section-label">Highlights</p>
             <div class="reflection-story-thumbs">${thumbsHtml}</div>
           </div>`);
+      }
+      if (insightsHtml) {
+        parts.push(insightsHtml);
       }
       visualsHtml = parts.length ? `<div class="reflection-story-visuals">${parts.join("")}</div>` : "";
     }
@@ -4920,7 +5056,9 @@ function updateReflectionHeroOnCream() {
     return;
   }
   const title = hero.querySelector(".reflection-hero-title");
-  if (!title) return;
+  const label = hero.querySelector(".reflection-hero-label");
+  const probe = label || title;
+  if (!probe) return;
   const header = screen.querySelector(".reflection-screen-header");
   const screenRect = screen.getBoundingClientRect();
   // Switch earlier — cream veil is readable well below the sticky header.
@@ -4928,7 +5066,7 @@ function updateReflectionHeroOnCream() {
     ? header.getBoundingClientRect().bottom
     : screenRect.top + Math.min(Math.max(screen.clientHeight * 0.18, 120), 180);
   const creamLead = Math.min(Math.max(screen.clientHeight * 0.14, 88), 140);
-  const onCream = title.getBoundingClientRect().top <= headerBottom + creamLead;
+  const onCream = probe.getBoundingClientRect().top <= headerBottom + creamLead;
   hero.classList.toggle("reflection-hero--on-cream", onCream);
 }
 

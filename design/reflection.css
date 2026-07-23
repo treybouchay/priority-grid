@@ -230,14 +230,28 @@
   margin-bottom: 1.15rem;
 }
 
+/* Match Home FOCUS label + serif title pattern */
+.reflection-hero-label {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-body, "DM Sans", system-ui, sans-serif);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #f7f3ec;
+  opacity: 0.72;
+  transition: color 0.4s ease, opacity 0.4s ease;
+}
+
 .reflection-hero-title {
   margin: 0;
   font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(1.85rem, 6vw, 2.25rem);
+  font-size: clamp(1.625rem, 6vw, 2.125rem);
   font-weight: 700;
-  line-height: 1.12;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   color: #f7f3ec;
+  max-width: min(16rem, 78vw);
   transition: color 0.4s ease;
 }
 
@@ -251,8 +265,13 @@
 }
 
 /* When review hero scrolls into the cream veil at the top */
+#reflection-panel-review .reflection-hero--on-cream .reflection-hero-label {
+  color: #11302c;
+  opacity: 0.6;
+}
+
 #reflection-panel-review .reflection-hero--on-cream .reflection-hero-title {
-  color: #0e3030;
+  color: #11302c;
 }
 
 .reflection-summary {
@@ -564,6 +583,67 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 11rem;
+}
+
+.reflection-story-insights {
+  margin-top: 0.15rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(14, 48, 48, 0.08);
+}
+
+.reflection-story-insights-title {
+  margin: 0 0 0.55rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0e3030;
+}
+
+.reflection-story-insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reflection-story-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.85rem;
+  background: rgba(253, 249, 244, 0.92);
+  border: 1px solid rgba(14, 48, 48, 0.06);
+}
+
+.reflection-story-insight--peach {
+  background: rgba(255, 219, 210, 0.45);
+  border-color: rgba(252, 145, 116, 0.18);
+}
+
+.reflection-story-insight-mark {
+  flex-shrink: 0;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-top: 0.45rem;
+  border-radius: 50%;
+  background: #0e3030;
+}
+
+.reflection-story-insight--peach .reflection-story-insight-mark {
+  background: #fc9174;
+}
+
+.reflection-story-insight-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(14, 48, 48, 0.82);
 }
 
 .reflection-story-quiet {
