@@ -4524,12 +4524,23 @@ function getCompletedYesterdayTasks() {
   );
 }
 
+function reflectionStoryHighlightIcon(kind) {
+  if (kind === "start") {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M3 12h3M18 12h3M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/><circle cx="12" cy="12" r="3.25"/></svg>`;
+  }
+  if (kind === "note") {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 4h7l4 4v12a1 1 0 01-1 1H7a1 1 0 01-1-1V5a1 1 0 011-1z" stroke-linejoin="round"/><path d="M14 4v4h4M8.5 12h7M8.5 16h5" stroke-linecap="round"/></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.1 6.4H21l-5.2 3.8 2 6.3L12 15.8 6.2 18.5l2-6.3L3 8.4h6.9z"/></svg>`;
+}
+
 function buildYesterdayAccomplishStory(completed) {
   if (!completed.length) {
     return {
       title: "A quieter day",
       body: "Nothing was checked off yesterday — that can still be a rest day worth noticing. When you're ready, write what you want to carry forward.",
       highlights: [],
+      chips: [{ value: "0", label: "done" }],
     };
   }
 
@@ -4572,9 +4583,29 @@ function buildYesterdayAccomplishStory(completed) {
         : ` ${highPriority} of them were 1st or 2nd priority.`;
   }
 
+  const chips = [
+    {
+      value: String(completed.length),
+      label: completed.length === 1 ? "win" : "wins",
+    },
+  ];
+  if (byContext.size > 0) {
+    chips.push({
+      value: String(byContext.size),
+      label: byContext.size === 1 ? "list" : "lists",
+    });
+  }
+  if (highPriority > 0) {
+    chips.push({
+      value: String(highPriority),
+      label: highPriority === 1 ? "top priority" : "top priorities",
+    });
+  }
+
   const highlights = [];
   if (latest?.text) {
     highlights.push({
+      icon: "win",
       label: "Last win",
       text: latest.text,
       meta: `${contextLabel(latest.context)}${formatCompletionTime(latest.completedAt) ? ` · ${formatCompletionTime(latest.completedAt)}` : ""}`,
@@ -4582,6 +4613,7 @@ function buildYesterdayAccomplishStory(completed) {
   }
   if (first?.id !== latest?.id && first?.text) {
     highlights.push({
+      icon: "start",
       label: "Started with",
       text: first.text,
       meta: contextLabel(first.context),
@@ -4589,6 +4621,7 @@ function buildYesterdayAccomplishStory(completed) {
   }
   if (withNotes > 0) {
     highlights.push({
+      icon: "note",
       label: "Noted along the way",
       text: `${withNotes} completion${withNotes === 1 ? "" : "s"} carried notes you can revisit below.`,
       meta: "",
@@ -4599,6 +4632,7 @@ function buildYesterdayAccomplishStory(completed) {
     title: completed.length === 1 ? "Yesterday's win" : "What you accomplished",
     body,
     highlights,
+    chips,
   };
 }
 
@@ -4633,19 +4667,32 @@ function renderReflectionReview() {
   const story = buildYesterdayAccomplishStory(completed);
 
   if (summary) {
-    const highlightHtml = story.highlights
+    const chipsHtml = (story.chips || [])
       .map(
-        (item) => `
-      <div class="reflection-story-highlight">
-        <p class="reflection-story-highlight-label">${escapeHtml(item.label)}</p>
-        <p class="reflection-story-highlight-text">${escapeHtml(item.text)}</p>
-        ${item.meta ? `<p class="reflection-story-highlight-meta">${escapeHtml(item.meta)}</p>` : ""}
-      </div>`
+        (chip) =>
+          `<span class="reflection-story-chip"><strong>${escapeHtml(chip.value)}</strong> ${escapeHtml(chip.label)}</span>`
       )
+      .join("");
+    const highlightHtml = story.highlights
+      .map((item) => {
+        const soft = item.icon === "start" || item.icon === "note";
+        return `
+      <div class="reflection-story-highlight">
+        <span class="reflection-story-highlight-icon${soft ? " reflection-story-highlight-icon--soft" : ""}" aria-hidden="true">${reflectionStoryHighlightIcon(item.icon)}</span>
+        <div class="reflection-story-highlight-content">
+          <p class="reflection-story-highlight-label">${escapeHtml(item.label)}</p>
+          <p class="reflection-story-highlight-text">${escapeHtml(item.text)}</p>
+          ${item.meta ? `<p class="reflection-story-highlight-meta">${escapeHtml(item.meta)}</p>` : ""}
+        </div>
+      </div>`;
+      })
       .join("");
     summary.innerHTML = `
       <div class="reflection-story">
-        <p class="reflection-story-kicker" aria-hidden="true">Yesterday in review</p>
+        <div class="reflection-story-top">
+          <p class="reflection-story-kicker">Yesterday in review</p>
+          ${chipsHtml ? `<div class="reflection-story-chips" aria-label="Yesterday stats">${chipsHtml}</div>` : ""}
+        </div>
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
         <p class="reflection-story-body">${escapeHtml(story.body)}</p>
         ${highlightHtml ? `<div class="reflection-story-highlights">${highlightHtml}</div>` : ""}
@@ -4710,6 +4757,33 @@ function setReflectionTab(tab) {
   if (nextTab === "thoughts") {
     document.getElementById("reflection-text")?.focus();
   }
+  updateReflectionHeroOnCream();
+}
+
+function updateReflectionHeroOnCream() {
+  const screen = document.querySelector(".reflection-screen");
+  const hero = document.querySelector("#reflection-panel-review .reflection-hero--review");
+  if (!screen || !hero) return;
+  if (getActiveReflectionTab() !== "review") {
+    hero.classList.remove("reflection-hero--on-cream");
+    return;
+  }
+  const title = hero.querySelector(".reflection-hero-title");
+  if (!title) return;
+  const screenRect = screen.getBoundingClientRect();
+  // Cream veil is strongest in the top band; switch when the title enters it.
+  const creamLine = screenRect.top + Math.min(Math.max(screen.clientHeight * 0.22, 140), 210);
+  const onCream = title.getBoundingClientRect().top <= creamLine;
+  hero.classList.toggle("reflection-hero--on-cream", onCream);
+}
+
+let reflectionHeroScrollRaf = 0;
+function onReflectionScreenScroll() {
+  if (reflectionHeroScrollRaf) return;
+  reflectionHeroScrollRaf = requestAnimationFrame(() => {
+    reflectionHeroScrollRaf = 0;
+    updateReflectionHeroOnCream();
+  });
 }
 
 function openReflectionDialog() {
@@ -4724,6 +4798,7 @@ function openReflectionDialog() {
   renderReflectionReview();
   setReflectionTab("review");
   dialog.showModal();
+  requestAnimationFrame(() => updateReflectionHeroOnCream());
 }
 
 function handleReflectionBack() {
@@ -4743,12 +4818,15 @@ function setupReflection() {
   const reviewContinueBtn = document.getElementById("reflection-review-continue");
   const backBtn = document.getElementById("reflection-back");
   const promptsList = document.getElementById("reflection-prompts-list");
+  const reflectionScreen = document.querySelector(".reflection-screen");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
 
   setupFocusTimer();
 
   backBtn?.addEventListener("click", handleReflectionBack);
+
+  reflectionScreen?.addEventListener("scroll", onReflectionScreenScroll, { passive: true });
 
   document.querySelectorAll(".reflection-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
