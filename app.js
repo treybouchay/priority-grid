@@ -4942,7 +4942,7 @@ function updateReflectionHeroOnCream() {
   if (!title) return;
   const header = screen.querySelector(".reflection-screen-header");
   const screenRect = screen.getBoundingClientRect();
-  // Switch earlier — cream veil is readable well below the sticky frosted header.
+  // Switch earlier — cream veil is readable well below the sticky header.
   const headerBottom = header
     ? header.getBoundingClientRect().bottom
     : screenRect.top + Math.min(Math.max(screen.clientHeight * 0.18, 120), 180);
