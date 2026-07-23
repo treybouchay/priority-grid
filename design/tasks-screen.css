@@ -50,8 +50,8 @@ body[data-page="tasks"] .btn-add-task {
 body[data-page="tasks"] .tasks-page-greeting {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: clamp(1rem, 3.5vw, 1.125rem);
+  font-weight: 400;
   line-height: 1.3;
   color: #0e3030;
 }
@@ -59,7 +59,7 @@ body[data-page="tasks"] .tasks-page-greeting {
 body[data-page="tasks"] .tasks-page-name {
   margin: 0.25rem 0 0;
   font-family: var(--font-heading);
-  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-size: clamp(1.875rem, 7vw, 2.5rem);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -1337,6 +1337,14 @@ body[data-page="tasks"] .archive-empty-sub {
 }
 
 @media (min-width: 769px) {
+  body[data-page="tasks"] .tasks-page-greeting {
+    font-size: 1rem;
+  }
+
+  body[data-page="tasks"] .tasks-page-name {
+    font-size: clamp(2.5rem, 4vw, 2.75rem);
+  }
+
   body[data-page="tasks"] .page-header {
     flex-direction: column;
     align-items: stretch;
