@@ -554,7 +554,7 @@ body[data-page="home"] .presence-notify-dot {
 
 body[data-page="home"] .presence-focus {
   position: absolute;
-  top: 52%;
+  top: calc(52% - 30px);
   left: clamp(1rem, 5vw, 2rem);
   right: clamp(1rem, 5vw, 2rem);
   margin: 0;
@@ -1944,7 +1944,7 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
   }
 
   body[data-page="home"] .presence-focus {
-    top: 52%;
+    top: calc(52% - 30px);
     left: clamp(1rem, 5vw, 2rem);
     right: auto;
   }
@@ -2321,7 +2321,7 @@ body[data-page="home"] .section-link--plan svg {
     top: auto;
     left: auto;
     right: auto;
-    margin-top: clamp(4rem, 8vh, 8rem);
+    margin-top: calc(clamp(4rem, 8vh, 8rem) - 30px);
     max-width: 17.5rem;
   }
 

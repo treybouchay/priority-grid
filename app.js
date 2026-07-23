@@ -4841,7 +4841,7 @@ function buildReflectionForwardNudge(sorted) {
     const name = reflectionInsightTaskName(task, 30);
     const list = contextLabel(task.context);
     return {
-      text: `Yesterday closed with <strong>${escapeHtml(name)}</strong> — protect a similar evening beat today if you can.`,
+      text: `You tucked in with <strong>${escapeHtml(name)}</strong> — steal another evening pocket like that today?`,
       accent: "peach",
       icon: "nudge",
       tags: ["today", list],
@@ -4853,7 +4853,7 @@ function buildReflectionForwardNudge(sorted) {
     const task = errandTasks[0];
     const name = reflectionInsightTaskName(task, 28);
     return {
-      text: `You cleared <strong>${escapeHtml(name)}</strong> on Errands — batch the next few while you're already out.`,
+      text: `<strong>${escapeHtml(name)}</strong> got Errands moving — stack the next few while you're already in motion.`,
       accent: "sun",
       icon: "nudge",
       tags: ["today", "Errands"],
@@ -4865,7 +4865,7 @@ function buildReflectionForwardNudge(sorted) {
     const task = morningTasks[0];
     const name = reflectionInsightTaskName(task, 30);
     return {
-      text: `Morning opened with <strong>${escapeHtml(name)}</strong> — another early anchor could set today the same way.`,
+      text: `Yesterday woke up with <strong>${escapeHtml(name)}</strong> — another early win could set the mood again.`,
       accent: "sun",
       icon: "nudge",
       tags: ["today", "morning"],
@@ -4877,7 +4877,7 @@ function buildReflectionForwardNudge(sorted) {
   if (top) {
     const name = reflectionInsightTaskName(top, 28);
     return {
-      text: `You finished <strong>${escapeHtml(name)}</strong> as 1st yesterday — name today's top priority before the day fills up.`,
+      text: `<strong>${escapeHtml(name)}</strong> wore the 1st crown yesterday — pick today's top before the day gets chatty.`,
       accent: "forest",
       icon: "nudge",
       tags: ["today", "1st"],
@@ -4914,11 +4914,11 @@ function buildReflectionInsights(completed) {
     const time = formatCompletionTime(priorityWin.completedAt);
     const list = contextLabel(priorityWin.context);
     const tierLabel = TIER_LABELS[priorityWin.tier - 1] || "priority";
-    const tierWord = priorityWin.tier === 1 ? "top priority" : "2nd priority";
+    const tierWord = priorityWin.tier === 1 ? "1st" : "2nd";
     pushCandidate({
       text: time
-        ? `You closed your ${tierWord}: <strong>${escapeHtml(name)}</strong> (${escapeHtml(list)}, ${escapeHtml(time)}).`
-        : `You closed your ${tierWord}: <strong>${escapeHtml(name)}</strong> in ${escapeHtml(list)}.`,
+        ? `You actually finished your ${tierWord}: <strong>${escapeHtml(name)}</strong> — ${escapeHtml(list)} at ${escapeHtml(time)}. Nice follow-through.`
+        : `You actually finished your ${tierWord}: <strong>${escapeHtml(name)}</strong> on ${escapeHtml(list)}. Nice follow-through.`,
       accent: "forest",
       icon: "check",
       tags: [list, tierLabel, time].filter(Boolean),
@@ -4939,15 +4939,15 @@ function buildReflectionInsights(completed) {
     const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
     const arc =
       firstPart === "morning" && lastPart === "evening"
-        ? "a full arc from morning to evening"
+        ? "sunrise-to-lamplight energy"
         : lastPart === "evening"
-          ? "a clear close to the day"
-          : "a clear start and finish";
+          ? "a proper evening bow"
+          : "a clean open and close";
     pushCandidate({
-      text: `Your day opened with <strong>${escapeHtml(firstName)}</strong>${
-        firstTime ? ` at ${escapeHtml(firstTime)}` : ""
-      } and closed with <strong>${escapeHtml(lastName)}</strong>${
-        lastTime ? ` at ${escapeHtml(lastTime)}` : ""
+      text: `Started with <strong>${escapeHtml(firstName)}</strong>${
+        firstTime ? ` (${escapeHtml(firstTime)})` : ""
+      }, wrapped with <strong>${escapeHtml(lastName)}</strong>${
+        lastTime ? ` (${escapeHtml(lastTime)})` : ""
       } — ${arc}.`,
       accent: lastPart === "evening" ? "peach" : "sun",
       icon: lastPart === "evening" ? "moon" : "sun",
@@ -4961,10 +4961,10 @@ function buildReflectionInsights(completed) {
     const list = contextLabel(first.context);
     const lead =
       part === "evening"
-        ? "Evening closed with"
+        ? "Last light went to"
         : part === "morning"
-          ? "Morning opened with"
-          : "You finished";
+          ? "First checkmark of the day:"
+          : "On the board:";
     pushCandidate({
       text: time
         ? `${lead} <strong>${escapeHtml(name)}</strong> at ${escapeHtml(time)} (${escapeHtml(list)}).`
@@ -5001,8 +5001,8 @@ function buildReflectionInsights(completed) {
         .map((task) => escapeHtml(reflectionInsightTaskName(task, 22)));
       const named = names.join(", ");
       const extra = group.count > 2 ? ` +${group.count - 2}` : "";
-      const winWord = group.count === 1 ? "win" : "wins";
-      return `${escapeHtml(group.label)} got ${group.count} ${winWord} (${named}${extra})`;
+      const winWord = group.count === 1 ? "checkmark" : "checkmarks";
+      return `${escapeHtml(group.label)} collected ${group.count} ${winWord} (${named}${extra})`;
     };
     const top = categoryGroups.slice(0, 2);
     pushCandidate({
@@ -5021,7 +5021,7 @@ function buildReflectionInsights(completed) {
     const note = truncateReflectionLabel(notedTask.notes.trim(), 56).replace(/[.!?…]+$/u, "");
     const list = contextLabel(notedTask.context);
     pushCandidate({
-      text: `On <strong>${escapeHtml(name)}</strong> you noted “${escapeHtml(note)}.”`,
+      text: `Little margin note on <strong>${escapeHtml(name)}</strong>: “${escapeHtml(note)}.”`,
       accent: "peach",
       icon: "note",
       tags: [list, "note"],
@@ -5048,8 +5048,8 @@ function buildReflectionInsights(completed) {
       const tier = TIER_LABELS[leftover.tier - 1] || "";
       const filler = {
         text: time
-          ? `<strong>${escapeHtml(name)}</strong> landed at ${escapeHtml(time)} in ${escapeHtml(list)}.`
-          : `<strong>${escapeHtml(name)}</strong> landed in ${escapeHtml(list)}.`,
+          ? `<strong>${escapeHtml(name)}</strong> showed up at ${escapeHtml(time)} in ${escapeHtml(list)}.`
+          : `<strong>${escapeHtml(name)}</strong> showed up in ${escapeHtml(list)}.`,
         accent: "sun",
         icon: "leaf",
         tags: [list, tier].filter(Boolean),
