@@ -4829,70 +4829,25 @@ function reflectionInsightTaskName(task, max = 34) {
   return truncateReflectionLabel(task?.text || "that task", max);
 }
 
-/** One playful nudge for today from yesterday's pattern (max one). */
-function buildReflectionForwardNudge(sorted) {
-  if (!sorted.length) return null;
+/** Bold task name cite for persona blurbs (HTML-safe). */
+function reflectionTaskCite(task, max = 24) {
+  return `<strong>${escapeHtml(reflectionInsightTaskName(task, max))}</strong>`;
+}
 
-  const eveningTasks = sorted.filter((task) => {
-    const hour = reflectionInsightTaskHour(task);
-    return hour != null && hour >= 17;
-  });
-  const morningTasks = sorted.filter((task) => {
-    const hour = reflectionInsightTaskHour(task);
-    return hour != null && hour < 12;
-  });
-  const errandTasks = sorted.filter((task) => task.context === "errands");
+function reflectionTaskTimeBit(task) {
+  const time = formatCompletionTime(task?.completedAt);
+  return time ? escapeHtml(time) : "";
+}
 
-  if (eveningTasks.length) {
-    const task = eveningTasks[eveningTasks.length - 1];
-    const name = reflectionInsightTaskName(task, 22);
-    return {
-      text: `Night owl move: <strong>${escapeHtml(name)}</strong>. Steal that pocket again?`,
-      accent: "peach",
-      icon: "nudge",
-      html: true,
-    };
-  }
-
-  if (errandTasks.length) {
-    const task = errandTasks[0];
-    const name = reflectionInsightTaskName(task, 22);
-    return {
-      text: `<strong>${escapeHtml(name)}</strong> unlocked Errands mode. Keep rolling.`,
-      accent: "forest",
-      icon: "nudge",
-      html: true,
-    };
-  }
-
-  if (morningTasks.length) {
-    const task = morningTasks[0];
-    const name = reflectionInsightTaskName(task, 22);
-    return {
-      text: `Dawn opener: <strong>${escapeHtml(name)}</strong>. Rematch tomorrow?`,
-      accent: "forest",
-      icon: "nudge",
-      html: true,
-    };
-  }
-
-  const top = sorted.find((task) => task.tier === 1);
-  if (top) {
-    const name = reflectionInsightTaskName(top, 22);
-    return {
-      text: `<strong>${escapeHtml(name)}</strong> wore the 1st crown. Crown something today.`,
-      accent: "forest",
-      icon: "nudge",
-      html: true,
-    };
-  }
-
-  return null;
+function reflectionTaskCatBit(task) {
+  if (!task?.context) return "";
+  return escapeHtml(contextLabel(task.context));
 }
 
 /**
- * Pick one playful persona title-card from yesterday's pattern.
+ * Pick one playful persona for Yesterday’s vibe.
  * Data-driven (category / priority / timing / arc) — not random.
+ * Blurb expands on the persona and cites real completed tasks.
  */
 function pickReflectionPersona(sorted) {
   if (!sorted.length) return null;
@@ -4931,7 +4886,7 @@ function pickReflectionPersona(sorted) {
   const options = [];
 
   const pushPersona = (persona) => {
-    if (!persona?.name || !persona?.beat || !persona?.meaning) return;
+    if (!persona?.name || !persona?.blurb || !persona?.meaning) return;
     options.push(persona);
   };
 
@@ -4939,12 +4894,14 @@ function pickReflectionPersona(sorted) {
     const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
     const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
     if (firstPart === "morning" && lastPart === "evening") {
+      const firstTime = reflectionTaskTimeBit(first);
+      const lastTime = reflectionTaskTimeBit(last);
       pushPersona({
         score: 92,
         kind: "bookend",
         name: "Bookend Day",
         meaning: "You started and ended with care — morning win, evening win.",
-        beat: `<strong>${escapeHtml(reflectionInsightTaskName(first, 18))}</strong> → <strong>${escapeHtml(reflectionInsightTaskName(last, 18))}</strong>`,
+        blurb: `You opened with ${reflectionTaskCite(first)}${firstTime ? ` · ${firstTime}` : ""} and closed on ${reflectionTaskCite(last)}${lastTime ? ` · ${lastTime}` : ""}. Sunrise → lamplight — two anchors holding the middle steady.`,
         tone: "forest",
       });
     }
@@ -4953,12 +4910,14 @@ function pickReflectionPersona(sorted) {
       first.context === "work" || first.tier === 1 || first.tier === 2;
     const softClose = softContexts.has(last.context) && last.context !== "work";
     if (hardOpen && softClose && first.context !== last.context) {
+      const openCat = reflectionTaskCatBit(first);
+      const closeCat = reflectionTaskCatBit(last);
       pushPersona({
         score: 88,
         kind: "soft-landing",
         name: "Soft Landing",
         meaning: "You opened strong and closed soft.",
-        beat: `Serious open → soft close on <strong>${escapeHtml(reflectionInsightTaskName(last, 22))}</strong>`,
+        blurb: `Serious open on ${reflectionTaskCite(first)}${openCat ? ` in ${openCat}` : ""}, then a soft close with ${reflectionTaskCite(last)}${closeCat ? ` in ${closeCat}` : ""}. The day knew when to exhale.`,
         tone: "peach",
       });
     }
@@ -4966,24 +4925,40 @@ function pickReflectionPersona(sorted) {
 
   if (timed.length >= 2 && morningCount >= Math.ceil(timed.length * 0.65) && morningCount > eveningCount) {
     const morningTask = timed.find((task) => reflectionInsightTaskHour(task) < 12) || first;
+    const morningTime = reflectionTaskTimeBit(morningTask);
+    const secondMorning =
+      timed.find(
+        (task) =>
+          task.id !== morningTask?.id && reflectionInsightTaskHour(task) < 12
+      ) || null;
     pushPersona({
       score: 84,
       kind: "front-loaded",
       name: "Front-loaded Day",
       meaning: "Most of your wins landed before noon.",
-      beat: `Heavy before noon — <strong>${escapeHtml(reflectionInsightTaskName(morningTask, 22))}</strong>`,
+      blurb: `Heavy before noon — ${reflectionTaskCite(morningTask)}${morningTime ? ` by ${morningTime}` : ""} led the charge${
+        secondMorning ? `, with ${reflectionTaskCite(secondMorning)} right behind` : ""
+      }. Afternoon got to coast a little.`,
       tone: "forest",
     });
   }
 
   if (morningCount >= 2 && morningCount > eveningCount && morningCount >= eveningCount + 1) {
     const morningTask = timed.find((task) => reflectionInsightTaskHour(task) < 12) || first;
+    const morningTime = reflectionTaskTimeBit(morningTask);
+    const otherMorning =
+      timed.find(
+        (task) =>
+          task.id !== morningTask?.id && reflectionInsightTaskHour(task) < 12
+      ) || null;
     pushPersona({
       score: 80,
       kind: "morning",
       name: "Morning Machine",
       meaning: "You got a lot done in the morning.",
-      beat: `First light: <strong>${escapeHtml(reflectionInsightTaskName(morningTask, 22))}</strong>`,
+      blurb: `First light favored you: ${reflectionTaskCite(morningTask)}${morningTime ? ` · ${morningTime}` : ""}${
+        otherMorning ? ` and ${reflectionTaskCite(otherMorning)}` : ""
+      }. That early pocket did real work.`,
       tone: "forest",
     });
   }
@@ -4991,60 +4966,81 @@ function pickReflectionPersona(sorted) {
   if (eveningCount >= 2 && eveningCount > morningCount) {
     const eveningTask =
       [...timed].reverse().find((task) => reflectionInsightTaskHour(task) >= 17) || chronoLast;
+    const eveningTime = reflectionTaskTimeBit(eveningTask);
+    const otherEvening =
+      timed.find(
+        (task) =>
+          task.id !== eveningTask?.id && reflectionInsightTaskHour(task) >= 17
+      ) || null;
     pushPersona({
       score: 80,
       kind: "closing",
       name: "Closing Shift",
       meaning: "Your evening carried the wins.",
-      beat: `Last sweep: <strong>${escapeHtml(reflectionInsightTaskName(eveningTask, 22))}</strong>`,
+      blurb: `Evening carried it — ${reflectionTaskCite(eveningTask)}${eveningTime ? ` · ${eveningTime}` : ""}${
+        otherEvening ? `, plus ${reflectionTaskCite(otherEvening)}` : ""
+      }. Last light, still moving.`,
       tone: "peach",
     });
   }
 
   if (last && last.tier === 1 && sorted.length >= 2) {
+    const earlier = sorted.find((task) => task.id !== last.id) || chronoFirst;
+    const lastTime = reflectionTaskTimeBit(last);
     pushPersona({
       score: 78,
       kind: "closer",
       name: "The Closer",
       meaning: "You knocked out a top priority.",
-      beat: `Saved the punch for <strong>${escapeHtml(reflectionInsightTaskName(last, 22))}</strong>`,
+      blurb: `You warmed up on ${reflectionTaskCite(earlier)}, then saved the punch for ${reflectionTaskCite(last)}${lastTime ? ` · ${lastTime}` : ""}. A 1st priority as the closer — clean finish.`,
       tone: "forest",
     });
   }
 
   if (chronoFirst?.tier === 1 || (tier1.length >= 1 && chronoFirst && chronoFirst.tier <= 2 && tier12.length >= Math.ceil(sorted.length / 2))) {
     const hunterTask = tier1[0] || tier12[0] || chronoFirst;
+    const hunterTime = reflectionTaskTimeBit(hunterTask);
+    const followUp =
+      sorted.find((task) => task.id !== hunterTask?.id) || null;
     pushPersona({
       score: chronoFirst?.tier === 1 ? 76 : 70,
       kind: "hunter",
       name: "Top-priority Hunter",
       meaning: "You went after what mattered most first.",
-      beat: `Went after <strong>${escapeHtml(reflectionInsightTaskName(hunterTask, 22))}</strong> first`,
+      blurb: `You went after ${reflectionTaskCite(hunterTask)} first${hunterTime ? ` · ${hunterTime}` : ""}${
+        followUp ? `, then kept the streak with ${reflectionTaskCite(followUp)}` : ""
+      }. Big rocks before pebbles.`,
       tone: "forest",
     });
   }
 
   if (easyWins.length >= 2 && easyWins.length > tier12.length) {
+    const secondEasy = easyWins[1] || null;
     pushPersona({
       score: 68,
       kind: "easy-wins",
       name: "Easy-wins Collector",
       meaning: "You stacked a bunch of quick wins.",
-      beat: `Stacked quick wins like <strong>${escapeHtml(reflectionInsightTaskName(easyWins[0], 22))}</strong>`,
+      blurb: `Quick checks stacked up — ${reflectionTaskCite(easyWins[0])}${
+        secondEasy ? ` and ${reflectionTaskCite(secondEasy)}` : ""
+      } among them. Small moves, real momentum.`,
       tone: "peach",
     });
   }
 
   if (dominantCat) {
     const sample = dominantCat.tasks[0];
-    const name = reflectionInsightTaskName(sample, 22);
+    const sample2 = dominantCat.tasks[1] || null;
+    const catLabel = escapeHtml(contextLabel(dominantCat.ctx));
     const categoryPersonas = {
       home: {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-home",
         name: "Home Captain",
         meaning: "Most of yesterday’s energy went to Home.",
-        beat: `Held the fort with <strong>${escapeHtml(name)}</strong>`,
+        blurb: `Home got the lion’s share — ${reflectionTaskCite(sample)}${
+          sample2 ? ` and ${reflectionTaskCite(sample2)}` : ""
+        } held the fort. ${dominantCat.count} win${dominantCat.count === 1 ? "" : "s"} under that roof.`,
         tone: "peach",
       },
       work: {
@@ -5052,7 +5048,9 @@ function pickReflectionPersona(sorted) {
         kind: "cat-work",
         name: "Work Lead",
         meaning: "Most of yesterday’s energy went to Work.",
-        beat: `Ran the desk — <strong>${escapeHtml(name)}</strong> led`,
+        blurb: `The desk led yesterday — ${reflectionTaskCite(sample)}${
+          sample2 ? `, then ${reflectionTaskCite(sample2)}` : ""
+        }. ${catLabel} carried ${dominantCat.count} check${dominantCat.count === 1 ? "" : "s"}.`,
         tone: "forest",
       },
       errands: {
@@ -5060,7 +5058,9 @@ function pickReflectionPersona(sorted) {
         kind: "cat-errands",
         name: "Errand Runner",
         meaning: "You knocked out the out-and-about stuff.",
-        beat: `Out and back on <strong>${escapeHtml(name)}</strong>`,
+        blurb: `Out and back — ${reflectionTaskCite(sample)}${
+          sample2 ? ` plus ${reflectionTaskCite(sample2)}` : ""
+        } kept Errands moving. Errands mode: unlocked.`,
         tone: "forest",
       },
       health: {
@@ -5068,7 +5068,9 @@ function pickReflectionPersona(sorted) {
         kind: "cat-health",
         name: "Body Mover",
         meaning: "You made room to move your body.",
-        beat: `Moved on purpose — <strong>${escapeHtml(name)}</strong>`,
+        blurb: `You moved on purpose with ${reflectionTaskCite(sample)}${
+          sample2 ? ` and ${reflectionTaskCite(sample2)}` : ""
+        }. Body got a real vote yesterday.`,
         tone: "forest",
       },
       personal: {
@@ -5076,7 +5078,9 @@ function pickReflectionPersona(sorted) {
         kind: "cat-personal",
         name: "Personal Pace",
         meaning: "You tended to personal things.",
-        beat: `Kept it personal with <strong>${escapeHtml(name)}</strong>`,
+        blurb: `Kept it personal — ${reflectionTaskCite(sample)}${
+          sample2 ? ` alongside ${reflectionTaskCite(sample2)}` : ""
+        }. Quiet progress that still counts.`,
         tone: "peach",
       },
       faith: {
@@ -5084,7 +5088,9 @@ function pickReflectionPersona(sorted) {
         kind: "cat-faith",
         name: "Quiet Keeper",
         meaning: "You made quiet space for what matters.",
-        beat: `Made room for <strong>${escapeHtml(name)}</strong>`,
+        blurb: `You made room for ${reflectionTaskCite(sample)}${
+          sample2 ? ` and ${reflectionTaskCite(sample2)}` : ""
+        }. Quiet space, kept.`,
         tone: "forest",
       },
     };
@@ -5099,18 +5105,22 @@ function pickReflectionPersona(sorted) {
     return {
       name: top.name,
       meaning: top.meaning || "",
-      beat: top.beat,
+      blurb: top.blurb,
       tone: top.tone || "forest",
       kind: top.kind || "",
     };
   }
 
-  // Sparse fallback — still a title card with a real task
+  // Sparse fallback — still cite a real task
   const fallbackTask = chronoFirst || sorted[0];
+  const fallbackTime = reflectionTaskTimeBit(fallbackTask);
+  const fallbackCat = reflectionTaskCatBit(fallbackTask);
   return {
     name: "Presence Player",
     meaning: "You showed up and checked something off.",
-    beat: `Checked off <strong>${escapeHtml(reflectionInsightTaskName(fallbackTask, 24))}</strong>`,
+    blurb: `You showed up and checked off ${reflectionTaskCite(fallbackTask, 28)}${
+      fallbackTime ? ` · ${fallbackTime}` : ""
+    }${fallbackCat ? ` in ${fallbackCat}` : ""}. One real move still makes a day.`,
     tone: "forest",
     kind: "fallback",
   };
@@ -5218,232 +5228,14 @@ function reflectionPersonaMarkSvg(kind) {
   return marks[k] || marks.fallback;
 }
 
-/**
- * Punchy Presence reads from yesterday's wins — persona vibe card + short beats.
- * Prefer: persona, priority hit, timing/note flavor. Max ~3 total beats.
- */
+/** Yesterday’s vibe persona for the merged review card. */
 function buildReflectionInsights(completed) {
-  if (!completed.length) return { persona: null, items: [], chips: [] };
+  if (!completed.length) return { persona: null };
 
   const sorted = [...completed].sort(
     (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
   );
-  const persona = pickReflectionPersona(sorted);
-  const personaKind = persona?.kind || "";
-  const candidates = [];
-
-  const pushCandidate = (insight) => {
-    if (!insight?.text) return;
-    if (candidates.some((item) => item.text === insight.text)) return;
-    candidates.push(insight);
-  };
-
-  // Skip beats the persona already owns (avoid double-telling)
-  const skipTiming =
-    personaKind === "bookend" ||
-    personaKind === "front-loaded" ||
-    personaKind === "morning" ||
-    personaKind === "closing" ||
-    personaKind === "soft-landing";
-  const skipPriority =
-    personaKind === "closer" || personaKind === "hunter" || personaKind === "easy-wins";
-  const skipCategory = personaKind.startsWith("cat-");
-
-  // 1) Priority hit — nickname only
-  const priorityWin =
-    sorted.find((task) => task.tier === 1) || sorted.find((task) => task.tier === 2);
-  if (priorityWin && !skipPriority) {
-    const name = reflectionInsightTaskName(priorityWin, 24);
-    const time = formatCompletionTime(priorityWin.completedAt);
-    const tierWord = priorityWin.tier === 1 ? "1st" : "2nd";
-    pushCandidate({
-      text: time
-        ? `${tierWord} locked: <strong>${escapeHtml(name)}</strong> · ${escapeHtml(time)}`
-        : `${tierWord} locked: <strong>${escapeHtml(name)}</strong>`,
-      accent: "forest",
-      icon: "check",
-      html: true,
-    });
-  }
-
-  // 2) Timing arc — open + close, or a single beat
-  const timed = sorted.filter((task) => reflectionInsightTaskHour(task) != null);
-  const first = timed[0] || null;
-  const last = timed.length > 1 ? timed[timed.length - 1] : null;
-  if (!skipTiming) {
-    if (first && last && first.id !== last.id) {
-      const firstName = reflectionInsightTaskName(first, 26);
-      const lastName = reflectionInsightTaskName(last, 26);
-      const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
-      const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
-      const line =
-        firstPart === "morning" && lastPart === "evening"
-          ? `<strong>${escapeHtml(firstName)}</strong> at sunrise → <strong>${escapeHtml(lastName)}</strong> at lamplight`
-          : lastPart === "evening"
-            ? `Opened with <strong>${escapeHtml(firstName)}</strong>, bowed out on <strong>${escapeHtml(lastName)}</strong>`
-            : `<strong>${escapeHtml(firstName)}</strong> → <strong>${escapeHtml(lastName)}</strong>. Clean arc.`;
-      pushCandidate({
-        text: line,
-        accent: lastPart === "evening" ? "peach" : "forest",
-        icon: lastPart === "evening" ? "moon" : "sun",
-        html: true,
-      });
-    } else if (first) {
-      const name = reflectionInsightTaskName(first, 24);
-      const time = formatCompletionTime(first.completedAt);
-      const part = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
-      const lead =
-        part === "evening" ? "Last light:" : part === "morning" ? "First check:" : "On the board:";
-      pushCandidate({
-        text: time
-          ? `${lead} <strong>${escapeHtml(name)}</strong> · ${escapeHtml(time)}`
-          : `${lead} <strong>${escapeHtml(name)}</strong>`,
-        accent: part === "evening" ? "peach" : "forest",
-        icon: part === "evening" ? "moon" : "sun",
-        html: true,
-      });
-    }
-  }
-
-  // 3) Category vibe — short scoreboard, no task laundry list
-  const byContext = new Map();
-  sorted.forEach((task) => {
-    const key = task.context || "other";
-    if (!byContext.has(key)) byContext.set(key, []);
-    byContext.get(key).push(task);
-  });
-  const categoryGroups = [...byContext.entries()]
-    .map(([ctx, tasks]) => ({
-      ctx,
-      label: contextLabel(ctx),
-      tasks,
-      count: tasks.length,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  const canShowCategories =
-    !skipCategory &&
-    (categoryGroups.length >= 2 || (categoryGroups[0] && categoryGroups[0].count >= 2));
-  if (canShowCategories) {
-    const top = categoryGroups.slice(0, 2);
-    const score = (group) =>
-      `${escapeHtml(group.label)} ${group.count === 1 ? "scored 1" : `racked up ${group.count}`}`;
-    pushCandidate({
-      text: top.length === 2 ? `${score(top[0])}. ${score(top[1])}.` : `${score(top[0])}.`,
-      accent: "forest",
-      icon: "layers",
-      html: true,
-    });
-  }
-
-  // 4) Notes as a wink — echo a short scrap
-  const notedTask = sorted.find((task) => task.notes?.trim());
-  if (notedTask) {
-    const name = reflectionInsightTaskName(notedTask, 20);
-    const note = truncateReflectionLabel(notedTask.notes.trim(), 40).replace(/[.!?…]+$/u, "");
-    pushCandidate({
-      text: `Scribbled on <strong>${escapeHtml(name)}</strong>: “${escapeHtml(note)}”`,
-      accent: "peach",
-      icon: "note",
-      html: true,
-    });
-  }
-
-  // 5) Forward nudge (1 max) — only if we still have room after slicing
-  const nudge = buildReflectionForwardNudge(sorted);
-  if (nudge) pushCandidate(nudge);
-
-  // Persona counts as beat 1 → keep 1–2 supporting one-liners
-  const maxItems = persona ? 2 : 3;
-  const preferred = [];
-  const byIcon = (icon) => candidates.find((item) => item.icon === icon);
-  const priorityItem = byIcon("check");
-  const timingItem = candidates.find((item) => item.icon === "moon" || item.icon === "sun");
-  const noteItem = byIcon("note");
-  const categoryItem = byIcon("layers");
-  const nudgeItem = byIcon("nudge");
-  [priorityItem, timingItem, noteItem || categoryItem || nudgeItem].forEach((item) => {
-    if (item && !preferred.includes(item)) preferred.push(item);
-  });
-  candidates.forEach((item) => {
-    if (preferred.length >= maxItems) return;
-    if (!preferred.includes(item)) preferred.push(item);
-  });
-
-  let items = preferred.slice(0, maxItems);
-
-  // Sparse days: one more concrete beat if we only have a single line (and no persona beat yet)
-  if (items.length < (persona ? 1 : 2) && sorted.length) {
-    const coveredIds = new Set(
-      [priorityWin, first, last, notedTask].filter(Boolean).map((task) => task.id)
-    );
-    const leftover = sorted.find((task) => !coveredIds.has(task.id)) || sorted[0];
-    if (leftover) {
-      const name = reflectionInsightTaskName(leftover, 24);
-      const time = formatCompletionTime(leftover.completedAt);
-      const filler = {
-        text: time
-          ? `<strong>${escapeHtml(name)}</strong> got the check · ${escapeHtml(time)}`
-          : `<strong>${escapeHtml(name)}</strong> got the check`,
-        accent: "forest",
-        icon: "leaf",
-        html: true,
-      };
-      if (!items.some((item) => item.text === filler.text)) {
-        items = [...items, filler].slice(0, maxItems);
-      }
-    }
-  }
-
-  const chips = [{ label: `${completed.length} done`, tone: "forest" }];
-  if (priorityWin?.tier === 1) {
-    chips.push({ label: "1st locked", tone: "peach" });
-  } else if (priorityWin?.tier === 2) {
-    chips.push({ label: "2nd locked", tone: "peach" });
-  }
-  if (first && last && first.id !== last.id) {
-    const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
-    const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
-    if (firstPart && lastPart) {
-      chips.push({
-        label: `${firstPart} → ${lastPart}`,
-        tone: "muted",
-      });
-    }
-  } else if (categoryGroups[0]) {
-    chips.push({
-      label: `${categoryGroups[0].label} · ${categoryGroups[0].count}`,
-      tone: "muted",
-    });
-  }
-
-  return {
-    persona,
-    items,
-    chips: chips.slice(0, 3),
-  };
-}
-
-function reflectionInsightIconSvg(icon) {
-  switch (icon) {
-    case "sun":
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.4" fill="currentColor"/><path d="M12 3.2v2M12 18.8v2M4.8 4.8l1.4 1.4M17.8 17.8l1.4 1.4M3.2 12h2M18.8 12h2M4.8 19.2l1.4-1.4M17.8 6.2l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
-    case "moon":
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16.4 13.6A6.2 6.2 0 0 1 10 6.4a6.4 6.4 0 1 0 6.4 7.2z" fill="currentColor"/></svg>`;
-    case "note":
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4.5h7.2L17.5 8v11.5H7V4.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 4.5V8h3.5M9.2 12h5.6M9.2 15.2h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
-    case "spark":
-      return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l1.35 5.1 5.15.2-4.05 3.25 1.45 5.05L12 13.9l-3.9 2.9 1.45-5.05-4.05-3.25 5.15-.2L12 3.2z"/></svg>`;
-    case "layers":
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.2 4.8 8.2 12 12.2l7.2-4L12 4.2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.8 12.2 12 16.2l7.2-4M4.8 15.8 12 19.8l7.2-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    case "nudge":
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h11.5M12.5 6.5 18 12l-5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    case "leaf":
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.5 16.5c6.2.9 10.2-3 11-9.3-6.2-.8-10.1 3.1-11 9.3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.2 15.8c2.4-2.1 5-3.5 8.2-4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
-    case "check":
-    default:
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5.5 12.2l4.1 4.1 8.9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  }
+  return { persona: pickReflectionPersona(sorted) };
 }
 
 function buildYesterdayAccomplishStory(completed) {
@@ -5676,9 +5468,26 @@ function renderReflectionReview() {
         </svg>
       </span>`;
 
-    const storyCardHtml = `
-      <div class="reflection-story" aria-label="${escapeHtml(story.ariaSummary || story.title)}">
-        ${sunHtml}
+    const insightBundle = story.insights || {};
+    const insightPersona = Array.isArray(insightBundle) ? null : insightBundle.persona || null;
+
+    const vibeHtml = insightPersona
+      ? `
+        <div class="reflection-persona reflection-persona--${escapeHtml(insightPersona.kind || "fallback")}">
+          <span class="reflection-persona-mark" aria-hidden="true">${reflectionPersonaMarkSvg(insightPersona.kind)}</span>
+          <p class="reflection-persona-kicker">Yesterday’s vibe</p>
+          <p class="reflection-persona-name">${escapeHtml(insightPersona.name)}</p>
+          ${
+            insightPersona.meaning
+              ? `<p class="reflection-persona-meaning">${escapeHtml(insightPersona.meaning)}</p>`
+              : ""
+          }
+          <p class="reflection-persona-blurb">${insightPersona.blurb}</p>
+        </div>`
+      : "";
+
+    const reviewBodyHtml = `
+      <div class="reflection-story-body${insightPersona ? " reflection-story-body--after-vibe" : ""}">
         <div class="reflection-story-top">
           <p class="reflection-story-kicker">Yesterday in review</p>
         </div>
@@ -5686,91 +5495,17 @@ function renderReflectionReview() {
         ${visualsHtml}
       </div>`;
 
-    const insightBundle = story.insights || {};
-    const insightItems = Array.isArray(insightBundle)
-      ? insightBundle
-      : insightBundle.items || [];
-    const insightChips = Array.isArray(insightBundle) ? [] : insightBundle.chips || [];
-    const insightPersona = Array.isArray(insightBundle) ? null : insightBundle.persona || null;
-
-    const itemsHtml = insightItems
-      .map((insight) => {
-        const accent =
-          insight.accent === "peach" || insight.accent === "forest"
-            ? ` reflection-story-insight--${insight.accent}`
-            : insight.peach
-              ? " reflection-story-insight--peach"
-              : "";
-        const textHtml = insight.html
-          ? insight.text
-          : escapeHtml(insight.text);
-        // Optional single wink-tag only — skip dense meta spam
-        const winkTag = (insight.tags || []).filter(Boolean)[0];
-        const tagsHtml = winkTag
-          ? `<div class="reflection-story-insight-meta"><span class="reflection-story-insight-tag">${escapeHtml(winkTag)}</span></div>`
-          : "";
-        return `
-          <li class="reflection-story-insight${accent}">
-            <span class="reflection-story-insight-icon" aria-hidden="true">${reflectionInsightIconSvg(insight.icon)}</span>
-            <div class="reflection-story-insight-body">
-              <p class="reflection-story-insight-text">${textHtml}</p>
-              ${tagsHtml}
-            </div>
-          </li>`;
-      })
-      .join("");
-
-    const listHtml = itemsHtml
-      ? `<ul class="reflection-story-insight-list">${itemsHtml}</ul>`
-      : "";
-
-    const chipsHtml = insightChips.length
-      ? `<div class="reflection-insights-chips" aria-hidden="true">
-          ${insightChips
-            .map((chip) => {
-              const tone =
-                chip.tone === "peach" || chip.tone === "forest"
-                  ? ` reflection-insights-chip--${chip.tone}`
-                  : "";
-              return `<span class="reflection-insights-chip${tone}"><span class="reflection-insights-chip-dot"></span>${escapeHtml(chip.label)}</span>`;
-            })
-            .join("")}
-        </div>`
-      : "";
-
-    // Persona stars as its own card; drop Fun reads / insights framing
-    let vibeCardHtml = "";
-    let extrasCardHtml = "";
-    if (insightPersona) {
-      vibeCardHtml = `
-        <div class="reflection-story reflection-story--vibe" aria-label="Yesterday’s vibe — ${escapeHtml(insightPersona.name)}">
-          <div class="reflection-persona reflection-persona--${escapeHtml(insightPersona.kind || "fallback")}">
-            <span class="reflection-persona-mark" aria-hidden="true">${reflectionPersonaMarkSvg(insightPersona.kind)}</span>
-            <p class="reflection-persona-kicker">Yesterday’s vibe</p>
-            <p class="reflection-persona-name">${escapeHtml(insightPersona.name)}</p>
-            ${
-              insightPersona.meaning
-                ? `<p class="reflection-persona-meaning">${escapeHtml(insightPersona.meaning)}</p>`
-                : ""
-            }
-            <p class="reflection-persona-beat">${insightPersona.beat}</p>
-          </div>
-          ${chipsHtml}
-          ${listHtml}
-        </div>`;
-    } else if (insightItems.length || insightChips.length) {
-      extrasCardHtml = `
-        <div class="reflection-story reflection-story--insights" aria-label="Presence notes from yesterday">
-          ${chipsHtml}
-          ${listHtml}
-        </div>`;
-    }
+    const storyAria = insightPersona
+      ? `Yesterday’s vibe — ${insightPersona.name}. ${story.ariaSummary || story.title}`
+      : story.ariaSummary || story.title;
 
     summary.innerHTML = `
       <div class="reflection-summary-stack">
-        ${storyCardHtml}
-        ${vibeCardHtml}
-        ${extrasCardHtml}
+        <div class="reflection-story${insightPersona ? " reflection-story--with-vibe" : ""}" aria-label="${escapeHtml(storyAria)}">
+          ${insightPersona ? "" : sunHtml}
+          ${vibeHtml}
+          ${reviewBodyHtml}
+        </div>
       </div>`;
   }
 
