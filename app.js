@@ -4506,6 +4506,77 @@ function getYesterdayDailySummary() {
   };
 }
 
+/** In-memory only — never written to localStorage / sync. Used when yesterday has no wins. */
+const DEMO_REFLECTION_ID_PREFIX = "demo-reflect-";
+
+function wantsForcedReflectionDemoWins() {
+  try {
+    return new URLSearchParams(window.location.search).has("reflection-demo");
+  } catch {
+    return false;
+  }
+}
+
+function buildDemoReflectionWins() {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const at = (hours, minutes) => {
+    const d = new Date(yesterday);
+    d.setHours(hours, minutes, 0, 0);
+    return d.toISOString();
+  };
+
+  return [
+    {
+      id: `${DEMO_REFLECTION_ID_PREFIX}1`,
+      text: "Send client proposal",
+      tier: 1,
+      done: true,
+      notes: "Felt clearer after outlining the ask.",
+      completedAt: at(9, 20),
+      context: "work",
+    },
+    {
+      id: `${DEMO_REFLECTION_ID_PREFIX}2`,
+      text: "Morning stretch + walk",
+      tier: 2,
+      done: true,
+      notes: "",
+      completedAt: at(7, 45),
+      context: "health",
+    },
+    {
+      id: `${DEMO_REFLECTION_ID_PREFIX}3`,
+      text: "Walk the dog at sunset",
+      tier: 2,
+      done: true,
+      notes: "",
+      completedAt: at(18, 40),
+      context: "home",
+    },
+    {
+      id: `${DEMO_REFLECTION_ID_PREFIX}4`,
+      text: "Clear kitchen counters",
+      tier: 3,
+      done: true,
+      notes: "Quick reset before dinner.",
+      completedAt: at(17, 10),
+      context: "home",
+    },
+    {
+      id: `${DEMO_REFLECTION_ID_PREFIX}5`,
+      text: "Pick up prescriptions",
+      tier: 4,
+      done: true,
+      notes: "",
+      completedAt: at(12, 5),
+      context: "errands",
+    },
+  ].sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+}
+
 function getCompletedYesterdayTasks() {
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
@@ -4515,6 +4586,7 @@ function getCompletedYesterdayTasks() {
   getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.done || !t.completedAt) return;
+      if (String(t.id || "").startsWith(DEMO_REFLECTION_ID_PREFIX)) return;
       if (archiveDayKey(t.completedAt) !== yesterday) return;
       const key = `${ctx}:${t.id}`;
       if (seen.has(key)) return;
@@ -4522,6 +4594,12 @@ function getCompletedYesterdayTasks() {
       tasks.push({ ...t, context: ctx });
     });
   });
+
+  // Preview filled Reflection UI when yesterday had no real wins (or ?reflection-demo=1).
+  if (tasks.length === 0 || wantsForcedReflectionDemoWins()) {
+    return buildDemoReflectionWins();
+  }
+
   return tasks.sort(
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
