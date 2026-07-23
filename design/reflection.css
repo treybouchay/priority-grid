@@ -255,14 +255,14 @@
   color: #0e3030;
 }
 
-#reflection-panel-review .reflection-hero--on-cream .reflection-hero-subtitle {
-  color: rgba(14, 48, 48, 0.72);
-}
-
 .reflection-summary {
   display: block;
   margin-top: 1.25rem;
   width: 100%;
+}
+
+#reflection-panel-review .reflection-hero--review .reflection-summary {
+  margin-top: 100px;
 }
 
 .reflection-reveal {
