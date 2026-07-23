@@ -5124,8 +5124,14 @@ function reflectionPersonaMarkSvg(kind) {
   const marks = {
     bookend: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-bookend-left" d="M8 8c-2.5 2.2-3.5 5-3.5 8S5.5 21.8 8 24" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round"/>
-        <path class="rpm-bookend-right" d="M24 8c2.5 2.2 3.5 5 3.5 8S26.5 21.8 24 24" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round"/>
+        <g class="rpm-bookend-left">
+          <path d="M8 8c-2.5 2.2-3.5 5-3.5 8S5.5 21.8 8 24" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="6.2" cy="16" r="1.55" fill="#0e3030"/>
+        </g>
+        <g class="rpm-bookend-right">
+          <path d="M24 8c2.5 2.2 3.5 5 3.5 8S26.5 21.8 24 24" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="25.8" cy="16" r="1.55" fill="#fc9174"/>
+        </g>
       </svg>`,
     morning: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
