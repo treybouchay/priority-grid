@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=37" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=4" />
-    <link rel="stylesheet" href="design/reflection.css?v=19" />
+    <link rel="stylesheet" href="design/reflection.css?v=20" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1079,6 +1079,8 @@
 
     <dialog class="reflection-dialog" id="reflection-dialog">
       <div class="reflection-screen">
+        <!-- Sticky wallpaper: stays put while header + cards scroll over it (mirrors Home) -->
+        <div class="reflection-screen-wallpaper" aria-hidden="true"></div>
         <header class="reflection-screen-header">
           <button type="button" class="reflection-back-btn" id="reflection-back" aria-label="Back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true">
@@ -1219,6 +1221,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=242"></script>
+    <script src="app.js?v=243"></script>
   </body>
 </html>

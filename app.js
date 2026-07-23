@@ -478,18 +478,25 @@ function getActiveReflectionTab() {
 
 function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
   if (!reflectionScreen || !assets?.mobile) return;
+  const wallpaper = reflectionScreen.querySelector(".reflection-screen-wallpaper");
+  if (!wallpaper) return;
   const shiftPx = tab === "review" ? REFLECTION_TEAL_SHIFT_REVIEW : 0;
+  // Clear legacy screen-level bg so only the sticky wallpaper layer paints mountains.
+  reflectionScreen.style.backgroundImage = "";
+  reflectionScreen.style.backgroundSize = "";
+  reflectionScreen.style.backgroundPosition = "";
+  reflectionScreen.style.backgroundRepeat = "";
   // Teal mountain treatment (review shifted): wallpaper + teal fade, cream veil for dark-text readability.
-  reflectionScreen.style.backgroundColor = "#0d2b2b";
-  reflectionScreen.style.backgroundImage = [
+  wallpaper.style.backgroundColor = "#0d2b2b";
+  wallpaper.style.backgroundImage = [
     "linear-gradient(to bottom, rgba(253, 249, 244, 0.78) 0%, rgba(253, 249, 244, 0.42) 16%, rgba(253, 249, 244, 0.12) 30%, rgba(253, 249, 244, 0.06) 42%, rgba(253, 249, 244, 0.18) 100%)",
     "linear-gradient(to bottom, rgba(13, 43, 43, 0) 0%, rgba(13, 43, 43, 0.12) 20%, rgb(13, 43, 43) 55%)",
     `url("${assets.mobile}")`,
   ].join(", ");
-  reflectionScreen.style.backgroundSize = "100% 100%, 100% 100%, 100% auto";
-  reflectionScreen.style.backgroundRepeat = "no-repeat";
-  reflectionScreen.style.backgroundPosition = `center top, center ${shiftPx}px, center ${shiftPx}px`;
-  reflectionScreen.dataset.tealOffset = String(shiftPx);
+  wallpaper.style.backgroundSize = "100% 100%, 100% 100%, 100% auto";
+  wallpaper.style.backgroundRepeat = "no-repeat";
+  wallpaper.style.backgroundPosition = `center top, center ${shiftPx}px, center ${shiftPx}px`;
+  wallpaper.dataset.tealOffset = String(shiftPx);
 }
 
 function applyHomeHeroWallpaper(hour = new Date().getHours()) {

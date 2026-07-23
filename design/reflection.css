@@ -66,6 +66,7 @@ html.reflection-open .capture-clip-fab {
 
 .reflection-screen {
   --reflection-pad-x: clamp(0.85rem, 4vw, 1.5rem);
+  --reflection-wallpaper-height: 100dvh;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -82,6 +83,23 @@ html.reflection-open .capture-clip-fab {
   background-color: #0d2b2b;
   font-family: "Manrope", system-ui, sans-serif;
   touch-action: pan-y;
+}
+
+/* Sticky wallpaper + scrolling content (mirrors Home .presence-hero-wallpaper) */
+.reflection-screen-wallpaper {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  flex: 0 0 auto;
+  width: auto;
+  height: var(--reflection-wallpaper-height);
+  margin-left: calc(-1 * var(--reflection-pad-x));
+  margin-right: calc(-1 * var(--reflection-pad-x));
+  margin-bottom: calc(-1 * var(--reflection-wallpaper-height));
+  pointer-events: none;
+  overflow: hidden;
+  background-color: #0d2b2b;
+  background-repeat: no-repeat;
 }
 
 .reflection-screen-header {
