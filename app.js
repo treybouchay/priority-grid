@@ -4705,8 +4705,6 @@ function setReflectionTab(tab) {
     panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
     panel.classList.toggle("active", panel.dataset.tab === nextTab);
   });
-  const tabs = document.querySelector(".reflection-tabs");
-  tabs?.classList.toggle("reflection-tabs--end", nextTab === "thoughts");
   const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
   applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   if (nextTab === "thoughts") {

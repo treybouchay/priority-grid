@@ -114,19 +114,8 @@
 .reflection-tabs {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 0.5rem;
-  width: 100%;
-}
-
-.reflection-tabs::before {
-  content: "";
-  flex: 0 1 0;
-  transition: flex-grow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.reflection-tabs--end::before {
-  flex-grow: 1;
 }
 
 .reflection-tab {
@@ -157,11 +146,17 @@
   background: #fc9174;
   border-radius: 50%;
   position: absolute;
-  right: -0.1rem;
+  left: -0.1rem;
   top: 50%;
   transform: translateY(-50%);
   box-shadow: 0 0 0 3px rgba(252, 145, 116, 0.25);
   animation: reflection-dot-pop 0.35s ease;
+}
+
+/* Thoughts step: knob sits on the right edge of the active bar */
+.reflection-tab[data-tab="thoughts"] .reflection-progress-dot {
+  left: auto;
+  right: -0.1rem;
 }
 
 @keyframes reflection-dot-pop {
@@ -276,7 +271,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fc9174;
+  color: rgba(14, 48, 48, 0.55);
 }
 
 .reflection-story-title {
@@ -311,7 +306,7 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #fc9174;
+  color: rgba(14, 48, 48, 0.55);
 }
 
 .reflection-story-highlight-text {
@@ -429,7 +424,7 @@
 
 .reflection-review-ctx {
   display: inline-flex;
-  color: #fc9174;
+  color: rgba(14, 48, 48, 0.55);
 }
 
 .reflection-review-ctx .icon,
@@ -517,7 +512,7 @@
   width: 1.2rem;
   height: 1.2rem;
   margin-top: 0.15rem;
-  color: #fc9174;
+  color: rgba(14, 48, 48, 0.45);
   opacity: 0.85;
   animation: reflection-star-twinkle 2.4s ease-in-out infinite;
 }
@@ -714,10 +709,6 @@
   .reflection-progress-dot,
   .reflection-input-star {
     animation: none;
-  }
-
-  .reflection-tabs::before {
-    transition: none;
   }
 
   .reflection-prompts-refresh:hover,
