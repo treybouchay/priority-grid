@@ -3331,6 +3331,7 @@ function setPage(nextPage, nextFilter = filter, options = {}) {
   setupFocusCardObserver();
   syncBottomChrome();
   requestAnimationFrame(syncBottomChrome);
+  requestAnimationFrame(updateHomeHeroOnCream);
 
   if (options.focusBrain) {
     requestAnimationFrame(() => focusBrainPanel());
@@ -5511,6 +5512,45 @@ function updateReflectionHeroOnCream() {
   const creamLead = Math.min(Math.max(screen.clientHeight * 0.14, 88), 140);
   const onCream = probe.getBoundingClientRect().top <= headerBottom + creamLead;
   hero.classList.toggle("reflection-hero--on-cream", onCream);
+}
+
+function updateHomeHeroOnCream() {
+  const hero = document.querySelector("#home-page .presence-hero");
+  if (!hero) return;
+  if (document.body.dataset.page !== "home") {
+    hero.classList.remove("presence-hero--on-cream");
+    return;
+  }
+  const main = document.querySelector("body[data-page='home'] .main");
+  if (!main) return;
+  // Probe mid-hero FOCUS copy (same role as Reflection title) so greeting stays white at rest.
+  const probe =
+    hero.querySelector(".presence-focus-label") ||
+    hero.querySelector(".presence-focus-title") ||
+    hero.querySelector(".presence-greeting-time");
+  if (!probe) return;
+  const mainRect = main.getBoundingClientRect();
+  const creamLead = Math.min(Math.max(main.clientHeight * 0.14, 88), 140);
+  const onCream = probe.getBoundingClientRect().top <= mainRect.top + creamLead;
+  hero.classList.toggle("presence-hero--on-cream", onCream);
+}
+
+let homeHeroScrollRaf = 0;
+function onHomeMainScroll() {
+  if (homeHeroScrollRaf) return;
+  homeHeroScrollRaf = requestAnimationFrame(() => {
+    homeHeroScrollRaf = 0;
+    updateHomeHeroOnCream();
+  });
+}
+
+function setupHomeHeroScrollColor() {
+  if (setupHomeHeroScrollColor.ready) return;
+  setupHomeHeroScrollColor.ready = true;
+  const main = document.querySelector(".main");
+  main?.addEventListener("scroll", onHomeMainScroll, { passive: true });
+  window.addEventListener("resize", onHomeMainScroll, { passive: true });
+  requestAnimationFrame(updateHomeHeroOnCream);
 }
 
 let reflectionHeroScrollRaf = 0;
@@ -7924,6 +7964,7 @@ setupDailyRepeatForm();
 setupDataSync();
 setupTierExpand();
 setupReflection();
+setupHomeHeroScrollColor();
 setupMode135();
 setupForgetIt();
 setupPriorityVisibilityTags();
