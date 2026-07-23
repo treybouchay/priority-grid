@@ -71,8 +71,8 @@
     <link rel="stylesheet" href="design/task-rows.css?v=14" />
     <link rel="stylesheet" href="design/home-presence.css?v=97" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=37" />
-    <link rel="stylesheet" href="design/history-wins.css?v=6" />
-    <link rel="stylesheet" href="design/settings-page.css?v=3" />
+    <link rel="stylesheet" href="design/history-wins.css?v=7" />
+    <link rel="stylesheet" href="design/settings-page.css?v=4" />
     <link rel="stylesheet" href="design/reflection.css?v=16" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -759,12 +759,12 @@
         <!-- History -->
         <div class="page-panel hidden" id="history-page">
           <section class="history-wins-section" aria-label="History">
-            <header class="section-header section-header--plan history-wins-header">
+            <header class="history-page-header">
               <div class="presence-plan-heading">
                 <h3 class="section-title section-title--plan" id="history-page-title">History</h3>
               </div>
+              <p class="history-page-subtitle" id="history-subtitle"></p>
             </header>
-            <p class="history-subtitle" id="history-subtitle"></p>
             <div id="history-content"></div>
             <p class="history-empty hidden" id="history-empty">No completed tasks yet. Check something off to start building your history.</p>
           </section>
@@ -777,7 +777,7 @@
               <div class="presence-plan-heading">
                 <h3 class="section-title section-title--plan" id="settings-page-title">Settings</h3>
               </div>
-              <p class="settings-page-subtitle">Tune Presence to how you work — name, look, lists, and sync.</p>
+              <p class="settings-page-subtitle">Tune Presence to how you work — name, look, categories, and sync.</p>
             </header>
 
             <article class="settings-card" aria-labelledby="settings-profile-heading">
@@ -786,14 +786,29 @@
                 <p class="settings-card-desc">How you show up in greetings across the app.</p>
               </header>
               <div class="settings-profile-row">
-                <img
-                  class="settings-profile-avatar"
-                  src="assets/sidebar-avatar.png?v=39"
-                  alt=""
-                  width="56"
-                  height="56"
-                  decoding="async"
-                />
+                <div class="settings-profile-avatar-wrap">
+                  <button
+                    type="button"
+                    class="settings-profile-avatar-btn"
+                    id="profile-avatar-btn"
+                    aria-label="Upload profile photo"
+                    title="Upload photo"
+                  >
+                    <img
+                      class="settings-profile-avatar"
+                      id="profile-avatar-img"
+                      src="assets/sidebar-avatar.png?v=39"
+                      alt=""
+                      width="56"
+                      height="56"
+                      decoding="async"
+                    />
+                  </button>
+                  <input type="file" id="profile-avatar-input" accept="image/*" hidden />
+                  <button type="button" class="settings-avatar-clear hidden" id="profile-avatar-clear">
+                    Remove photo
+                  </button>
+                </div>
                 <div class="settings-profile-fields">
                   <label class="settings-field-label" for="display-name-input">Your name</label>
                   <input
@@ -804,7 +819,7 @@
                     maxlength="24"
                     autocomplete="nickname"
                   />
-                  <p class="settings-hint">Shown on Home and Tasks.</p>
+                  <p class="settings-hint">Tap the photo to upload. Name shows on Home and Tasks.</p>
                 </div>
               </div>
             </article>
@@ -821,17 +836,45 @@
               </div>
             </article>
 
+            <article class="settings-card" aria-labelledby="settings-preferences-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-preferences-heading">Preferences</h2>
+                <p class="settings-card-desc">Small defaults that shape how your week and home plan feel.</p>
+              </header>
+              <div class="settings-field">
+                <p class="settings-field-label" id="week-start-label">Week starts on</p>
+                <div class="theme-picker" id="week-start-picker" role="radiogroup" aria-labelledby="week-start-label">
+                  <button type="button" class="theme-option week-start-option" data-week-start="sunday" role="radio" aria-checked="false">
+                    <span class="theme-name">Sunday</span>
+                  </button>
+                  <button type="button" class="theme-option week-start-option" data-week-start="monday" role="radio" aria-checked="true">
+                    <span class="theme-name">Monday</span>
+                  </button>
+                </div>
+                <p class="settings-hint">Used when tasks return from Next Week.</p>
+              </div>
+              <div class="settings-field">
+                <label class="settings-toggle">
+                  <input type="checkbox" id="settings-mode-135-toggle" />
+                  <span class="settings-toggle-copy">
+                    <span class="settings-toggle-title">Show 1-3-5 on Home</span>
+                    <span class="settings-toggle-desc">Keep today’s plan visible beside your greetings.</span>
+                  </span>
+                </label>
+              </div>
+            </article>
+
             <article class="settings-card" aria-labelledby="settings-lists-heading">
               <header class="settings-card-header">
-                <h2 class="settings-card-title" id="settings-lists-heading">Lists</h2>
+                <h2 class="settings-card-title" id="settings-lists-heading">Categories</h2>
                 <p class="settings-card-desc">Built-in categories stay put. Add your own with a preset or uploaded icon.</p>
               </header>
-              <ul class="lists-manager" id="lists-manager" aria-label="Lists"></ul>
+              <ul class="lists-manager" id="lists-manager" aria-label="Categories"></ul>
               <form class="lists-add-form" id="lists-add-form">
-                <input type="text" id="lists-add-input" placeholder="New list name…" autocomplete="off" maxlength="32" required />
-                <button type="submit" class="btn-secondary">Add list</button>
+                <input type="text" id="lists-add-input" placeholder="New category name…" autocomplete="off" maxlength="32" required />
+                <button type="submit" class="btn-secondary">Add category</button>
               </form>
-              <div class="list-icon-picker" id="lists-add-icons" role="radiogroup" aria-label="New list icon"></div>
+              <div class="list-icon-picker" id="lists-add-icons" role="radiogroup" aria-label="New category icon"></div>
               <input type="file" id="list-icon-file-input" accept="image/*" hidden />
             </article>
 
@@ -841,7 +884,10 @@
                 <p class="settings-card-desc">Keep phone and computer in sync, or export a backup.</p>
               </header>
               <p class="sync-status" id="sync-status">Checking sync…</p>
-              <p class="settings-hint">Run ./serve.sh and open the same URL on each device to sync automatically.</p>
+              <p class="settings-hint">
+                Run <code class="settings-code">./serve.sh</code> and open the same URL on each device to sync
+                automatically. Export anytime for a local backup.
+              </p>
               <div class="sync-actions">
                 <button type="button" class="btn-secondary" id="sync-now-btn">Sync now</button>
                 <button type="button" class="btn-secondary" id="export-data-btn">Export backup</button>
@@ -1170,6 +1216,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=236"></script>
+    <script src="app.js?v=237"></script>
   </body>
 </html>

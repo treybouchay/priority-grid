@@ -22,7 +22,12 @@ const SYNC_POLL_MS = 5000;
 const HOME_DESIGN_KEY = "priority-grid-home-design";
 const TIME_PREVIEW_KEY = "priority-grid-time-preview";
 const DISPLAY_NAME_KEY = "priority-grid-display-name";
+const PROFILE_AVATAR_KEY = "priority-grid-profile-avatar";
+const WEEK_START_KEY = "priority-grid-week-start";
 const DEFAULT_DISPLAY_NAME = "Friend";
+const DEFAULT_PROFILE_AVATAR = "assets/sidebar-avatar.png?v=39";
+const AVATAR_EDGE = 192;
+const MAX_AVATAR_DATA_URL = 180000;
 
 const HOME_DESIGNS = [
   { id: "apple", name: "Apple Music" },
@@ -334,6 +339,37 @@ async function compressImageFile(file, maxEdge = 1600, quality = 0.82) {
   return blob;
 }
 
+function isValidAvatarImage(value) {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= MAX_AVATAR_DATA_URL &&
+    /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(value)
+  );
+}
+
+async function avatarDataUrlFromFile(file) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Choose an image file");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Image is too large");
+  const dataUrl = await readFileAsDataUrl(file);
+  const img = await loadImageFromDataUrl(dataUrl);
+  const side = Math.min(img.width, img.height);
+  const sx = Math.max(0, Math.round((img.width - side) / 2));
+  const sy = Math.max(0, Math.round((img.height - side) / 2));
+  const canvas = document.createElement("canvas");
+  canvas.width = AVATAR_EDGE;
+  canvas.height = AVATAR_EDGE;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, AVATAR_EDGE, AVATAR_EDGE);
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, AVATAR_EDGE, AVATAR_EDGE);
+  let out = canvas.toDataURL("image/jpeg", 0.88);
+  if (out.length > MAX_AVATAR_DATA_URL) {
+    out = canvas.toDataURL("image/jpeg", 0.72);
+  }
+  if (!isValidAvatarImage(out)) throw new Error("Photo is too large after compression");
+  return out;
+}
+
 async function listIconDataUrlFromFile(file) {
   if (!file?.type?.startsWith("image/")) throw new Error("Choose an image file");
   if (file.size > 8 * 1024 * 1024) throw new Error("Image is too large");
@@ -406,8 +442,11 @@ const TIME_PREVIEW_OPTIONS = [
   { id: "night", name: "Night", slot: TIME_THEME_SLOTS[0] },
   { id: "morning", name: "Morning", slot: TIME_THEME_SLOTS[1] },
   { id: "afternoon", name: "Afternoon", slot: TIME_THEME_SLOTS[2] },
-  { id: "evening", name: "Evening", slot: TIME_THEME_SLOTS[3] },
 ];
+
+const LEGACY_TIME_PREVIEW_MAP = {
+  evening: "afternoon",
+};
 
 const HOME_HERO_WALLPAPERS = {
   morning: {
@@ -473,7 +512,15 @@ function applyHomeHeroWallpaper(hour = new Date().getHours()) {
 
 function getTimePreviewPreference() {
   try {
-    const stored = localStorage.getItem(TIME_PREVIEW_KEY);
+    let stored = localStorage.getItem(TIME_PREVIEW_KEY);
+    if (stored && LEGACY_TIME_PREVIEW_MAP[stored]) {
+      stored = LEGACY_TIME_PREVIEW_MAP[stored];
+      try {
+        localStorage.setItem(TIME_PREVIEW_KEY, stored);
+      } catch {
+        /* ignore */
+      }
+    }
     if (TIME_PREVIEW_OPTIONS.some((option) => option.id === stored)) return stored;
   } catch {
     /* ignore */
@@ -1415,8 +1462,10 @@ function exportAllData() {
     customTasks: collectCustomTasksPayload(),
     customBrainDump: collectCustomBrainDumpPayload(),
     displayName: getDisplayName(),
+    profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
     theme: getTheme(),
     font: getFont(),
+    weekStart: getWeekStartPreference(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -1449,6 +1498,10 @@ function importAllData(file) {
       if (data.theme && THEMES.some((t) => t.id === data.theme)) setTheme(data.theme);
       if (data.font && FONTS.some((f) => f.id === data.font)) setFont(data.font);
       if (typeof data.displayName === "string") setDisplayName(data.displayName, { skipSync: true });
+      if (typeof data.profileAvatar === "string") setProfileAvatar(data.profileAvatar, { skipSync: true });
+      if (data.weekStart === "sunday" || data.weekStart === "monday") {
+        setWeekStartPreference(data.weekStart, { skipSync: true });
+      }
       rebuildContextUi();
       renderAll();
       markSyncDirty();
@@ -1545,6 +1598,8 @@ function buildSyncPayload() {
     nextWeek: collectNextWeekFromStorage(),
     forgetIt: collectNextWeekFromStorage(),
     displayName: getDisplayName(),
+    profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
+    weekStart: getWeekStartPreference(),
   };
 }
 
@@ -1629,6 +1684,18 @@ function applySyncPayload(payload, options = {}) {
     if (preferRemote || getDisplayName() === DEFAULT_DISPLAY_NAME) {
       setDisplayName(payload.displayName, { skipSync: true });
     }
+  }
+
+  if (typeof payload.profileAvatar === "string") {
+    if (preferRemote || getProfileAvatar() === DEFAULT_PROFILE_AVATAR) {
+      setProfileAvatar(payload.profileAvatar, { skipSync: true });
+    }
+  } else if (payload.profileAvatar === null && preferRemote) {
+    setProfileAvatar("", { skipSync: true });
+  }
+
+  if (payload.weekStart === "sunday" || payload.weekStart === "monday") {
+    if (preferRemote) setWeekStartPreference(payload.weekStart, { skipSync: true });
   }
 
   const remoteCustomTasks = payload.customTasks || {};
@@ -2251,6 +2318,121 @@ function setupDisplayName() {
   });
 }
 
+function getProfileAvatar() {
+  try {
+    const saved = localStorage.getItem(PROFILE_AVATAR_KEY);
+    if (isValidAvatarImage(saved)) return saved;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_PROFILE_AVATAR;
+}
+
+function setProfileAvatar(value, options = {}) {
+  const next = isValidAvatarImage(value) ? value : "";
+  try {
+    if (next) localStorage.setItem(PROFILE_AVATAR_KEY, next);
+    else localStorage.removeItem(PROFILE_AVATAR_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (!options.skipSync) markSyncDirty();
+  syncProfileAvatarUi();
+  return getProfileAvatar();
+}
+
+function syncProfileAvatarUi() {
+  const src = getProfileAvatar();
+  const hasCustom = src !== DEFAULT_PROFILE_AVATAR;
+  document.querySelectorAll(".sidebar-avatar-img, .sidebar-profile-avatar, #profile-avatar-img").forEach((el) => {
+    if (el instanceof HTMLImageElement) el.src = src;
+  });
+  const clearBtn = document.getElementById("profile-avatar-clear");
+  clearBtn?.classList.toggle("hidden", !hasCustom);
+}
+
+function setupProfileAvatar() {
+  syncProfileAvatarUi();
+  const btn = document.getElementById("profile-avatar-btn");
+  const input = document.getElementById("profile-avatar-input");
+  const clearBtn = document.getElementById("profile-avatar-clear");
+  if (!btn || !input || btn.dataset.bound) return;
+  btn.dataset.bound = "1";
+
+  btn.addEventListener("click", () => input.click());
+  clearBtn?.addEventListener("click", () => {
+    setProfileAvatar("");
+  });
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await avatarDataUrlFromFile(file);
+      setProfileAvatar(dataUrl);
+    } catch (err) {
+      alert(err?.message || "Could not use that image.");
+    }
+  });
+}
+
+function getWeekStartPreference() {
+  try {
+    const saved = localStorage.getItem(WEEK_START_KEY);
+    if (saved === "sunday" || saved === "monday") return saved;
+  } catch {
+    /* ignore */
+  }
+  return "monday";
+}
+
+function setWeekStartPreference(value, options = {}) {
+  const next = value === "sunday" ? "sunday" : "monday";
+  try {
+    localStorage.setItem(WEEK_START_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  if (!options.skipSync) markSyncDirty();
+  syncWeekStartUi();
+  return next;
+}
+
+function syncWeekStartUi() {
+  const current = getWeekStartPreference();
+  document.querySelectorAll(".week-start-option").forEach((btn) => {
+    const isActive = btn.dataset.weekStart === current;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-checked", String(isActive));
+  });
+}
+
+function setupWeekStartPicker() {
+  const picker = document.getElementById("week-start-picker");
+  if (!picker || picker.dataset.bound) return;
+  picker.dataset.bound = "1";
+  syncWeekStartUi();
+  picker.querySelectorAll(".week-start-option").forEach((btn) => {
+    btn.addEventListener("click", () => setWeekStartPreference(btn.dataset.weekStart));
+  });
+}
+
+function syncSettingsMode135Toggle() {
+  const input = document.getElementById("settings-mode-135-toggle");
+  if (input && document.activeElement !== input) input.checked = mode135;
+}
+
+function setupSettingsPreferences() {
+  setupWeekStartPicker();
+  const input = document.getElementById("settings-mode-135-toggle");
+  if (!input || input.dataset.bound) return;
+  input.dataset.bound = "1";
+  syncSettingsMode135Toggle();
+  input.addEventListener("change", () => {
+    setMode135(input.checked);
+  });
+}
+
 function setupDateHeader() {
   const now = new Date();
   const slot = getActiveTimeSlot(now.getHours());
@@ -2462,7 +2644,9 @@ function getNextMondayKey(fromDate = new Date()) {
   const d = new Date(fromDate);
   d.setHours(0, 0, 0, 0);
   const day = d.getDay();
-  let daysToAdd = (8 - day) % 7;
+  const weekStart = getWeekStartPreference();
+  const target = weekStart === "sunday" ? 0 : 1;
+  let daysToAdd = (target - day + 7) % 7;
   if (daysToAdd === 0) daysToAdd = 7;
   d.setDate(d.getDate() + daysToAdd);
   const y = d.getFullYear();
@@ -2473,7 +2657,9 @@ function getNextMondayKey(fromDate = new Date()) {
 
 function formatNextWeekReturnLabel(dayKey = getNextMondayKey()) {
   const [y, m, d] = String(dayKey).split("-").map(Number);
-  if (!y || !m || !d) return "next Monday";
+  if (!y || !m || !d) {
+    return getWeekStartPreference() === "sunday" ? "next Sunday" : "next Monday";
+  }
   const date = new Date(y, m - 1, d);
   return date.toLocaleDateString(undefined, {
     weekday: "long",
@@ -3032,10 +3218,12 @@ function updateTasksLayout() {
 
 function syncMode135Toggle() {
   const btn = document.getElementById("plan-135-home-toggle");
-  if (!btn) return;
-  btn.classList.toggle("active", mode135);
-  btn.setAttribute("aria-pressed", String(mode135));
-  btn.textContent = mode135 ? "On Home page" : "Show on Home";
+  if (btn) {
+    btn.classList.toggle("active", mode135);
+    btn.setAttribute("aria-pressed", String(mode135));
+    btn.textContent = mode135 ? "On Home page" : "Show on Home";
+  }
+  syncSettingsMode135Toggle();
 }
 
 function updatePageTitle() {
@@ -3051,8 +3239,14 @@ function updatePageTitle() {
     else title = `${contextLabel(filter)} Tasks`;
   }
   document.getElementById("page-title").textContent = title;
-  document.getElementById("page-title").classList.toggle("hidden", page === "home" || page === "tasks" || page === "settings");
-  document.getElementById("page-header").classList.toggle("hidden", page === "home" || page === "settings");
+  document.getElementById("page-title").classList.toggle(
+    "hidden",
+    page === "home" || page === "tasks" || page === "settings" || page === "history"
+  );
+  document.getElementById("page-header").classList.toggle(
+    "hidden",
+    page === "home" || page === "settings" || page === "history"
+  );
   document.getElementById("page-header").classList.toggle("page-header--home", page === "home");
   document.getElementById("page-header").classList.toggle("page-header--tasks", page === "tasks");
   document.getElementById("page-header-actions").classList.toggle("hidden", page !== "home");
@@ -3517,7 +3711,7 @@ function rebuildContextUi() {
     const customs = getCustomContexts();
     const customHtml =
       customs.length === 0
-        ? `<li class="lists-manager-empty">No custom lists yet — add one below.</li>`
+        ? `<li class="lists-manager-empty">No custom categories yet — add one below.</li>`
         : customs
             .map(
               (c) => `
@@ -3801,7 +3995,7 @@ function setupListsManager() {
     if (renameBtn) {
       const id = renameBtn.dataset.id;
       const current = getCustomContexts().find((c) => c.id === id);
-      const next = window.prompt("Rename list", current?.name || "");
+      const next = window.prompt("Rename category", current?.name || "");
       if (next == null) return;
       renameCustomContext(id, next);
       renderAll();
@@ -3810,7 +4004,7 @@ function setupListsManager() {
     if (deleteBtn) {
       const id = deleteBtn.dataset.id;
       const current = getCustomContexts().find((c) => c.id === id);
-      if (!confirm(`Delete list “${current?.name || id}”? Its tasks will be removed.`)) return;
+      if (!confirm(`Delete category “${current?.name || id}”? Its tasks will be removed.`)) return;
       deleteCustomContext(id);
       renderAll();
     }
@@ -7371,7 +7565,7 @@ function renderHistory() {
     subtitle.textContent =
       tasks.length === 0
         ? `Completed tasks since ${startedLabel} will appear here.`
-        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}`;
+        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel} — a quiet record of what you’ve finished.`;
   }
 
   if (tasks.length === 0) {
@@ -7599,6 +7793,7 @@ applyTheme();
 
 setupDateHeader();
 setupDisplayName();
+setupProfileAvatar();
 setupThemePicker();
 setupTimePreviewPicker();
 setupThemeSchedule();
@@ -7606,6 +7801,7 @@ setupFontPicker();
 setupHomeDesignPicker();
 setupNavigation();
 setupListsManager();
+setupSettingsPreferences();
 setupScribbleCaptureGesture();
 setupDropZones();
 setupTouchListDrag();

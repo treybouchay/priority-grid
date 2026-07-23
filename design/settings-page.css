@@ -134,14 +134,54 @@ body[data-page="settings"] .settings-profile-row {
   gap: 1rem;
 }
 
+body[data-page="settings"] .settings-profile-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+body[data-page="settings"] .settings-profile-avatar-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+}
+
+body[data-page="settings"] .settings-profile-avatar-btn:focus-visible {
+  outline: 2px solid rgba(14, 48, 48, 0.35);
+  outline-offset: 3px;
+}
+
 body[data-page="settings"] .settings-profile-avatar {
   width: 3.5rem;
   height: 3.5rem;
-  border-radius: 1.15rem;
+  border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
   background: #0e3030;
   box-shadow: 0 4px 12px rgba(14, 48, 48, 0.12);
+  display: block;
+}
+
+body[data-page="settings"] .settings-avatar-clear {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.55);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+body[data-page="settings"] .settings-avatar-clear:hover {
+  color: #11302c;
 }
 
 body[data-page="settings"] .settings-profile-fields {
@@ -298,6 +338,51 @@ body[data-page="settings"] .sync-actions {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.85rem;
+}
+
+body[data-page="settings"] .settings-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125em;
+  font-weight: 600;
+  color: #0e3030;
+}
+
+body[data-page="settings"] .settings-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+body[data-page="settings"] .settings-toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.15rem 0 0;
+  accent-color: #0e3030;
+  flex-shrink: 0;
+}
+
+body[data-page="settings"] .settings-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+body[data-page="settings"] .settings-toggle-title {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #11302c;
+}
+
+body[data-page="settings"] .settings-toggle-desc {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(17, 48, 44, 0.5);
 }
 
 body[data-page="settings"] .capture-clip-fab {
