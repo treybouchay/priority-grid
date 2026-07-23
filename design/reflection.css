@@ -64,8 +64,8 @@
     calc(0.7rem + env(safe-area-inset-top, 0px))
     var(--reflection-pad-x)
     0.85rem;
-  /* Seamless with screen wallpaper + cream veil — no frosted bar */
-  background: transparent;
+  /* Opaque cream matching top of wallpaper veil — content scrolls under, never shows through */
+  background: #fdf9f4;
   border-bottom: none;
   box-shadow: none;
 }
