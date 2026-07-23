@@ -775,9 +775,26 @@ html.reflection-open .capture-clip-fab {
   animation: rpm-house-bob 3.6s ease-in-out infinite;
 }
 
+.rpm-soft-lander {
+  transform-box: fill-box;
+  transform-origin: 16px 24px;
+  animation: rpm-soft-land 2.6s cubic-bezier(0.22, 1.15, 0.36, 1) infinite;
+}
+
 .rpm-soft-shape {
-  transform-origin: 16px 14px;
-  animation: rpm-soft-descend 3.8s ease-in-out infinite;
+  transform-origin: 16px 12.5px;
+}
+
+.rpm-soft-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rpm-soft-shadow 2.6s cubic-bezier(0.22, 1.15, 0.36, 1) infinite;
+}
+
+.rpm-soft-ground {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rpm-soft-ground 2.6s cubic-bezier(0.22, 1.15, 0.36, 1) infinite;
 }
 
 .rpm-tick {
@@ -918,15 +935,73 @@ html.reflection-open .capture-clip-fab {
   }
 }
 
-@keyframes rpm-soft-descend {
-  0%,
+/* Soft Landing — peach shape drops, settles with a gentle bounce */
+@keyframes rpm-soft-land {
+  0% {
+    transform: translateY(-12px) scale(0.9, 1.08);
+    opacity: 0.4;
+  }
+  48% {
+    transform: translateY(4.5px) scale(1.14, 0.78);
+    opacity: 1;
+  }
+  62% {
+    transform: translateY(-2px) scale(0.94, 1.08);
+    opacity: 1;
+  }
+  76% {
+    transform: translateY(1.4px) scale(1.05, 0.92);
+    opacity: 1;
+  }
+  90%,
   100% {
-    transform: translateY(-2px);
+    transform: translateY(0) scale(1, 1);
+    opacity: 0.95;
+  }
+}
+
+@keyframes rpm-soft-shadow {
+  0% {
+    transform: scaleX(0.35);
+    opacity: 0.06;
+  }
+  48% {
+    transform: scaleX(1.2);
+    opacity: 0.32;
+  }
+  62% {
+    transform: scaleX(0.75);
+    opacity: 0.14;
+  }
+  76% {
+    transform: scaleX(1.05);
+    opacity: 0.24;
+  }
+  90%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.18;
+  }
+}
+
+@keyframes rpm-soft-ground {
+  0%,
+  40% {
+    transform: scaleX(1);
+    opacity: 0.32;
+  }
+  48% {
+    transform: scaleX(1.08);
     opacity: 0.55;
   }
-  50% {
-    transform: translateY(2px);
-    opacity: 0.9;
+  62% {
+    transform: scaleX(0.98);
+    opacity: 0.38;
+  }
+  90%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.4;
   }
 }
 
@@ -1469,7 +1544,9 @@ html.reflection-open .capture-clip-fab {
   .rpm-target-core,
   .rpm-target-ring,
   .rpm-house,
-  .rpm-soft-shape,
+  .rpm-soft-lander,
+  .rpm-soft-shadow,
+  .rpm-soft-ground,
   .rpm-tick,
   .rpm-errand-dot,
   .rpm-errand-path,
@@ -1503,5 +1580,112 @@ html.reflection-open .capture-clip-fab {
   .reflection-prompts-refresh:active,
   .reflection-prompt-btn:hover {
     transform: none;
+  }
+}
+
+/* Localhost persona mark preview — ?persona-preview=1 */
+.persona-mark-preview {
+  position: fixed;
+  inset: auto 0.85rem 0.85rem auto;
+  z-index: 9999;
+  width: min(22rem, calc(100vw - 1.7rem));
+  max-height: min(78vh, 36rem);
+  overflow: auto;
+  padding: 0.85rem 0.9rem 1rem;
+  border-radius: 1rem;
+  background:
+    linear-gradient(165deg, rgba(253, 249, 244, 0.98) 0%, rgba(255, 219, 210, 0.35) 100%);
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  box-shadow: 0 12px 40px rgba(14, 48, 48, 0.16);
+  color: #0e3030;
+}
+
+.persona-mark-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.persona-mark-preview-kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(14, 48, 48, 0.55);
+}
+
+.persona-mark-preview-title {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: #0e3030;
+}
+
+.persona-mark-preview-close {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(14, 48, 48, 0.08);
+  color: #0e3030;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.persona-mark-preview-close:hover {
+  background: rgba(252, 145, 116, 0.35);
+}
+
+.persona-mark-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.persona-mark-preview-card {
+  position: relative;
+  min-height: 4.25rem;
+  padding: 0.55rem 2.4rem 0.55rem 0.6rem;
+  border-radius: 0.65rem;
+  background: rgba(253, 249, 244, 0.85);
+  border: 1px solid rgba(14, 48, 48, 0.08);
+}
+
+.persona-mark-preview-mark {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.35rem;
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+.persona-mark-preview-name {
+  margin: 0 0 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0e3030;
+}
+
+.persona-mark-preview-kind {
+  margin: 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(14, 48, 48, 0.5);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .persona-mark-preview {
+    inset: auto 0.5rem 0.5rem 0.5rem;
+    width: auto;
   }
 }

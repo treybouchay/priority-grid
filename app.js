@@ -5179,8 +5179,12 @@ function reflectionPersonaMarkSvg(kind) {
       </svg>`,
     "soft-landing": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <ellipse class="rpm-soft-shape" cx="16" cy="14" rx="7.5" ry="5" fill="#fc9174" opacity="0.7"/>
-        <path d="M8 23h16" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
+        <ellipse class="rpm-soft-shadow" cx="16" cy="24.2" rx="6.2" ry="1.35" fill="#0e3030" opacity="0.18"/>
+        <path class="rpm-soft-ground" d="M7 24.5h18" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" opacity="0.4"/>
+        <g class="rpm-soft-lander">
+          <ellipse class="rpm-soft-shape" cx="16" cy="12.5" rx="7.6" ry="5.1" fill="#fc9174"/>
+          <ellipse cx="13.6" cy="10.6" rx="2.6" ry="1.5" fill="#fdf9f4" opacity="0.55"/>
+        </g>
       </svg>`,
     "easy-wins": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -5226,6 +5230,71 @@ function reflectionPersonaMarkSvg(kind) {
       </svg>`,
   };
   return marks[k] || marks.fallback;
+}
+
+/** Catalog of every persona mark for localhost preview (?persona-preview=1). */
+const PERSONA_MARK_PREVIEW_ITEMS = [
+  { kind: "bookend", name: "Bookend Day" },
+  { kind: "morning", name: "Morning Machine" },
+  { kind: "front-loaded", name: "Front-loaded Day" },
+  { kind: "closing", name: "Closing Shift" },
+  { kind: "closer", name: "The Closer" },
+  { kind: "hunter", name: "Top-priority Hunter" },
+  { kind: "soft-landing", name: "Soft Landing" },
+  { kind: "easy-wins", name: "Easy-wins Collector" },
+  { kind: "cat-home", name: "Home Captain" },
+  { kind: "cat-errands", name: "Errand Runner" },
+  { kind: "cat-work", name: "Work Lead" },
+  { kind: "cat-health", name: "Body Mover" },
+  { kind: "cat-personal", name: "Personal Pace" },
+  { kind: "cat-faith", name: "Quiet Keeper" },
+  { kind: "fallback", name: "Presence Player" },
+];
+
+function wantsPersonaMarkPreview() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("persona-preview")) return false;
+    const host = window.location.hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "";
+  } catch {
+    return false;
+  }
+}
+
+function setupPersonaMarkPreview() {
+  if (!wantsPersonaMarkPreview()) return;
+  if (document.getElementById("persona-mark-preview")) return;
+
+  const panel = document.createElement("aside");
+  panel.id = "persona-mark-preview";
+  panel.className = "persona-mark-preview";
+  panel.setAttribute("aria-label", "Persona mark preview");
+  panel.innerHTML = `
+    <header class="persona-mark-preview-header">
+      <div>
+        <p class="persona-mark-preview-kicker">Local preview</p>
+        <h2 class="persona-mark-preview-title">All persona marks</h2>
+      </div>
+      <button type="button" class="persona-mark-preview-close" aria-label="Close preview">×</button>
+    </header>
+    <div class="persona-mark-preview-grid">
+      ${PERSONA_MARK_PREVIEW_ITEMS.map(
+        (item) => `
+        <article class="persona-mark-preview-card reflection-persona--${escapeHtml(item.kind)}">
+          <span class="reflection-persona-mark persona-mark-preview-mark" aria-hidden="true">${reflectionPersonaMarkSvg(item.kind)}</span>
+          <p class="persona-mark-preview-name">${escapeHtml(item.name)}</p>
+          <p class="persona-mark-preview-kind">${escapeHtml(item.kind)}</p>
+        </article>`
+      ).join("")}
+    </div>
+  `;
+  document.body.appendChild(panel);
+  document.documentElement.classList.add("persona-preview-open");
+  panel.querySelector(".persona-mark-preview-close")?.addEventListener("click", () => {
+    panel.remove();
+    document.documentElement.classList.remove("persona-preview-open");
+  });
 }
 
 /** Yesterday’s vibe persona for the merged review card. */
@@ -5694,6 +5763,8 @@ function setupReflection() {
     if (textarea) saveReflectionJournal(textarea.value.trim());
     dialog?.close();
   });
+
+  setupPersonaMarkPreview();
 }
 
 function markTaskDone(id, ctx, extras = {}) {
