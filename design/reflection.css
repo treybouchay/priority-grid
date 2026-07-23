@@ -668,39 +668,38 @@ html.reflection-open .capture-clip-fab {
   background: linear-gradient(180deg, #fc9174 0%, #ffdbd2 45%, rgba(14, 48, 48, 0.35) 100%);
 }
 
-.reflection-insights-deco {
-  position: absolute;
-  top: 0.65rem;
-  right: 0.7rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  pointer-events: none;
-  z-index: 1;
-  color: #fc9174;
-}
-
-.reflection-insights-deco svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.reflection-insights-deco-orb {
-  animation: reflection-sun-pulse 3.6s ease-in-out infinite;
-  transform-origin: 12px 12px;
+.reflection-story--has-persona .reflection-story-top,
+.reflection-story--has-persona .reflection-story-title {
+  padding-right: 0;
 }
 
 .reflection-persona {
   position: relative;
   margin: 0 0 0.7rem;
-  padding: 0.7rem 0.85rem 0.75rem;
+  padding: 0.7rem 3.1rem 0.75rem 0.85rem;
   border-radius: 1.05rem;
   background:
     linear-gradient(145deg, #fdf9f4 0%, rgba(255, 219, 210, 0.38) 100%);
   border: 1px solid rgba(14, 48, 48, 0.08);
   box-shadow: 0 3px 12px rgba(14, 48, 48, 0.05);
   min-width: 0;
+}
+
+.reflection-persona-mark {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 2.15rem;
+  height: 2.15rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.reflection-persona-mark-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .reflection-persona-kicker {
@@ -722,6 +721,16 @@ html.reflection-open .capture-clip-fab {
   color: #0e3030;
 }
 
+.reflection-persona-meaning {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(14, 48, 48, 0.72);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .reflection-persona-beat {
   margin: 0;
   font-size: 0.78rem;
@@ -737,12 +746,252 @@ html.reflection-open .capture-clip-fab {
   color: #0e3030;
 }
 
+/* Persona mark motions — subtle, Presence-colored */
+.rpm-bookend-left,
+.rpm-bookend-right {
+  transform-origin: center;
+  animation: rpm-bookend-breathe 3.4s ease-in-out infinite;
+}
+
+.rpm-bookend-right {
+  animation-delay: 0.35s;
+}
+
+.rpm-sunrise-glow {
+  transform-origin: 16px 22px;
+  animation: rpm-sunrise-rise 4s ease-in-out infinite;
+}
+
+.rpm-sunrise-arc {
+  animation: rpm-fade-soft 4s ease-in-out infinite;
+}
+
+.rpm-dusk-moon {
+  transform-origin: 17px 15px;
+  animation: rpm-dusk-fade 3.8s ease-in-out infinite;
+}
+
+.rpm-check-mark,
+.rpm-check-ring {
+  transform-origin: 16px 16px;
+  animation: rpm-check-pulse 2.8s ease-in-out infinite;
+}
+
+.rpm-target-core {
+  transform-origin: 16px 16px;
+  animation: rpm-check-pulse 2.6s ease-in-out infinite;
+}
+
+.rpm-target-ring {
+  transform-origin: 16px 16px;
+  animation: rpm-target-ring 3.2s ease-in-out infinite;
+}
+
+.rpm-house {
+  transform-origin: 16px 16px;
+  animation: rpm-house-bob 3.6s ease-in-out infinite;
+}
+
+.rpm-soft-shape {
+  transform-origin: 16px 14px;
+  animation: rpm-soft-descend 3.8s ease-in-out infinite;
+}
+
+.rpm-tick {
+  animation: rpm-tick-pop 3.2s ease-in-out infinite;
+}
+
+.rpm-tick-2 {
+  animation-delay: 0.18s;
+}
+
+.rpm-tick-3 {
+  animation-delay: 0.36s;
+}
+
+.rpm-errand-dot {
+  animation: rpm-errand-run 3.4s ease-in-out infinite;
+}
+
+.rpm-errand-path {
+  animation: rpm-fade-soft 3.4s ease-in-out infinite;
+}
+
+.rpm-briefcase {
+  transform-origin: 16px 16px;
+  animation: rpm-briefcase-pulse 3s ease-in-out infinite;
+}
+
+.rpm-health-pulse {
+  animation: rpm-fade-soft 2.8s ease-in-out infinite;
+}
+
+.rpm-health-dot {
+  transform-origin: 16px 16px;
+  animation: rpm-check-pulse 2.8s ease-in-out infinite;
+}
+
+.rpm-personal-ring,
+.rpm-personal-core {
+  transform-origin: 16px 16px;
+  animation: rpm-check-pulse 3.4s ease-in-out infinite;
+}
+
+.rpm-faith-glow {
+  transform-origin: 16px 16px;
+  animation: rpm-faith-glow 3.6s ease-in-out infinite;
+}
+
+.rpm-fallback-orb {
+  transform-origin: 16px 16px;
+  animation: rpm-check-pulse 3.6s ease-in-out infinite;
+}
+
+@keyframes rpm-bookend-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0.6px);
+  }
+}
+
+@keyframes rpm-sunrise-rise {
+  0%,
+  100% {
+    transform: translateY(2px) scale(0.92);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-1.5px) scale(1.05);
+    opacity: 0.85;
+  }
+}
+
+@keyframes rpm-dusk-fade {
+  0%,
+  100% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes rpm-check-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.82;
+  }
+}
+
+@keyframes rpm-target-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes rpm-house-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes rpm-soft-descend {
+  0%,
+  100% {
+    transform: translateY(-2px);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(2px);
+    opacity: 0.9;
+  }
+}
+
+@keyframes rpm-tick-pop {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+  40%,
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rpm-errand-run {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(14px, -6px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes rpm-briefcase-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes rpm-faith-glow {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.28;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.5;
+  }
+}
+
+@keyframes rpm-fade-soft {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
 .reflection-insights-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0 0 0.65rem;
-  padding-right: 2.5rem;
+  padding-right: 0;
   min-width: 0;
 }
 
@@ -1300,13 +1549,24 @@ html.reflection-open .capture-clip-fab {
   }
 
   .reflection-persona {
-    padding: 0.6rem 0.75rem 0.65rem;
+    padding: 0.6rem 2.85rem 0.65rem 0.75rem;
     border-radius: 0.95rem;
     margin-bottom: 0.6rem;
   }
 
+  .reflection-persona-mark {
+    top: 0.45rem;
+    right: 0.45rem;
+    width: 1.95rem;
+    height: 1.95rem;
+  }
+
   .reflection-persona-name {
     font-size: 1.08rem;
+  }
+
+  .reflection-persona-meaning {
+    font-size: 0.74rem;
   }
 
   .reflection-persona-beat {
@@ -1314,7 +1574,7 @@ html.reflection-open .capture-clip-fab {
   }
 
   .reflection-insights-chips {
-    padding-right: 2.1rem;
+    padding-right: 0;
     gap: 0.3rem;
     margin-bottom: 0.65rem;
   }
@@ -1379,7 +1639,27 @@ html.reflection-open .capture-clip-fab {
   .reflection-input-star,
   .reflection-story-sun-rays,
   .reflection-story-sun-core,
-  .reflection-insights-deco-orb {
+  .rpm-bookend-left,
+  .rpm-bookend-right,
+  .rpm-sunrise-glow,
+  .rpm-sunrise-arc,
+  .rpm-dusk-moon,
+  .rpm-check-mark,
+  .rpm-check-ring,
+  .rpm-target-core,
+  .rpm-target-ring,
+  .rpm-house,
+  .rpm-soft-shape,
+  .rpm-tick,
+  .rpm-errand-dot,
+  .rpm-errand-path,
+  .rpm-briefcase,
+  .rpm-health-pulse,
+  .rpm-health-dot,
+  .rpm-personal-ring,
+  .rpm-personal-core,
+  .rpm-faith-glow,
+  .rpm-fallback-orb {
     animation: none;
   }
 

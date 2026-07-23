@@ -4931,7 +4931,7 @@ function pickReflectionPersona(sorted) {
   const options = [];
 
   const pushPersona = (persona) => {
-    if (!persona?.name || !persona?.beat) return;
+    if (!persona?.name || !persona?.beat || !persona?.meaning) return;
     options.push(persona);
   };
 
@@ -4943,6 +4943,7 @@ function pickReflectionPersona(sorted) {
         score: 92,
         kind: "bookend",
         name: "Bookend Day",
+        meaning: "You started and ended with care — morning win, evening win.",
         beat: `<strong>${escapeHtml(reflectionInsightTaskName(first, 18))}</strong> → <strong>${escapeHtml(reflectionInsightTaskName(last, 18))}</strong>`,
         tone: "forest",
       });
@@ -4956,6 +4957,7 @@ function pickReflectionPersona(sorted) {
         score: 88,
         kind: "soft-landing",
         name: "Soft Landing",
+        meaning: "You opened strong and closed soft.",
         beat: `Serious open → soft close on <strong>${escapeHtml(reflectionInsightTaskName(last, 22))}</strong>`,
         tone: "peach",
       });
@@ -4968,6 +4970,7 @@ function pickReflectionPersona(sorted) {
       score: 84,
       kind: "front-loaded",
       name: "Front-loaded Day",
+      meaning: "Most of your wins landed before noon.",
       beat: `Heavy before noon — <strong>${escapeHtml(reflectionInsightTaskName(morningTask, 22))}</strong>`,
       tone: "forest",
     });
@@ -4979,6 +4982,7 @@ function pickReflectionPersona(sorted) {
       score: 80,
       kind: "morning",
       name: "Morning Machine",
+      meaning: "You got a lot done in the morning.",
       beat: `First light: <strong>${escapeHtml(reflectionInsightTaskName(morningTask, 22))}</strong>`,
       tone: "forest",
     });
@@ -4991,6 +4995,7 @@ function pickReflectionPersona(sorted) {
       score: 80,
       kind: "closing",
       name: "Closing Shift",
+      meaning: "Your evening carried the wins.",
       beat: `Last sweep: <strong>${escapeHtml(reflectionInsightTaskName(eveningTask, 22))}</strong>`,
       tone: "peach",
     });
@@ -5001,6 +5006,7 @@ function pickReflectionPersona(sorted) {
       score: 78,
       kind: "closer",
       name: "The Closer",
+      meaning: "You knocked out a top priority.",
       beat: `Saved the punch for <strong>${escapeHtml(reflectionInsightTaskName(last, 22))}</strong>`,
       tone: "forest",
     });
@@ -5012,6 +5018,7 @@ function pickReflectionPersona(sorted) {
       score: chronoFirst?.tier === 1 ? 76 : 70,
       kind: "hunter",
       name: "Top-priority Hunter",
+      meaning: "You went after what mattered most first.",
       beat: `Went after <strong>${escapeHtml(reflectionInsightTaskName(hunterTask, 22))}</strong> first`,
       tone: "forest",
     });
@@ -5022,6 +5029,7 @@ function pickReflectionPersona(sorted) {
       score: 68,
       kind: "easy-wins",
       name: "Easy-wins Collector",
+      meaning: "You stacked a bunch of quick wins.",
       beat: `Stacked quick wins like <strong>${escapeHtml(reflectionInsightTaskName(easyWins[0], 22))}</strong>`,
       tone: "peach",
     });
@@ -5035,6 +5043,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-home",
         name: "Home Captain",
+        meaning: "Most of yesterday’s energy went to Home.",
         beat: `Held the fort with <strong>${escapeHtml(name)}</strong>`,
         tone: "peach",
       },
@@ -5042,6 +5051,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-work",
         name: "Work Lead",
+        meaning: "Most of yesterday’s energy went to Work.",
         beat: `Ran the desk — <strong>${escapeHtml(name)}</strong> led`,
         tone: "forest",
       },
@@ -5049,6 +5059,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-errands",
         name: "Errand Runner",
+        meaning: "You knocked out the out-and-about stuff.",
         beat: `Out and back on <strong>${escapeHtml(name)}</strong>`,
         tone: "forest",
       },
@@ -5056,6 +5067,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-health",
         name: "Body Mover",
+        meaning: "You made room to move your body.",
         beat: `Moved on purpose — <strong>${escapeHtml(name)}</strong>`,
         tone: "forest",
       },
@@ -5063,6 +5075,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 66 : 58,
         kind: "cat-personal",
         name: "Personal Pace",
+        meaning: "You tended to personal things.",
         beat: `Kept it personal with <strong>${escapeHtml(name)}</strong>`,
         tone: "peach",
       },
@@ -5070,6 +5083,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 66 : 58,
         kind: "cat-faith",
         name: "Quiet Keeper",
+        meaning: "You made quiet space for what matters.",
         beat: `Made room for <strong>${escapeHtml(name)}</strong>`,
         tone: "forest",
       },
@@ -5084,6 +5098,7 @@ function pickReflectionPersona(sorted) {
     const top = options[0];
     return {
       name: top.name,
+      meaning: top.meaning || "",
       beat: top.beat,
       tone: top.tone || "forest",
       kind: top.kind || "",
@@ -5094,10 +5109,107 @@ function pickReflectionPersona(sorted) {
   const fallbackTask = chronoFirst || sorted[0];
   return {
     name: "Presence Player",
+    meaning: "You showed up and checked something off.",
     beat: `Checked off <strong>${escapeHtml(reflectionInsightTaskName(fallbackTask, 24))}</strong>`,
     tone: "forest",
     kind: "fallback",
   };
+}
+
+/**
+ * Tiny SVG mark for the persona title card — one simple motion per kind.
+ */
+function reflectionPersonaMarkSvg(kind) {
+  const k = kind || "fallback";
+  const marks = {
+    bookend: `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path class="rpm-bookend-left" d="M8 8c-2.5 2.2-3.5 5-3.5 8S5.5 21.8 8 24" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round"/>
+        <path class="rpm-bookend-right" d="M24 8c2.5 2.2 3.5 5 3.5 8S26.5 21.8 24 24" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>`,
+    morning: `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#fc9174" stroke-width="1.7" stroke-linecap="round"/>
+        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#fc9174" opacity="0.55"/>
+      </svg>`,
+    "front-loaded": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" opacity="0.55"/>
+        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#fc9174" opacity="0.6"/>
+      </svg>`,
+    closing: `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-dusk-moon" cx="17" cy="15" r="5.2" fill="#fc9174" opacity="0.85"/>
+        <circle cx="20.2" cy="13.2" r="4.4" fill="#fdf9f4"/>
+      </svg>`,
+    closer: `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-check-ring" cx="16" cy="16" r="9" stroke="#0e3030" stroke-width="1.5" opacity="0.35"/>
+        <path class="rpm-check-mark" d="M11 16.2l3.1 3.1L21.4 12" stroke="#0e3030" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+    hunter: `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-target-ring" cx="16" cy="16" r="9" stroke="#0e3030" stroke-width="1.4" opacity="0.35"/>
+        <circle class="rpm-target-ring" cx="16" cy="16" r="5.2" stroke="#fc9174" stroke-width="1.4"/>
+        <circle class="rpm-target-core" cx="16" cy="16" r="2.2" fill="#0e3030"/>
+      </svg>`,
+    "cat-home": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <g class="rpm-house">
+          <path d="M6.5 15.5L16 7.5l9.5 8" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9.5 14.8V24h13V14.8" stroke="#0e3030" stroke-width="1.7" stroke-linejoin="round"/>
+          <rect x="13.6" y="18.2" width="4.8" height="5.8" rx="0.6" fill="#fc9174" opacity="0.85"/>
+        </g>
+      </svg>`,
+    "soft-landing": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <ellipse class="rpm-soft-shape" cx="16" cy="14" rx="7.5" ry="5" fill="#fc9174" opacity="0.7"/>
+        <path d="M8 23h16" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
+      </svg>`,
+    "easy-wins": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path class="rpm-tick rpm-tick-1" d="M8 11l2.2 2.2L14.5 9" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path class="rpm-tick rpm-tick-2" d="M8 17l2.2 2.2L14.5 15" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path class="rpm-tick rpm-tick-3" d="M8 23l2.2 2.2L14.5 21" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="22" cy="12" r="1.4" fill="#fc9174" opacity="0.7"/>
+        <circle cx="22" cy="18" r="1.4" fill="#0e3030" opacity="0.35"/>
+        <circle cx="22" cy="24" r="1.4" fill="#fc9174" opacity="0.55"/>
+      </svg>`,
+    "cat-errands": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path class="rpm-errand-path" d="M5 20c3-8 7-11 11-11s8 3 11 11" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3" opacity="0.45"/>
+        <circle class="rpm-errand-dot" cx="8" cy="18" r="2.2" fill="#fc9174"/>
+      </svg>`,
+    "cat-work": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <g class="rpm-briefcase">
+          <rect x="6.5" y="12" width="19" height="12" rx="2" stroke="#0e3030" stroke-width="1.6"/>
+          <path d="M12 12V10.2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2V12" stroke="#0e3030" stroke-width="1.6"/>
+          <path d="M6.5 17h19" stroke="#fc9174" stroke-width="1.6"/>
+        </g>
+      </svg>`,
+    "cat-health": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path class="rpm-health-pulse" d="M5 16h5l2.2-5 3.6 10 2.4-5H27" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="rpm-health-dot" cx="16" cy="16" r="1.6" fill="#fc9174"/>
+      </svg>`,
+    "cat-personal": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-personal-ring" cx="16" cy="16" r="8.5" stroke="#fc9174" stroke-width="1.5" opacity="0.55"/>
+        <circle class="rpm-personal-core" cx="16" cy="16" r="3.4" fill="#0e3030" opacity="0.75"/>
+      </svg>`,
+    "cat-faith": `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-faith-glow" cx="16" cy="16" r="7" fill="#fc9174" opacity="0.35"/>
+        <path d="M16 8.5v15M16 13.5c2.8 0 4.8 1.4 4.8 3.6S18.8 20.7 16 20.7" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>`,
+    fallback: `
+      <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#fc9174" opacity="0.75"/>
+        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#ffdbd2" opacity="0.35"/>
+      </svg>`,
+  };
+  return marks[k] || marks.fallback;
 }
 
 /**
@@ -5578,9 +5690,15 @@ function renderReflectionReview() {
     let insightsCardHtml = "";
     if (insightPersona || insightItems.length) {
       const personaHtml = insightPersona
-        ? `<div class="reflection-persona">
+        ? `<div class="reflection-persona reflection-persona--${escapeHtml(insightPersona.kind || "fallback")}">
+            <span class="reflection-persona-mark" aria-hidden="true">${reflectionPersonaMarkSvg(insightPersona.kind)}</span>
             <p class="reflection-persona-kicker">Yesterday’s vibe</p>
             <p class="reflection-persona-name">${escapeHtml(insightPersona.name)}</p>
+            ${
+              insightPersona.meaning
+                ? `<p class="reflection-persona-meaning">${escapeHtml(insightPersona.meaning)}</p>`
+                : ""
+            }
             <p class="reflection-persona-beat">${insightPersona.beat}</p>
           </div>`
         : "";
@@ -5635,14 +5753,7 @@ function renderReflectionReview() {
         : "";
 
       insightsCardHtml = `
-        <div class="reflection-story reflection-story--insights" aria-label="What Presence clocked from yesterday${escapeHtml(personaAria)}">
-          <span class="reflection-insights-deco" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#fc9174"/>
-              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#ffdbd2" opacity="0.45"/>
-              <path d="M12 2.4v1.7M12 19.9v1.7M5 5l1.2 1.2M17.8 17.8l1.2 1.2M2.4 12h1.7M19.9 12h1.7M5 19l1.2-1.2M17.8 6.2l1.2-1.2" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
-            </svg>
-          </span>
+        <div class="reflection-story reflection-story--insights${insightPersona ? " reflection-story--has-persona" : ""}" aria-label="What Presence clocked from yesterday${escapeHtml(personaAria)}">
           <div class="reflection-story-top">
             <p class="reflection-story-kicker">Fun reads</p>
           </div>
