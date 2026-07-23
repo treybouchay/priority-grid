@@ -5219,7 +5219,7 @@ function reflectionPersonaMarkSvg(kind) {
 }
 
 /**
- * Punchy Presence reads from yesterday's wins — persona title + short beats.
+ * Punchy Presence reads from yesterday's wins — persona vibe card + short beats.
  * Prefer: persona, priority hit, timing/note flavor. Max ~3 total beats.
  */
 function buildReflectionInsights(completed) {
@@ -5693,10 +5693,58 @@ function renderReflectionReview() {
     const insightChips = Array.isArray(insightBundle) ? [] : insightBundle.chips || [];
     const insightPersona = Array.isArray(insightBundle) ? null : insightBundle.persona || null;
 
-    let insightsCardHtml = "";
-    if (insightPersona || insightItems.length) {
-      const personaHtml = insightPersona
-        ? `<div class="reflection-persona reflection-persona--${escapeHtml(insightPersona.kind || "fallback")}">
+    const itemsHtml = insightItems
+      .map((insight) => {
+        const accent =
+          insight.accent === "peach" || insight.accent === "forest"
+            ? ` reflection-story-insight--${insight.accent}`
+            : insight.peach
+              ? " reflection-story-insight--peach"
+              : "";
+        const textHtml = insight.html
+          ? insight.text
+          : escapeHtml(insight.text);
+        // Optional single wink-tag only — skip dense meta spam
+        const winkTag = (insight.tags || []).filter(Boolean)[0];
+        const tagsHtml = winkTag
+          ? `<div class="reflection-story-insight-meta"><span class="reflection-story-insight-tag">${escapeHtml(winkTag)}</span></div>`
+          : "";
+        return `
+          <li class="reflection-story-insight${accent}">
+            <span class="reflection-story-insight-icon" aria-hidden="true">${reflectionInsightIconSvg(insight.icon)}</span>
+            <div class="reflection-story-insight-body">
+              <p class="reflection-story-insight-text">${textHtml}</p>
+              ${tagsHtml}
+            </div>
+          </li>`;
+      })
+      .join("");
+
+    const listHtml = itemsHtml
+      ? `<ul class="reflection-story-insight-list">${itemsHtml}</ul>`
+      : "";
+
+    const chipsHtml = insightChips.length
+      ? `<div class="reflection-insights-chips" aria-hidden="true">
+          ${insightChips
+            .map((chip) => {
+              const tone =
+                chip.tone === "peach" || chip.tone === "forest"
+                  ? ` reflection-insights-chip--${chip.tone}`
+                  : "";
+              return `<span class="reflection-insights-chip${tone}"><span class="reflection-insights-chip-dot"></span>${escapeHtml(chip.label)}</span>`;
+            })
+            .join("")}
+        </div>`
+      : "";
+
+    // Persona stars as its own card; drop Fun reads / insights framing
+    let vibeCardHtml = "";
+    let extrasCardHtml = "";
+    if (insightPersona) {
+      vibeCardHtml = `
+        <div class="reflection-story reflection-story--vibe" aria-label="Yesterday’s vibe — ${escapeHtml(insightPersona.name)}">
+          <div class="reflection-persona reflection-persona--${escapeHtml(insightPersona.kind || "fallback")}">
             <span class="reflection-persona-mark" aria-hidden="true">${reflectionPersonaMarkSvg(insightPersona.kind)}</span>
             <p class="reflection-persona-kicker">Yesterday’s vibe</p>
             <p class="reflection-persona-name">${escapeHtml(insightPersona.name)}</p>
@@ -5706,65 +5754,13 @@ function renderReflectionReview() {
                 : ""
             }
             <p class="reflection-persona-beat">${insightPersona.beat}</p>
-          </div>`
-        : "";
-
-      const chipsHtml = insightChips.length
-        ? `<div class="reflection-insights-chips" aria-hidden="true">
-            ${insightChips
-              .map((chip) => {
-                const tone =
-                  chip.tone === "peach" || chip.tone === "forest"
-                    ? ` reflection-insights-chip--${chip.tone}`
-                    : "";
-                return `<span class="reflection-insights-chip${tone}"><span class="reflection-insights-chip-dot"></span>${escapeHtml(chip.label)}</span>`;
-              })
-              .join("")}
-          </div>`
-        : "";
-
-      const itemsHtml = insightItems
-        .map((insight) => {
-          const accent =
-            insight.accent === "peach" || insight.accent === "forest"
-              ? ` reflection-story-insight--${insight.accent}`
-              : insight.peach
-                ? " reflection-story-insight--peach"
-                : "";
-          const textHtml = insight.html
-            ? insight.text
-            : escapeHtml(insight.text);
-          // Optional single wink-tag only — skip dense meta spam
-          const winkTag = (insight.tags || []).filter(Boolean)[0];
-          const tagsHtml = winkTag
-            ? `<div class="reflection-story-insight-meta"><span class="reflection-story-insight-tag">${escapeHtml(winkTag)}</span></div>`
-            : "";
-          return `
-            <li class="reflection-story-insight${accent}">
-              <span class="reflection-story-insight-icon" aria-hidden="true">${reflectionInsightIconSvg(insight.icon)}</span>
-              <div class="reflection-story-insight-body">
-                <p class="reflection-story-insight-text">${textHtml}</p>
-                ${tagsHtml}
-              </div>
-            </li>`;
-        })
-        .join("");
-
-      const listHtml = itemsHtml
-        ? `<ul class="reflection-story-insight-list">${itemsHtml}</ul>`
-        : "";
-
-      const personaAria = insightPersona
-        ? ` — ${insightPersona.name}`
-        : "";
-
-      insightsCardHtml = `
-        <div class="reflection-story reflection-story--insights${insightPersona ? " reflection-story--has-persona" : ""}" aria-label="What Presence clocked from yesterday${escapeHtml(personaAria)}">
-          <div class="reflection-story-top">
-            <p class="reflection-story-kicker">Fun reads</p>
           </div>
-          <h2 class="reflection-story-title">What Presence clocked</h2>
-          ${personaHtml}
+          ${chipsHtml}
+          ${listHtml}
+        </div>`;
+    } else if (insightItems.length || insightChips.length) {
+      extrasCardHtml = `
+        <div class="reflection-story reflection-story--insights" aria-label="Presence notes from yesterday">
           ${chipsHtml}
           ${listHtml}
         </div>`;
@@ -5773,7 +5769,8 @@ function renderReflectionReview() {
     summary.innerHTML = `
       <div class="reflection-summary-stack">
         ${storyCardHtml}
-        ${insightsCardHtml}
+        ${vibeCardHtml}
+        ${extrasCardHtml}
       </div>`;
   }
 
