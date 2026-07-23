@@ -431,20 +431,21 @@ function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
   return "morning";
 }
 
-const REFLECTION_TEAL_SHIFT_REVIEW = 25; // legacy no-op for wallpaper helpers
+const REFLECTION_TEAL_SHIFT_REVIEW = 25;
 
 function getActiveReflectionTab() {
   return document.querySelector(".reflection-tab.active")?.dataset.tab || "review";
 }
 
-function applyReflectionScreenBackground(reflectionScreen) {
-  if (!reflectionScreen) return;
-  reflectionScreen.style.backgroundColor = "";
-  reflectionScreen.style.backgroundImage = "";
-  reflectionScreen.style.backgroundSize = "";
-  reflectionScreen.style.backgroundRepeat = "";
-  reflectionScreen.style.backgroundPosition = "";
-  reflectionScreen.removeAttribute("data-teal-offset");
+function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
+  if (!reflectionScreen || !assets?.mobile) return;
+  const shiftPx = tab === "review" ? REFLECTION_TEAL_SHIFT_REVIEW : 0;
+  reflectionScreen.style.backgroundColor = "#fdf9f4";
+  reflectionScreen.style.backgroundImage = `linear-gradient(to bottom, rgba(253, 249, 244, 0.15) 0%, rgba(253, 249, 244, 0.55) 28%, rgba(253, 249, 244, 0.92) 52%, #fdf9f4 72%), url("${assets.mobile}")`;
+  reflectionScreen.style.backgroundSize = "100% 100%, 100% auto";
+  reflectionScreen.style.backgroundRepeat = "no-repeat";
+  reflectionScreen.style.backgroundPosition = `center ${shiftPx}px, center ${shiftPx}px`;
+  reflectionScreen.dataset.tealOffset = String(shiftPx);
 }
 
 function applyHomeHeroWallpaper(hour = new Date().getHours()) {
@@ -459,7 +460,10 @@ function applyHomeHeroWallpaper(hour = new Date().getHours()) {
     source.setAttribute("srcset", assets.desktop);
   }
 
-  applyReflectionScreenBackground(document.querySelector(".reflection-screen"));
+  const reflectionScreen = document.querySelector(".reflection-screen");
+  if (reflectionScreen) {
+    applyReflectionScreenBackground(reflectionScreen, assets, getActiveReflectionTab());
+  }
 }
 
 function getTimePreviewPreference() {
@@ -4610,6 +4614,8 @@ function setReflectionTab(tab) {
     panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
     panel.classList.toggle("active", panel.dataset.tab === nextTab);
   });
+  const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
+  applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   if (nextTab === "thoughts") {
     renderReflectionCheckinEcho();
     document.getElementById("reflection-text")?.focus();
@@ -4627,7 +4633,6 @@ function openReflectionDialog() {
   updateReflectionCharCount();
   renderReflectionReview();
   setReflectionTab("review");
-  applyReflectionScreenBackground(document.querySelector(".reflection-screen"));
   dialog.showModal();
 }
 
