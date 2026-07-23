@@ -4615,7 +4615,6 @@ function buildYesterdayAccomplishStory(completed) {
   if (!completed.length) {
     return {
       title: "A quieter day",
-      chips: [{ value: "0", label: "done" }],
       categories: [],
       priorityBars: [],
       thumbs: [],
@@ -4632,7 +4631,6 @@ function buildYesterdayAccomplishStory(completed) {
     if (byTier[task.tier] != null) byTier[task.tier] += 1;
   });
 
-  const highPriority = byTier[1] + byTier[2];
   const maxTier = Math.max(1, ...Object.values(byTier));
   const categoryStyles = ["", "peach", "soft"];
 
@@ -4654,29 +4652,9 @@ function buildYesterdayAccomplishStory(completed) {
       peach: tier <= 2,
     }));
 
-  const thumbs = completed.slice(0, 4).map((task, index) => ({
+  const thumbs = completed.slice(0, 4).map((task) => ({
     text: truncateReflectionLabel(task.text, 26),
-    soft: index > 0,
   }));
-
-  const chips = [
-    {
-      value: String(completed.length),
-      label: completed.length === 1 ? "win" : "wins",
-    },
-  ];
-  if (byContext.size > 0) {
-    chips.push({
-      value: String(byContext.size),
-      label: byContext.size === 1 ? "list" : "lists",
-    });
-  }
-  if (highPriority > 0) {
-    chips.push({
-      value: String(highPriority),
-      label: highPriority === 1 ? "top priority" : "top priorities",
-    });
-  }
 
   const listNames = categories.map((c) => c.name).join(", ");
   const ariaSummary =
@@ -4686,7 +4664,6 @@ function buildYesterdayAccomplishStory(completed) {
 
   return {
     title: completed.length === 1 ? "Yesterday's win" : "What you accomplished",
-    chips,
     categories,
     priorityBars,
     thumbs,
@@ -4779,13 +4756,6 @@ function renderReflectionReview() {
   const story = buildYesterdayAccomplishStory(completed);
 
   if (summary) {
-    const chipsHtml = (story.chips || [])
-      .map(
-        (chip) =>
-          `<span class="reflection-story-chip"><strong>${escapeHtml(chip.value)}</strong> ${escapeHtml(chip.label)}</span>`
-      )
-      .join("");
-
     const categoriesHtml = (story.categories || [])
       .map((cat) => {
         const dotClass = cat.style
@@ -4817,7 +4787,7 @@ function renderReflectionReview() {
       .map(
         (thumb) => `
       <div class="reflection-story-thumb">
-        <span class="reflection-story-thumb-mark${thumb.soft ? " reflection-story-thumb-mark--soft" : ""}" aria-hidden="true">✓</span>
+        <span class="reflection-story-thumb-mark" aria-hidden="true">✓</span>
         <span class="reflection-story-thumb-text">${escapeHtml(thumb.text)}</span>
       </div>`
       )
@@ -4835,7 +4805,7 @@ function renderReflectionReview() {
       if (categoriesHtml) {
         parts.push(`
           <div>
-            <p class="reflection-story-section-label">Across lists</p>
+            <p class="reflection-story-section-label">Across categories</p>
             <div class="reflection-story-categories">${categoriesHtml}</div>
           </div>`);
       }
@@ -4856,11 +4826,22 @@ function renderReflectionReview() {
       visualsHtml = parts.length ? `<div class="reflection-story-visuals">${parts.join("")}</div>` : "";
     }
 
+    const sunHtml = `
+      <span class="reflection-story-sun" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <g class="reflection-story-sun-rays">
+            <path d="M12 2.2v2.1M12 19.7v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>
+          </g>
+          <circle class="reflection-story-sun-core" cx="12" cy="12" r="4.1" fill="#fc9174"/>
+          <circle class="reflection-story-sun-core" cx="12" cy="12" r="4.1" fill="#ffdbd2" opacity="0.35"/>
+        </svg>
+      </span>`;
+
     summary.innerHTML = `
       <div class="reflection-story" aria-label="${escapeHtml(story.ariaSummary || story.title)}">
+        ${sunHtml}
         <div class="reflection-story-top">
           <p class="reflection-story-kicker">Yesterday in review</p>
-          ${chipsHtml ? `<div class="reflection-story-chips" aria-label="Yesterday stats">${chipsHtml}</div>` : ""}
         </div>
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
         ${visualsHtml}

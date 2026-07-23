@@ -72,39 +72,40 @@
 
 .reflection-back-btn {
   position: absolute;
-  top: calc(0.7rem + env(safe-area-inset-top, 0px));
-  left: var(--reflection-pad-x);
+  top: calc(0.55rem + env(safe-area-inset-top, 0px));
+  left: calc(var(--reflection-pad-x) - 0.35rem);
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.75rem 0.45rem 0.55rem;
-  border: 1px solid rgba(14, 48, 48, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   color: #0e3030;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  line-height: 1;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .reflection-back-btn svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.35rem;
+  height: 1.35rem;
   flex-shrink: 0;
 }
 
 .reflection-back-btn:hover {
-  background: rgba(255, 255, 255, 0.95);
+  opacity: 0.7;
 }
 
 .reflection-back-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.92);
+}
+
+.reflection-back-btn:focus-visible {
+  outline: 2px solid #fc9174;
+  outline-offset: 2px;
 }
 
 .reflection-tab-panels {
@@ -261,7 +262,7 @@
 }
 
 #reflection-panel-review .reflection-hero--review .reflection-summary {
-  margin-top: 100px;
+  margin-top: 200px;
 }
 
 .reflection-reveal {
@@ -293,6 +294,55 @@
   overflow: hidden;
 }
 
+.reflection-story-sun {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.65rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  pointer-events: none;
+  z-index: 1;
+  color: #fc9174;
+}
+
+.reflection-story-sun svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.reflection-story-sun-rays {
+  transform-origin: 12px 12px;
+  animation: reflection-sun-spin 18s linear infinite;
+}
+
+.reflection-story-sun-core {
+  transform-origin: 12px 12px;
+  animation: reflection-sun-pulse 3.2s ease-in-out infinite;
+}
+
+@keyframes reflection-sun-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reflection-sun-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.88;
+  }
+}
+
 .reflection-story::before {
   content: "";
   position: absolute;
@@ -308,9 +358,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.45rem 0.65rem;
   margin-bottom: 0.55rem;
+  padding-right: 2.75rem;
 }
 
 .reflection-story-kicker {
@@ -503,11 +554,6 @@
   font-size: 0.65rem;
   font-weight: 800;
   line-height: 1;
-}
-
-.reflection-story-thumb-mark--soft {
-  background: #ffdbd2;
-  color: #0e3030;
 }
 
 .reflection-story-thumb-text {
@@ -934,7 +980,9 @@
   .reflection-tab-panel,
   .reflection-prompt-btn,
   .reflection-progress-dot,
-  .reflection-input-star {
+  .reflection-input-star,
+  .reflection-story-sun-rays,
+  .reflection-story-sun-core {
     animation: none;
   }
 
