@@ -440,11 +440,16 @@ function getActiveReflectionTab() {
 function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
   if (!reflectionScreen || !assets?.mobile) return;
   const shiftPx = tab === "review" ? REFLECTION_TEAL_SHIFT_REVIEW : 0;
-  reflectionScreen.style.backgroundColor = "#fdf9f4";
-  reflectionScreen.style.backgroundImage = `linear-gradient(to bottom, rgba(253, 249, 244, 0.15) 0%, rgba(253, 249, 244, 0.55) 28%, rgba(253, 249, 244, 0.92) 52%, #fdf9f4 72%), url("${assets.mobile}")`;
-  reflectionScreen.style.backgroundSize = "100% 100%, 100% auto";
+  // Teal mountain treatment (review shifted): wallpaper + teal fade, cream veil for dark-text readability.
+  reflectionScreen.style.backgroundColor = "#0d2b2b";
+  reflectionScreen.style.backgroundImage = [
+    "linear-gradient(to bottom, rgba(253, 249, 244, 0.78) 0%, rgba(253, 249, 244, 0.42) 16%, rgba(253, 249, 244, 0.12) 30%, rgba(253, 249, 244, 0.06) 42%, rgba(253, 249, 244, 0.18) 100%)",
+    "linear-gradient(to bottom, rgba(13, 43, 43, 0) 0%, rgba(13, 43, 43, 0.12) 20%, rgb(13, 43, 43) 55%)",
+    `url("${assets.mobile}")`,
+  ].join(", ");
+  reflectionScreen.style.backgroundSize = "100% 100%, 100% 100%, 100% auto";
   reflectionScreen.style.backgroundRepeat = "no-repeat";
-  reflectionScreen.style.backgroundPosition = `center ${shiftPx}px, center ${shiftPx}px`;
+  reflectionScreen.style.backgroundPosition = `center top, center ${shiftPx}px, center ${shiftPx}px`;
   reflectionScreen.dataset.tealOffset = String(shiftPx);
 }
 
@@ -4700,6 +4705,8 @@ function setReflectionTab(tab) {
     panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
     panel.classList.toggle("active", panel.dataset.tab === nextTab);
   });
+  const tabs = document.querySelector(".reflection-tabs");
+  tabs?.classList.toggle("reflection-tabs--end", nextTab === "thoughts");
   const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
   applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   if (nextTab === "thoughts") {

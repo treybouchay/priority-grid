@@ -46,7 +46,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  background-color: #fdf9f4;
+  background-color: #0d2b2b;
   font-family: "Manrope", system-ui, sans-serif;
 }
 
@@ -114,8 +114,19 @@
 .reflection-tabs {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.5rem;
+  width: 100%;
+}
+
+.reflection-tabs::before {
+  content: "";
+  flex: 0 1 0;
+  transition: flex-grow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reflection-tabs--end::before {
+  flex-grow: 1;
 }
 
 .reflection-tab {
@@ -220,7 +231,7 @@
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: -0.02em;
-  color: #0e3030;
+  color: #f7f3ec;
 }
 
 .reflection-hero-subtitle {
@@ -228,7 +239,7 @@
   font-size: 1.05rem;
   font-weight: 500;
   line-height: 1.45;
-  color: rgba(14, 48, 48, 0.72);
+  color: rgba(253, 249, 244, 0.82);
 }
 
 .reflection-summary {
@@ -329,7 +340,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(14, 48, 48, 0.55);
+  color: rgba(253, 249, 244, 0.7);
 }
 
 .reflection-review-list {
@@ -563,7 +574,7 @@
   font-family: "Source Serif 4", Georgia, serif;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #0e3030;
+  color: #f7f3ec;
 }
 
 .reflection-prompts-refresh {
@@ -703,6 +714,10 @@
   .reflection-progress-dot,
   .reflection-input-star {
     animation: none;
+  }
+
+  .reflection-tabs::before {
+    transition: none;
   }
 
   .reflection-prompts-refresh:hover,
