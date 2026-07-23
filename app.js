@@ -5220,7 +5220,7 @@ function observeReflectionScrollCards(container) {
   reflectionRevealObserver?.disconnect();
 
   const preferReduced = prefersReflectionReducedMotion();
-  const screen = document.querySelector(".reflection-screen");
+  const scrollRoot = getReflectionScrollRoot();
 
   cards.forEach((card, index) => {
     card.classList.add("reflection-reveal");
@@ -5228,7 +5228,7 @@ function observeReflectionScrollCards(container) {
     card.style.setProperty("--reveal-i", String(Math.min(index, 6)));
   });
 
-  if (preferReduced || !screen) {
+  if (preferReduced || !scrollRoot) {
     cards.forEach((card) => card.classList.add("reflection-reveal--in"));
     return;
   }
@@ -5242,7 +5242,7 @@ function observeReflectionScrollCards(container) {
       });
     },
     {
-      root: screen,
+      root: scrollRoot,
       threshold: 0.14,
       rootMargin: "0px 0px -5% 0px",
     }
@@ -5492,6 +5492,7 @@ function setReflectionTab(tab) {
 
 function updateReflectionHeroOnCream() {
   const screen = document.querySelector(".reflection-screen");
+  const scrollRoot = getReflectionScrollRoot();
   const hero = document.querySelector("#reflection-panel-review .reflection-hero--review");
   if (!screen || !hero) return;
   if (getActiveReflectionTab() !== "review") {
@@ -5503,12 +5504,12 @@ function updateReflectionHeroOnCream() {
   const probe = label || title;
   if (!probe) return;
   const header = screen.querySelector(".reflection-screen-header");
-  const screenRect = screen.getBoundingClientRect();
+  const viewportH = scrollRoot?.clientHeight || window.innerHeight;
   // Switch earlier — cream veil is readable well below the sticky header.
   const headerBottom = header
     ? header.getBoundingClientRect().bottom
-    : screenRect.top + Math.min(Math.max(screen.clientHeight * 0.18, 120), 180);
-  const creamLead = Math.min(Math.max(screen.clientHeight * 0.14, 88), 140);
+    : Math.min(Math.max(viewportH * 0.18, 120), 180);
+  const creamLead = Math.min(Math.max(viewportH * 0.14, 88), 140);
   const onCream = probe.getBoundingClientRect().top <= headerBottom + creamLead;
   hero.classList.toggle("reflection-hero--on-cream", onCream);
 }
@@ -5522,6 +5523,15 @@ function onReflectionScreenScroll() {
   });
 }
 
+function setReflectionOpenState(open) {
+  document.documentElement.classList.toggle("reflection-open", open);
+  document.body.classList.toggle("reflection-open", open);
+}
+
+function getReflectionScrollRoot() {
+  return document.getElementById("reflection-dialog");
+}
+
 function openReflectionDialog() {
   const dialog = document.getElementById("reflection-dialog");
   const textarea = document.getElementById("reflection-text");
@@ -5533,7 +5543,10 @@ function openReflectionDialog() {
   renderReflectionPrompts(shuffleReflectionPrompts());
   renderReflectionReview();
   setReflectionTab("review");
+  setReflectionOpenState(true);
   dialog.showModal();
+  // Reset to top so sticky header + hero read correctly on reopen
+  dialog.scrollTop = 0;
   requestAnimationFrame(() => updateReflectionHeroOnCream());
 }
 
@@ -5554,7 +5567,6 @@ function setupReflection() {
   const reviewContinueBtn = document.getElementById("reflection-review-continue");
   const backBtn = document.getElementById("reflection-back");
   const promptsList = document.getElementById("reflection-prompts-list");
-  const reflectionScreen = document.querySelector(".reflection-screen");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
 
@@ -5562,7 +5574,11 @@ function setupReflection() {
 
   backBtn?.addEventListener("click", handleReflectionBack);
 
-  reflectionScreen?.addEventListener("scroll", onReflectionScreenScroll, { passive: true });
+  // Scroll lives on the dialog (not nested .reflection-screen) so touch pans work
+  dialog?.addEventListener("scroll", onReflectionScreenScroll, { passive: true });
+  dialog?.addEventListener("close", () => {
+    setReflectionOpenState(false);
+  });
 
   document.querySelectorAll(".reflection-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -5589,6 +5605,7 @@ function setupReflection() {
 
   reviewContinueBtn?.addEventListener("click", () => {
     setReflectionTab("thoughts");
+    getReflectionScrollRoot()?.scrollTo({ top: 0, behavior: "smooth" });
   });
 
   continueBtn?.addEventListener("click", () => {
