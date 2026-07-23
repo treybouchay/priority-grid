@@ -226,7 +226,7 @@
 }
 
 #reflection-panel-review .reflection-hero--review {
-  margin-top: calc(clamp(8rem, 26vh, 13rem) + 25px);
+  margin-top: clamp(1.15rem, 3.5vh, 1.85rem);
   margin-bottom: 1.15rem;
 }
 
@@ -253,6 +253,10 @@
 /* When review hero scrolls into the cream veil at the top */
 #reflection-panel-review .reflection-hero--on-cream .reflection-hero-title {
   color: #0e3030;
+}
+
+#reflection-panel-review .reflection-hero--on-cream .reflection-hero-subtitle {
+  color: rgba(14, 48, 48, 0.72);
 }
 
 .reflection-summary {

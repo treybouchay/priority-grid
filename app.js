@@ -4771,6 +4771,7 @@ function observeReflectionScrollCards(container) {
 function renderReflectionReview() {
   const list = document.getElementById("reflection-review-list");
   const empty = document.getElementById("reflection-review-empty");
+  const subtitle = document.getElementById("reflection-review-subtitle");
   const summary = document.getElementById("reflection-summary");
   const heading = document.getElementById("reflection-review-heading");
   if (!list || !empty) return;
@@ -4865,6 +4866,13 @@ function renderReflectionReview() {
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
         ${visualsHtml}
       </div>`;
+  }
+
+  if (subtitle) {
+    subtitle.textContent =
+      completedCount === 0
+        ? "Even a quiet day has something to notice — take a breath, then write."
+        : "Yesterday's wins deserve a little applause before you write how it felt.";
   }
 
   if (heading) {
