@@ -4859,7 +4859,7 @@ function buildReflectionForwardNudge(sorted) {
     const name = reflectionInsightTaskName(task, 22);
     return {
       text: `<strong>${escapeHtml(name)}</strong> unlocked Errands mode. Keep rolling.`,
-      accent: "sun",
+      accent: "forest",
       icon: "nudge",
       html: true,
     };
@@ -4870,7 +4870,7 @@ function buildReflectionForwardNudge(sorted) {
     const name = reflectionInsightTaskName(task, 22);
     return {
       text: `Dawn opener: <strong>${escapeHtml(name)}</strong>. Rematch tomorrow?`,
-      accent: "sun",
+      accent: "forest",
       icon: "nudge",
       html: true,
     };
@@ -4891,15 +4891,227 @@ function buildReflectionForwardNudge(sorted) {
 }
 
 /**
- * Punchy Presence reads from yesterday's wins — short, playful, specific.
- * Prefer: priority hit, timing arc, then notes / category vibe / one nudge. Max 3.
+ * Pick one playful persona title-card from yesterday's pattern.
+ * Data-driven (category / priority / timing / arc) — not random.
+ */
+function pickReflectionPersona(sorted) {
+  if (!sorted.length) return null;
+
+  const timed = sorted.filter((task) => reflectionInsightTaskHour(task) != null);
+  const first = timed[0] || sorted[0];
+  const last = timed.length > 1 ? timed[timed.length - 1] : null;
+  const morningCount = timed.filter((task) => reflectionInsightTaskHour(task) < 12).length;
+  const eveningCount = timed.filter((task) => reflectionInsightTaskHour(task) >= 17).length;
+
+  const byContext = new Map();
+  sorted.forEach((task) => {
+    const key = task.context || "other";
+    if (!byContext.has(key)) byContext.set(key, []);
+    byContext.get(key).push(task);
+  });
+  const categoryGroups = [...byContext.entries()]
+    .map(([ctx, tasks]) => ({ ctx, tasks, count: tasks.length }))
+    .sort((a, b) => b.count - a.count);
+  const topCat = categoryGroups[0] || null;
+  const secondCat = categoryGroups[1] || null;
+  const dominantCat =
+    topCat &&
+    topCat.count >= 1 &&
+    (!secondCat || topCat.count > secondCat.count)
+      ? topCat
+      : null;
+
+  const tier1 = sorted.filter((task) => task.tier === 1);
+  const tier12 = sorted.filter((task) => task.tier === 1 || task.tier === 2);
+  const easyWins = sorted.filter((task) => task.tier >= 3);
+  const chronoFirst = sorted[0];
+  const chronoLast = sorted[sorted.length - 1];
+
+  const softContexts = new Set(["home", "personal", "health", "faith"]);
+  const options = [];
+
+  const pushPersona = (persona) => {
+    if (!persona?.name || !persona?.beat) return;
+    options.push(persona);
+  };
+
+  if (first && last && first.id !== last.id) {
+    const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
+    const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
+    if (firstPart === "morning" && lastPart === "evening") {
+      pushPersona({
+        score: 92,
+        kind: "bookend",
+        name: "Bookend Day",
+        beat: `<strong>${escapeHtml(reflectionInsightTaskName(first, 18))}</strong> → <strong>${escapeHtml(reflectionInsightTaskName(last, 18))}</strong>`,
+        tone: "forest",
+      });
+    }
+
+    const hardOpen =
+      first.context === "work" || first.tier === 1 || first.tier === 2;
+    const softClose = softContexts.has(last.context) && last.context !== "work";
+    if (hardOpen && softClose && first.context !== last.context) {
+      pushPersona({
+        score: 88,
+        kind: "soft-landing",
+        name: "Soft Landing",
+        beat: `Serious open → soft close on <strong>${escapeHtml(reflectionInsightTaskName(last, 22))}</strong>`,
+        tone: "peach",
+      });
+    }
+  }
+
+  if (timed.length >= 2 && morningCount >= Math.ceil(timed.length * 0.65) && morningCount > eveningCount) {
+    const morningTask = timed.find((task) => reflectionInsightTaskHour(task) < 12) || first;
+    pushPersona({
+      score: 84,
+      kind: "front-loaded",
+      name: "Front-loaded Day",
+      beat: `Heavy before noon — <strong>${escapeHtml(reflectionInsightTaskName(morningTask, 22))}</strong>`,
+      tone: "forest",
+    });
+  }
+
+  if (morningCount >= 2 && morningCount > eveningCount && morningCount >= eveningCount + 1) {
+    const morningTask = timed.find((task) => reflectionInsightTaskHour(task) < 12) || first;
+    pushPersona({
+      score: 80,
+      kind: "morning",
+      name: "Morning Machine",
+      beat: `First light: <strong>${escapeHtml(reflectionInsightTaskName(morningTask, 22))}</strong>`,
+      tone: "forest",
+    });
+  }
+
+  if (eveningCount >= 2 && eveningCount > morningCount) {
+    const eveningTask =
+      [...timed].reverse().find((task) => reflectionInsightTaskHour(task) >= 17) || chronoLast;
+    pushPersona({
+      score: 80,
+      kind: "closing",
+      name: "Closing Shift",
+      beat: `Last sweep: <strong>${escapeHtml(reflectionInsightTaskName(eveningTask, 22))}</strong>`,
+      tone: "peach",
+    });
+  }
+
+  if (last && last.tier === 1 && sorted.length >= 2) {
+    pushPersona({
+      score: 78,
+      kind: "closer",
+      name: "The Closer",
+      beat: `Saved the punch for <strong>${escapeHtml(reflectionInsightTaskName(last, 22))}</strong>`,
+      tone: "forest",
+    });
+  }
+
+  if (chronoFirst?.tier === 1 || (tier1.length >= 1 && chronoFirst && chronoFirst.tier <= 2 && tier12.length >= Math.ceil(sorted.length / 2))) {
+    const hunterTask = tier1[0] || tier12[0] || chronoFirst;
+    pushPersona({
+      score: chronoFirst?.tier === 1 ? 76 : 70,
+      kind: "hunter",
+      name: "Top-priority Hunter",
+      beat: `Went after <strong>${escapeHtml(reflectionInsightTaskName(hunterTask, 22))}</strong> first`,
+      tone: "forest",
+    });
+  }
+
+  if (easyWins.length >= 2 && easyWins.length > tier12.length) {
+    pushPersona({
+      score: 68,
+      kind: "easy-wins",
+      name: "Easy-wins Collector",
+      beat: `Stacked quick wins like <strong>${escapeHtml(reflectionInsightTaskName(easyWins[0], 22))}</strong>`,
+      tone: "peach",
+    });
+  }
+
+  if (dominantCat) {
+    const sample = dominantCat.tasks[0];
+    const name = reflectionInsightTaskName(sample, 22);
+    const categoryPersonas = {
+      home: {
+        score: dominantCat.count >= 2 ? 74 : 62,
+        kind: "cat-home",
+        name: "Home Captain",
+        beat: `Held the fort with <strong>${escapeHtml(name)}</strong>`,
+        tone: "peach",
+      },
+      work: {
+        score: dominantCat.count >= 2 ? 74 : 62,
+        kind: "cat-work",
+        name: "Work Lead",
+        beat: `Ran the desk — <strong>${escapeHtml(name)}</strong> led`,
+        tone: "forest",
+      },
+      errands: {
+        score: dominantCat.count >= 2 ? 74 : 62,
+        kind: "cat-errands",
+        name: "Errand Runner",
+        beat: `Out and back on <strong>${escapeHtml(name)}</strong>`,
+        tone: "forest",
+      },
+      health: {
+        score: dominantCat.count >= 2 ? 74 : 62,
+        kind: "cat-health",
+        name: "Body Mover",
+        beat: `Moved on purpose — <strong>${escapeHtml(name)}</strong>`,
+        tone: "forest",
+      },
+      personal: {
+        score: dominantCat.count >= 2 ? 66 : 58,
+        kind: "cat-personal",
+        name: "Personal Pace",
+        beat: `Kept it personal with <strong>${escapeHtml(name)}</strong>`,
+        tone: "peach",
+      },
+      faith: {
+        score: dominantCat.count >= 2 ? 66 : 58,
+        kind: "cat-faith",
+        name: "Quiet Keeper",
+        beat: `Made room for <strong>${escapeHtml(name)}</strong>`,
+        tone: "forest",
+      },
+    };
+    if (categoryPersonas[dominantCat.ctx]) {
+      pushPersona(categoryPersonas[dominantCat.ctx]);
+    }
+  }
+
+  options.sort((a, b) => b.score - a.score);
+  if (options[0]) {
+    const top = options[0];
+    return {
+      name: top.name,
+      beat: top.beat,
+      tone: top.tone || "forest",
+      kind: top.kind || "",
+    };
+  }
+
+  // Sparse fallback — still a title card with a real task
+  const fallbackTask = chronoFirst || sorted[0];
+  return {
+    name: "Presence Player",
+    beat: `Checked off <strong>${escapeHtml(reflectionInsightTaskName(fallbackTask, 24))}</strong>`,
+    tone: "forest",
+    kind: "fallback",
+  };
+}
+
+/**
+ * Punchy Presence reads from yesterday's wins — persona title + short beats.
+ * Prefer: persona, priority hit, timing/note flavor. Max ~3 total beats.
  */
 function buildReflectionInsights(completed) {
-  if (!completed.length) return { items: [], chips: [] };
+  if (!completed.length) return { persona: null, items: [], chips: [] };
 
   const sorted = [...completed].sort(
     (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
   );
+  const persona = pickReflectionPersona(sorted);
+  const personaKind = persona?.kind || "";
   const candidates = [];
 
   const pushCandidate = (insight) => {
@@ -4908,10 +5120,21 @@ function buildReflectionInsights(completed) {
     candidates.push(insight);
   };
 
+  // Skip beats the persona already owns (avoid double-telling)
+  const skipTiming =
+    personaKind === "bookend" ||
+    personaKind === "front-loaded" ||
+    personaKind === "morning" ||
+    personaKind === "closing" ||
+    personaKind === "soft-landing";
+  const skipPriority =
+    personaKind === "closer" || personaKind === "hunter" || personaKind === "easy-wins";
+  const skipCategory = personaKind.startsWith("cat-");
+
   // 1) Priority hit — nickname only
   const priorityWin =
     sorted.find((task) => task.tier === 1) || sorted.find((task) => task.tier === 2);
-  if (priorityWin) {
+  if (priorityWin && !skipPriority) {
     const name = reflectionInsightTaskName(priorityWin, 24);
     const time = formatCompletionTime(priorityWin.completedAt);
     const tierWord = priorityWin.tier === 1 ? "1st" : "2nd";
@@ -4929,37 +5152,39 @@ function buildReflectionInsights(completed) {
   const timed = sorted.filter((task) => reflectionInsightTaskHour(task) != null);
   const first = timed[0] || null;
   const last = timed.length > 1 ? timed[timed.length - 1] : null;
-  if (first && last && first.id !== last.id) {
-    const firstName = reflectionInsightTaskName(first, 26);
-    const lastName = reflectionInsightTaskName(last, 26);
-    const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
-    const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
-    const line =
-      firstPart === "morning" && lastPart === "evening"
-        ? `<strong>${escapeHtml(firstName)}</strong> at sunrise → <strong>${escapeHtml(lastName)}</strong> at lamplight`
-        : lastPart === "evening"
-          ? `Opened with <strong>${escapeHtml(firstName)}</strong>, bowed out on <strong>${escapeHtml(lastName)}</strong>`
-          : `<strong>${escapeHtml(firstName)}</strong> → <strong>${escapeHtml(lastName)}</strong>. Clean arc.`;
-    pushCandidate({
-      text: line,
-      accent: lastPart === "evening" ? "peach" : "sun",
-      icon: lastPart === "evening" ? "moon" : "sun",
-      html: true,
-    });
-  } else if (first) {
-    const name = reflectionInsightTaskName(first, 24);
-    const time = formatCompletionTime(first.completedAt);
-    const part = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
-    const lead =
-      part === "evening" ? "Last light:" : part === "morning" ? "First check:" : "On the board:";
-    pushCandidate({
-      text: time
-        ? `${lead} <strong>${escapeHtml(name)}</strong> · ${escapeHtml(time)}`
-        : `${lead} <strong>${escapeHtml(name)}</strong>`,
-      accent: part === "evening" ? "peach" : "sun",
-      icon: part === "evening" ? "moon" : "sun",
-      html: true,
-    });
+  if (!skipTiming) {
+    if (first && last && first.id !== last.id) {
+      const firstName = reflectionInsightTaskName(first, 26);
+      const lastName = reflectionInsightTaskName(last, 26);
+      const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
+      const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
+      const line =
+        firstPart === "morning" && lastPart === "evening"
+          ? `<strong>${escapeHtml(firstName)}</strong> at sunrise → <strong>${escapeHtml(lastName)}</strong> at lamplight`
+          : lastPart === "evening"
+            ? `Opened with <strong>${escapeHtml(firstName)}</strong>, bowed out on <strong>${escapeHtml(lastName)}</strong>`
+            : `<strong>${escapeHtml(firstName)}</strong> → <strong>${escapeHtml(lastName)}</strong>. Clean arc.`;
+      pushCandidate({
+        text: line,
+        accent: lastPart === "evening" ? "peach" : "forest",
+        icon: lastPart === "evening" ? "moon" : "sun",
+        html: true,
+      });
+    } else if (first) {
+      const name = reflectionInsightTaskName(first, 24);
+      const time = formatCompletionTime(first.completedAt);
+      const part = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
+      const lead =
+        part === "evening" ? "Last light:" : part === "morning" ? "First check:" : "On the board:";
+      pushCandidate({
+        text: time
+          ? `${lead} <strong>${escapeHtml(name)}</strong> · ${escapeHtml(time)}`
+          : `${lead} <strong>${escapeHtml(name)}</strong>`,
+        accent: part === "evening" ? "peach" : "forest",
+        icon: part === "evening" ? "moon" : "sun",
+        html: true,
+      });
+    }
   }
 
   // 3) Category vibe — short scoreboard, no task laundry list
@@ -4979,7 +5204,8 @@ function buildReflectionInsights(completed) {
     .sort((a, b) => b.count - a.count);
 
   const canShowCategories =
-    categoryGroups.length >= 2 || (categoryGroups[0] && categoryGroups[0].count >= 2);
+    !skipCategory &&
+    (categoryGroups.length >= 2 || (categoryGroups[0] && categoryGroups[0].count >= 2));
   if (canShowCategories) {
     const top = categoryGroups.slice(0, 2);
     const score = (group) =>
@@ -5009,7 +5235,8 @@ function buildReflectionInsights(completed) {
   const nudge = buildReflectionForwardNudge(sorted);
   if (nudge) pushCandidate(nudge);
 
-  // Prefer priority + timing + one flavor (note > category > nudge)
+  // Persona counts as beat 1 → keep 1–2 supporting one-liners
+  const maxItems = persona ? 2 : 3;
   const preferred = [];
   const byIcon = (icon) => candidates.find((item) => item.icon === icon);
   const priorityItem = byIcon("check");
@@ -5021,14 +5248,14 @@ function buildReflectionInsights(completed) {
     if (item && !preferred.includes(item)) preferred.push(item);
   });
   candidates.forEach((item) => {
-    if (preferred.length >= 3) return;
+    if (preferred.length >= maxItems) return;
     if (!preferred.includes(item)) preferred.push(item);
   });
 
-  let items = preferred.slice(0, 3);
+  let items = preferred.slice(0, maxItems);
 
-  // Sparse days: one more concrete beat if we only have a single line
-  if (items.length < 2 && sorted.length) {
+  // Sparse days: one more concrete beat if we only have a single line (and no persona beat yet)
+  if (items.length < (persona ? 1 : 2) && sorted.length) {
     const coveredIds = new Set(
       [priorityWin, first, last, notedTask].filter(Boolean).map((task) => task.id)
     );
@@ -5040,12 +5267,12 @@ function buildReflectionInsights(completed) {
         text: time
           ? `<strong>${escapeHtml(name)}</strong> got the check · ${escapeHtml(time)}`
           : `<strong>${escapeHtml(name)}</strong> got the check`,
-        accent: "sun",
+        accent: "forest",
         icon: "leaf",
         html: true,
       };
       if (!items.some((item) => item.text === filler.text)) {
-        items = [...items, filler].slice(0, 3);
+        items = [...items, filler].slice(0, maxItems);
       }
     }
   }
@@ -5062,17 +5289,18 @@ function buildReflectionInsights(completed) {
     if (firstPart && lastPart) {
       chips.push({
         label: `${firstPart} → ${lastPart}`,
-        tone: "sun",
+        tone: "muted",
       });
     }
   } else if (categoryGroups[0]) {
     chips.push({
       label: `${categoryGroups[0].label} · ${categoryGroups[0].count}`,
-      tone: "cream",
+      tone: "muted",
     });
   }
 
   return {
+    persona,
     items,
     chips: chips.slice(0, 3),
   };
@@ -5122,7 +5350,7 @@ function buildYesterdayAccomplishStory(completed) {
   });
 
   const maxTier = Math.max(1, ...Object.values(byTier));
-  const categoryStyles = ["", "peach", "soft"];
+  const categoryStyles = ["", "muted", "soft"];
 
   const categories = [...byContext.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -5345,16 +5573,26 @@ function renderReflectionReview() {
       ? insightBundle
       : insightBundle.items || [];
     const insightChips = Array.isArray(insightBundle) ? [] : insightBundle.chips || [];
+    const insightPersona = Array.isArray(insightBundle) ? null : insightBundle.persona || null;
 
     let insightsCardHtml = "";
-    if (insightItems.length) {
+    if (insightPersona || insightItems.length) {
+      const personaHtml = insightPersona
+        ? `<div class="reflection-persona">
+            <p class="reflection-persona-kicker">Yesterday’s vibe</p>
+            <p class="reflection-persona-name">${escapeHtml(insightPersona.name)}</p>
+            <p class="reflection-persona-beat">${insightPersona.beat}</p>
+          </div>`
+        : "";
+
       const chipsHtml = insightChips.length
         ? `<div class="reflection-insights-chips" aria-hidden="true">
             ${insightChips
               .map((chip) => {
-                const tone = chip.tone === "peach" || chip.tone === "sun" || chip.tone === "forest"
-                  ? ` reflection-insights-chip--${chip.tone}`
-                  : "";
+                const tone =
+                  chip.tone === "peach" || chip.tone === "forest"
+                    ? ` reflection-insights-chip--${chip.tone}`
+                    : "";
                 return `<span class="reflection-insights-chip${tone}"><span class="reflection-insights-chip-dot"></span>${escapeHtml(chip.label)}</span>`;
               })
               .join("")}
@@ -5364,7 +5602,7 @@ function renderReflectionReview() {
       const itemsHtml = insightItems
         .map((insight) => {
           const accent =
-            insight.accent === "peach" || insight.accent === "sun" || insight.accent === "forest"
+            insight.accent === "peach" || insight.accent === "forest"
               ? ` reflection-story-insight--${insight.accent}`
               : insight.peach
                 ? " reflection-story-insight--peach"
@@ -5388,23 +5626,30 @@ function renderReflectionReview() {
         })
         .join("");
 
+      const listHtml = itemsHtml
+        ? `<ul class="reflection-story-insight-list">${itemsHtml}</ul>`
+        : "";
+
+      const personaAria = insightPersona
+        ? ` — ${insightPersona.name}`
+        : "";
+
       insightsCardHtml = `
-        <div class="reflection-story reflection-story--insights" aria-label="What Presence clocked from yesterday">
+        <div class="reflection-story reflection-story--insights" aria-label="What Presence clocked from yesterday${escapeHtml(personaAria)}">
           <span class="reflection-insights-deco" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
-              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#e8b423"/>
-              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#fff0b8" opacity="0.35"/>
-              <path d="M12 2.4v1.7M12 19.9v1.7M5 5l1.2 1.2M17.8 17.8l1.2 1.2M2.4 12h1.7M19.9 12h1.7M5 19l1.2-1.2M17.8 6.2l1.2-1.2" stroke="#e8b423" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#fc9174"/>
+              <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#ffdbd2" opacity="0.45"/>
+              <path d="M12 2.4v1.7M12 19.9v1.7M5 5l1.2 1.2M17.8 17.8l1.2 1.2M2.4 12h1.7M19.9 12h1.7M5 19l1.2-1.2M17.8 6.2l1.2-1.2" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
             </svg>
           </span>
           <div class="reflection-story-top">
             <p class="reflection-story-kicker">Fun reads</p>
           </div>
           <h2 class="reflection-story-title">What Presence clocked</h2>
+          ${personaHtml}
           ${chipsHtml}
-          <ul class="reflection-story-insight-list">
-            ${itemsHtml}
-          </ul>
+          ${listHtml}
         </div>`;
     }
 
