@@ -4829,7 +4829,7 @@ function reflectionInsightTaskName(task, max = 34) {
   return truncateReflectionLabel(task?.text || "that task", max);
 }
 
-/** Gentle, specific implication for today from yesterday's pattern (max one). */
+/** One playful nudge for today from yesterday's pattern (max one). */
 function buildReflectionForwardNudge(sorted) {
   if (!sorted.length) return null;
 
@@ -4845,49 +4845,44 @@ function buildReflectionForwardNudge(sorted) {
 
   if (eveningTasks.length) {
     const task = eveningTasks[eveningTasks.length - 1];
-    const name = reflectionInsightTaskName(task, 30);
-    const list = contextLabel(task.context);
+    const name = reflectionInsightTaskName(task, 22);
     return {
-      text: `You tucked in with <strong>${escapeHtml(name)}</strong> — steal another evening pocket like that today?`,
+      text: `Night owl move: <strong>${escapeHtml(name)}</strong>. Steal that pocket again?`,
       accent: "peach",
       icon: "nudge",
-      tags: ["today", list],
       html: true,
     };
   }
 
   if (errandTasks.length) {
     const task = errandTasks[0];
-    const name = reflectionInsightTaskName(task, 28);
+    const name = reflectionInsightTaskName(task, 22);
     return {
-      text: `<strong>${escapeHtml(name)}</strong> got Errands moving — stack the next few while you're already in motion.`,
+      text: `<strong>${escapeHtml(name)}</strong> unlocked Errands mode. Keep rolling.`,
       accent: "sun",
       icon: "nudge",
-      tags: ["today", "Errands"],
       html: true,
     };
   }
 
   if (morningTasks.length) {
     const task = morningTasks[0];
-    const name = reflectionInsightTaskName(task, 30);
+    const name = reflectionInsightTaskName(task, 22);
     return {
-      text: `Yesterday woke up with <strong>${escapeHtml(name)}</strong> — another early win could set the mood again.`,
+      text: `Dawn opener: <strong>${escapeHtml(name)}</strong>. Rematch tomorrow?`,
       accent: "sun",
       icon: "nudge",
-      tags: ["today", "morning"],
       html: true,
     };
   }
 
   const top = sorted.find((task) => task.tier === 1);
   if (top) {
-    const name = reflectionInsightTaskName(top, 28);
+    const name = reflectionInsightTaskName(top, 22);
     return {
-      text: `<strong>${escapeHtml(name)}</strong> wore the 1st crown yesterday — pick today's top before the day gets chatty.`,
+      text: `<strong>${escapeHtml(name)}</strong> wore the 1st crown. Crown something today.`,
       accent: "forest",
       icon: "nudge",
-      tags: ["today", "1st"],
       html: true,
     };
   }
@@ -4896,8 +4891,8 @@ function buildReflectionForwardNudge(sorted) {
 }
 
 /**
- * Concrete, task-referencing reads from yesterday's completed work.
- * Prefer: priority follow-through, timing arc, category counts, notes, one forward nudge.
+ * Punchy Presence reads from yesterday's wins — short, playful, specific.
+ * Prefer: priority hit, timing arc, then notes / category vibe / one nudge. Max 3.
  */
 function buildReflectionInsights(completed) {
   if (!completed.length) return { items: [], chips: [] };
@@ -4913,77 +4908,61 @@ function buildReflectionInsights(completed) {
     candidates.push(insight);
   };
 
-  // 1) Priority follow-through — name the 1st/2nd task
+  // 1) Priority hit — nickname only
   const priorityWin =
     sorted.find((task) => task.tier === 1) || sorted.find((task) => task.tier === 2);
   if (priorityWin) {
-    const name = reflectionInsightTaskName(priorityWin);
+    const name = reflectionInsightTaskName(priorityWin, 24);
     const time = formatCompletionTime(priorityWin.completedAt);
-    const list = contextLabel(priorityWin.context);
-    const tierLabel = TIER_LABELS[priorityWin.tier - 1] || "priority";
     const tierWord = priorityWin.tier === 1 ? "1st" : "2nd";
     pushCandidate({
       text: time
-        ? `You actually finished your ${tierWord}: <strong>${escapeHtml(name)}</strong> — ${escapeHtml(list)} at ${escapeHtml(time)}. Nice follow-through.`
-        : `You actually finished your ${tierWord}: <strong>${escapeHtml(name)}</strong> on ${escapeHtml(list)}. Nice follow-through.`,
+        ? `${tierWord} locked: <strong>${escapeHtml(name)}</strong> · ${escapeHtml(time)}`
+        : `${tierWord} locked: <strong>${escapeHtml(name)}</strong>`,
       accent: "forest",
       icon: "check",
-      tags: [list, tierLabel, time].filter(Boolean),
       html: true,
     });
   }
 
-  // 2) Energy / timing — open + close when both exist
+  // 2) Timing arc — open + close, or a single beat
   const timed = sorted.filter((task) => reflectionInsightTaskHour(task) != null);
   const first = timed[0] || null;
   const last = timed.length > 1 ? timed[timed.length - 1] : null;
   if (first && last && first.id !== last.id) {
     const firstName = reflectionInsightTaskName(first, 26);
     const lastName = reflectionInsightTaskName(last, 26);
-    const firstTime = formatCompletionTime(first.completedAt);
-    const lastTime = formatCompletionTime(last.completedAt);
     const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
     const lastPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(last));
-    const arc =
+    const line =
       firstPart === "morning" && lastPart === "evening"
-        ? "sunrise-to-lamplight energy"
+        ? `<strong>${escapeHtml(firstName)}</strong> at sunrise → <strong>${escapeHtml(lastName)}</strong> at lamplight`
         : lastPart === "evening"
-          ? "a proper evening bow"
-          : "a clean open and close";
+          ? `Opened with <strong>${escapeHtml(firstName)}</strong>, bowed out on <strong>${escapeHtml(lastName)}</strong>`
+          : `<strong>${escapeHtml(firstName)}</strong> → <strong>${escapeHtml(lastName)}</strong>. Clean arc.`;
     pushCandidate({
-      text: `Started with <strong>${escapeHtml(firstName)}</strong>${
-        firstTime ? ` (${escapeHtml(firstTime)})` : ""
-      }, wrapped with <strong>${escapeHtml(lastName)}</strong>${
-        lastTime ? ` (${escapeHtml(lastTime)})` : ""
-      } — ${arc}.`,
+      text: line,
       accent: lastPart === "evening" ? "peach" : "sun",
       icon: lastPart === "evening" ? "moon" : "sun",
-      tags: [firstPart, lastPart].filter(Boolean),
       html: true,
     });
   } else if (first) {
-    const name = reflectionInsightTaskName(first);
+    const name = reflectionInsightTaskName(first, 24);
     const time = formatCompletionTime(first.completedAt);
     const part = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
-    const list = contextLabel(first.context);
     const lead =
-      part === "evening"
-        ? "Last light went to"
-        : part === "morning"
-          ? "First checkmark of the day:"
-          : "On the board:";
+      part === "evening" ? "Last light:" : part === "morning" ? "First check:" : "On the board:";
     pushCandidate({
       text: time
-        ? `${lead} <strong>${escapeHtml(name)}</strong> at ${escapeHtml(time)} (${escapeHtml(list)}).`
-        : `${lead} <strong>${escapeHtml(name)}</strong> (${escapeHtml(list)}).`,
+        ? `${lead} <strong>${escapeHtml(name)}</strong> · ${escapeHtml(time)}`
+        : `${lead} <strong>${escapeHtml(name)}</strong>`,
       accent: part === "evening" ? "peach" : "sun",
       icon: part === "evening" ? "moon" : "sun",
-      tags: [list, part].filter(Boolean),
       html: true,
     });
   }
 
-  // 3) Category reality check — concrete counts with named tasks
+  // 3) Category vibe — short scoreboard, no task laundry list
   const byContext = new Map();
   sorted.forEach((task) => {
     const key = task.context || "other";
@@ -5002,77 +4981,80 @@ function buildReflectionInsights(completed) {
   const canShowCategories =
     categoryGroups.length >= 2 || (categoryGroups[0] && categoryGroups[0].count >= 2);
   if (canShowCategories) {
-    const formatGroup = (group) => {
-      const names = group.tasks
-        .slice(0, 2)
-        .map((task) => escapeHtml(reflectionInsightTaskName(task, 22)));
-      const named = names.join(", ");
-      const extra = group.count > 2 ? ` +${group.count - 2}` : "";
-      const winWord = group.count === 1 ? "checkmark" : "checkmarks";
-      return `${escapeHtml(group.label)} collected ${group.count} ${winWord} (${named}${extra})`;
-    };
     const top = categoryGroups.slice(0, 2);
+    const score = (group) =>
+      `${escapeHtml(group.label)} ${group.count === 1 ? "scored 1" : `racked up ${group.count}`}`;
     pushCandidate({
-      text: top.length === 2 ? `${formatGroup(top[0])}; ${formatGroup(top[1])}.` : `${formatGroup(top[0])}.`,
+      text: top.length === 2 ? `${score(top[0])}. ${score(top[1])}.` : `${score(top[0])}.`,
       accent: "forest",
       icon: "layers",
-      tags: categoryGroups.slice(0, 3).map((group) => `${group.label} · ${group.count}`),
       html: true,
     });
   }
 
-  // 4) Notes as signal — echo the note itself, no empty cheerleading
+  // 4) Notes as a wink — echo a short scrap
   const notedTask = sorted.find((task) => task.notes?.trim());
   if (notedTask) {
-    const name = reflectionInsightTaskName(notedTask, 28);
-    const note = truncateReflectionLabel(notedTask.notes.trim(), 56).replace(/[.!?…]+$/u, "");
-    const list = contextLabel(notedTask.context);
+    const name = reflectionInsightTaskName(notedTask, 20);
+    const note = truncateReflectionLabel(notedTask.notes.trim(), 40).replace(/[.!?…]+$/u, "");
     pushCandidate({
-      text: `Little margin note on <strong>${escapeHtml(name)}</strong>: “${escapeHtml(note)}.”`,
+      text: `Scribbled on <strong>${escapeHtml(name)}</strong>: “${escapeHtml(note)}”`,
       accent: "peach",
       icon: "note",
-      tags: [list, "note"],
       html: true,
     });
   }
 
-  // 5) Forward nudge (1 max)
+  // 5) Forward nudge (1 max) — only if we still have room after slicing
   const nudge = buildReflectionForwardNudge(sorted);
   if (nudge) pushCandidate(nudge);
 
-  let items = candidates.slice(0, 4);
+  // Prefer priority + timing + one flavor (note > category > nudge)
+  const preferred = [];
+  const byIcon = (icon) => candidates.find((item) => item.icon === icon);
+  const priorityItem = byIcon("check");
+  const timingItem = candidates.find((item) => item.icon === "moon" || item.icon === "sun");
+  const noteItem = byIcon("note");
+  const categoryItem = byIcon("layers");
+  const nudgeItem = byIcon("nudge");
+  [priorityItem, timingItem, noteItem || categoryItem || nudgeItem].forEach((item) => {
+    if (item && !preferred.includes(item)) preferred.push(item);
+  });
+  candidates.forEach((item) => {
+    if (preferred.length >= 3) return;
+    if (!preferred.includes(item)) preferred.push(item);
+  });
 
-  // Sparse days: aim for at least 2 concrete lines when possible
+  let items = preferred.slice(0, 3);
+
+  // Sparse days: one more concrete beat if we only have a single line
   if (items.length < 2 && sorted.length) {
     const coveredIds = new Set(
       [priorityWin, first, last, notedTask].filter(Boolean).map((task) => task.id)
     );
     const leftover = sorted.find((task) => !coveredIds.has(task.id)) || sorted[0];
     if (leftover) {
-      const name = reflectionInsightTaskName(leftover);
+      const name = reflectionInsightTaskName(leftover, 24);
       const time = formatCompletionTime(leftover.completedAt);
-      const list = contextLabel(leftover.context);
-      const tier = TIER_LABELS[leftover.tier - 1] || "";
       const filler = {
         text: time
-          ? `<strong>${escapeHtml(name)}</strong> showed up at ${escapeHtml(time)} in ${escapeHtml(list)}.`
-          : `<strong>${escapeHtml(name)}</strong> showed up in ${escapeHtml(list)}.`,
+          ? `<strong>${escapeHtml(name)}</strong> got the check · ${escapeHtml(time)}`
+          : `<strong>${escapeHtml(name)}</strong> got the check`,
         accent: "sun",
         icon: "leaf",
-        tags: [list, tier].filter(Boolean),
         html: true,
       };
       if (!items.some((item) => item.text === filler.text)) {
-        items = [...items, filler].slice(0, 4);
+        items = [...items, filler].slice(0, 3);
       }
     }
   }
 
-  const chips = [{ label: `${completed.length} finished`, tone: "forest" }];
+  const chips = [{ label: `${completed.length} done`, tone: "forest" }];
   if (priorityWin?.tier === 1) {
-    chips.push({ label: "1st closed", tone: "peach" });
+    chips.push({ label: "1st locked", tone: "peach" });
   } else if (priorityWin?.tier === 2) {
-    chips.push({ label: "2nd closed", tone: "peach" });
+    chips.push({ label: "2nd locked", tone: "peach" });
   }
   if (first && last && first.id !== last.id) {
     const firstPart = reflectionInsightTimeOfDay(reflectionInsightTaskHour(first));
@@ -5083,18 +5065,16 @@ function buildReflectionInsights(completed) {
         tone: "sun",
       });
     }
-  }
-  categoryGroups.slice(0, 2).forEach((group, index) => {
-    if (chips.length >= 4) return;
+  } else if (categoryGroups[0]) {
     chips.push({
-      label: `${group.label} · ${group.count}`,
-      tone: index === 0 ? "forest" : "cream",
+      label: `${categoryGroups[0].label} · ${categoryGroups[0].count}`,
+      tone: "cream",
     });
-  });
+  }
 
   return {
     items,
-    chips: chips.slice(0, 4),
+    chips: chips.slice(0, 3),
   };
 }
 
@@ -5392,23 +5372,24 @@ function renderReflectionReview() {
           const textHtml = insight.html
             ? insight.text
             : escapeHtml(insight.text);
-          const tagsHtml = (insight.tags || [])
-            .filter(Boolean)
-            .map((tag) => `<span class="reflection-story-insight-tag">${escapeHtml(tag)}</span>`)
-            .join("");
+          // Optional single wink-tag only — skip dense meta spam
+          const winkTag = (insight.tags || []).filter(Boolean)[0];
+          const tagsHtml = winkTag
+            ? `<div class="reflection-story-insight-meta"><span class="reflection-story-insight-tag">${escapeHtml(winkTag)}</span></div>`
+            : "";
           return `
             <li class="reflection-story-insight${accent}">
               <span class="reflection-story-insight-icon" aria-hidden="true">${reflectionInsightIconSvg(insight.icon)}</span>
               <div class="reflection-story-insight-body">
                 <p class="reflection-story-insight-text">${textHtml}</p>
-                ${tagsHtml ? `<div class="reflection-story-insight-meta">${tagsHtml}</div>` : ""}
+                ${tagsHtml}
               </div>
             </li>`;
         })
         .join("");
 
       insightsCardHtml = `
-        <div class="reflection-story reflection-story--insights" aria-label="What yesterday's tasks say about you">
+        <div class="reflection-story reflection-story--insights" aria-label="What Presence clocked from yesterday">
           <span class="reflection-insights-deco" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
               <circle class="reflection-insights-deco-orb" cx="12" cy="12" r="4.2" fill="#e8b423"/>
@@ -5417,9 +5398,9 @@ function renderReflectionReview() {
             </svg>
           </span>
           <div class="reflection-story-top">
-            <p class="reflection-story-kicker">Insights</p>
+            <p class="reflection-story-kicker">Fun reads</p>
           </div>
-          <h2 class="reflection-story-title">What you did yesterday says about you</h2>
+          <h2 class="reflection-story-title">What Presence clocked</h2>
           ${chipsHtml}
           <ul class="reflection-story-insight-list">
             ${itemsHtml}

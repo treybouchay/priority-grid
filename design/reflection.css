@@ -694,8 +694,8 @@ html.reflection-open .capture-clip-fab {
 .reflection-insights-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0 0 0.75rem;
+  gap: 0.4rem;
+  margin: 0 0 0.65rem;
   padding-right: 2.5rem;
   min-width: 0;
 }
@@ -703,14 +703,14 @@ html.reflection-open .capture-clip-fab {
 .reflection-insights-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.3rem;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 0.28rem 0.6rem;
+  padding: 0.32rem 0.7rem;
   border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.2;
   color: #0e3030;
@@ -746,7 +746,7 @@ html.reflection-open .capture-clip-fab {
 .reflection-story-insight-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -754,10 +754,10 @@ html.reflection-open .capture-clip-fab {
 
 .reflection-story-insight {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
   margin: 0;
-  padding: 0.65rem 0.75rem;
+  padding: 0.55rem 0.7rem;
   border-radius: 1rem;
   background: rgba(253, 249, 244, 0.95);
   border: 1px solid rgba(14, 48, 48, 0.06);
@@ -788,7 +788,7 @@ html.reflection-open .capture-clip-fab {
   justify-content: center;
   width: 1.85rem;
   height: 1.85rem;
-  margin-top: 0.05rem;
+  margin-top: 0;
   border-radius: 0.65rem;
   background: rgba(14, 48, 48, 0.08);
   color: #0e3030;
@@ -820,15 +820,15 @@ html.reflection-open .capture-clip-fab {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .reflection-story-insight-text {
   margin: 0;
   font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.45;
-  color: rgba(14, 48, 48, 0.88);
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(14, 48, 48, 0.9);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
