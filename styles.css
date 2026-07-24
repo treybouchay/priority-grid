@@ -2846,17 +2846,17 @@ body[data-page="home"] .appearance-panel[open] {
 
 .tasks-board-area .task-card:not(.tasks-flat-item) .archive-btn,
 .tasks-board-area .task-card:not(.tasks-flat-item) .delete-btn {
-  opacity: 0.45;
+  opacity: 0.7;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  min-height: 24px;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 .tasks-board-area .task-card:not(.tasks-flat-item):hover .archive-btn,
 .tasks-board-area .task-card:not(.tasks-flat-item):hover .delete-btn {
-  opacity: 0.75;
+  opacity: 0.9;
 }
 
 .task-card {
@@ -2956,7 +2956,8 @@ body[data-page="home"] .appearance-panel[open] {
   }
 
   .edit-btn,
-  .archive-btn {
+  .archive-btn,
+  .delete-btn {
     opacity: 0.75;
     min-width: 32px;
     min-height: 32px;
@@ -3234,7 +3235,7 @@ body.task-dragging-lock .app-main {
 .edit-btn,
 .archive-btn,
 .delete-btn {
-  opacity: 0;
+  opacity: 0.7;
   background: none;
   border: none;
   color: var(--ink-muted);
@@ -3406,7 +3407,7 @@ body.task-dragging-lock .app-main {
 
 .tasks-flat-item .archive-btn,
 .tasks-flat-item .delete-btn {
-  opacity: 0.55;
+  opacity: 0.75;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3416,7 +3417,7 @@ body.task-dragging-lock .app-main {
 
 .tasks-flat-item:hover .archive-btn,
 .tasks-flat-item:hover .delete-btn {
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .tasks-flat-section.drag-over .tasks-flat-tier-list {

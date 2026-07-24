@@ -4766,6 +4766,7 @@ function getTasksCompletedYesterday() {
 }
 
 const REFLECTION_JOURNAL_KEY = "priority-grid-reflection-journal";
+const REFLECTION_FAVOURITE_KEY = "priority-grid-reflection-favourite";
 
 const REFLECTION_PROMPT_POOL = [
   { emoji: "🏆", text: "A small win I'm proud of" },
@@ -4799,6 +4800,30 @@ function saveReflectionJournal(text) {
   const journal = loadReflectionJournal();
   journal[reflectionTodayKey()] = text;
   localStorage.setItem(REFLECTION_JOURNAL_KEY, JSON.stringify(journal));
+}
+
+function loadReflectionFavourites() {
+  try {
+    const raw = localStorage.getItem(REFLECTION_FAVOURITE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getReflectionFavouriteId(dayKey = reflectionTodayKey()) {
+  const store = loadReflectionFavourites();
+  const value = store[dayKey];
+  return typeof value === "string" && value ? value : "";
+}
+
+function saveReflectionFavourite(taskId, dayKey = reflectionTodayKey()) {
+  if (!taskId) return;
+  const store = loadReflectionFavourites();
+  store[dayKey] = taskId;
+  localStorage.setItem(REFLECTION_FAVOURITE_KEY, JSON.stringify(store));
 }
 
 function shuffleReflectionPrompts(count = 4) {
@@ -5280,14 +5305,16 @@ function reflectionPersonaMarkSvg(kind) {
   const marks = {
     bookend: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle class="rpm-bookend-glow" cx="16" cy="16" r="11" fill="#ffdbd2" opacity="0.35"/>
         <g class="rpm-bookend-left">
-          <path d="M8 8c-2.5 2.2-3.5 5-3.5 8S5.5 21.8 8 24" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="6.2" cy="16" r="1.55" fill="#0e3030"/>
+          <path d="M11 6.5c-4.2 2.6-6.2 6.2-6.2 9.5S6.8 22.9 11 25.5" stroke="#0e3030" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="6.4" cy="16" r="2.1" fill="#0e3030"/>
         </g>
         <g class="rpm-bookend-right">
-          <path d="M24 8c2.5 2.2 3.5 5 3.5 8S26.5 21.8 24 24" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="25.8" cy="16" r="1.55" fill="#fc9174"/>
+          <path d="M21 6.5c4.2 2.6 6.2 6.2 6.2 9.5S25.2 22.9 21 25.5" stroke="#fc9174" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="25.6" cy="16" r="2.1" fill="#fc9174"/>
         </g>
+        <circle class="rpm-bookend-spark" cx="16" cy="16" r="1.6" fill="#fc9174"/>
       </svg>`,
     morning: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -5518,23 +5545,61 @@ function buildYesterdayAccomplishStory(completed) {
   };
 }
 
-function reflectionReviewItemHtml(task, index = 0) {
+function reflectionReviewItemHtml(task, index = 0, favouriteId = "") {
   const time = formatCompletionTime(task.completedAt);
   const note = task.notes?.trim()
     ? `<p class="reflection-review-note">${escapeHtml(task.notes.trim())}</p>`
     : "";
+  const isFavourite = favouriteId && task.id === favouriteId;
   return `
-    <li class="reflection-review-item" style="--win-i: ${index}">
-      <span class="reflection-review-check" aria-hidden="true">✓</span>
+    <li class="reflection-review-item${isFavourite ? " reflection-review-item--favourite" : ""}" style="--win-i: ${index}" data-task-id="${escapeHtml(task.id)}">
+      <span class="reflection-review-check" aria-hidden="true">${isFavourite ? "★" : "✓"}</span>
       <div class="reflection-review-body">
         <span class="reflection-review-text">${escapeHtml(task.text)}</span>
         ${note}
         <span class="reflection-review-tier">
           ${contextIconHtml(task.context, "reflection-review-ctx")}
           ${TIER_LABELS[task.tier - 1]}${time ? ` · ${time}` : ""} · ${escapeHtml(contextLabel(task.context))}
+          ${isFavourite ? `<span class="reflection-review-favourite-tag">Favourite</span>` : ""}
         </span>
       </div>
     </li>`;
+}
+
+function reflectionFavouritePickerHtml(completed, favouriteId) {
+  if (!completed.length) return "";
+  const options = completed
+    .map((task) => {
+      const selected = task.id === favouriteId;
+      return `
+      <button
+        type="button"
+        class="reflection-favourite-option${selected ? " is-selected" : ""}"
+        data-favourite-id="${escapeHtml(task.id)}"
+        aria-pressed="${selected ? "true" : "false"}"
+      >
+        <span class="reflection-favourite-option-mark" aria-hidden="true">${selected ? "★" : "☆"}</span>
+        <span class="reflection-favourite-option-text">${escapeHtml(task.text)}</span>
+      </button>`;
+    })
+    .join("");
+
+  const selectedTask = completed.find((t) => t.id === favouriteId);
+  const selectedBanner = selectedTask
+    ? `<p class="reflection-favourite-selected" aria-live="polite">
+         <span class="reflection-favourite-selected-mark" aria-hidden="true">★</span>
+         <span>Favourite: <strong>${escapeHtml(selectedTask.text)}</strong></span>
+       </p>`
+    : `<p class="reflection-favourite-hint">Tap one win to pin it as your favourite.</p>`;
+
+  return `
+    <section class="reflection-favourite" aria-label="Favourite task from yesterday">
+      <h3 class="reflection-favourite-heading">Favourite task from yesterday?</h3>
+      ${selectedBanner}
+      <div class="reflection-favourite-options" role="group" aria-label="Choose a favourite win">
+        ${options}
+      </div>
+    </section>`;
 }
 
 let reflectionRevealObserver = null;
@@ -5552,7 +5617,7 @@ function observeReflectionScrollCards(container) {
 
   const cards = [
     ...root.querySelectorAll(
-      ".reflection-story, .reflection-review-item, .reflection-input-card, .reflection-prompt-btn"
+      ".reflection-story, .reflection-favourite, .reflection-review-item, .reflection-input-card, .reflection-prompt-btn"
     ),
   ];
   if (!cards.length) return;
@@ -5596,10 +5661,13 @@ function renderReflectionReview() {
   const empty = document.getElementById("reflection-review-empty");
   const summary = document.getElementById("reflection-summary");
   const heading = document.getElementById("reflection-review-heading");
+  const favouriteSlot = document.getElementById("reflection-favourite-slot");
   if (!list || !empty) return;
 
   const { completedCount, completed } = getYesterdayDailySummary();
   const story = buildYesterdayAccomplishStory(completed);
+  const favouriteId = getReflectionFavouriteId();
+  const favouriteTask = completed.find((t) => t.id === favouriteId) || null;
 
   if (summary) {
     const categoriesHtml = (story.categories || [])
@@ -5701,12 +5769,24 @@ function renderReflectionReview() {
         </div>`
       : "";
 
+    const favouriteCardHtml = favouriteTask
+      ? `
+        <div class="reflection-story-favourite">
+          <p class="reflection-story-section-label">Favourite from yesterday</p>
+          <div class="reflection-story-favourite-pill">
+            <span class="reflection-story-favourite-star" aria-hidden="true">★</span>
+            <span class="reflection-story-favourite-text">${escapeHtml(favouriteTask.text)}</span>
+          </div>
+        </div>`
+      : "";
+
     const reviewBodyHtml = `
       <div class="reflection-story-body${insightPersona ? " reflection-story-body--after-vibe" : ""}">
         <div class="reflection-story-top">
           <p class="reflection-story-kicker">Yesterday in review</p>
         </div>
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
+        ${favouriteCardHtml}
         ${visualsHtml}
       </div>`;
 
@@ -5733,6 +5813,18 @@ function renderReflectionReview() {
           : `${completedCount} wins from yesterday`;
   }
 
+  if (favouriteSlot) {
+    favouriteSlot.innerHTML = reflectionFavouritePickerHtml(completed, favouriteId);
+    favouriteSlot.querySelectorAll(".reflection-favourite-option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.favouriteId;
+        if (!id) return;
+        saveReflectionFavourite(id);
+        renderReflectionReview();
+      });
+    });
+  }
+
   if (completed.length === 0) {
     list.innerHTML = "";
     empty.classList.remove("hidden");
@@ -5743,7 +5835,9 @@ function renderReflectionReview() {
   }
 
   empty.classList.add("hidden");
-  list.innerHTML = completed.map((task, index) => reflectionReviewItemHtml(task, index)).join("");
+  list.innerHTML = completed
+    .map((task, index) => reflectionReviewItemHtml(task, index, favouriteId))
+    .join("");
   observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
 }
 
@@ -6398,6 +6492,7 @@ function planCardTaskHtml(task) {
       <span class="plan-card-task-meta">
         ${contextIconHtml(task.context, "plan-card-task-ctx")}
         ${taskAttachmentIndicatorHtml(task)}
+        ${deleteButtonHtml()}
       </span>
       <button type="button" class="plan-card-drag task-drag-handle" tabindex="-1" aria-label="Drag to reorder">
         <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
@@ -6646,6 +6741,12 @@ function bindHomeTaskEvents(row) {
     e.stopPropagation();
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
+  });
+
+  row.querySelector(".delete-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    confirmDeleteTask(id, ctx);
   });
 
   if (isHomePriorityDragCard(row) && !isTouchDevice()) {

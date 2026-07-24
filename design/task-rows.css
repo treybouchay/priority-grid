@@ -413,8 +413,10 @@ body[data-page="tasks"] .tier-expand-list .delete-btn,
 body[data-page="tasks"] .tasks-flat-item .archive-btn,
 body[data-page="tasks"] .tasks-flat-item .delete-btn,
 body[data-page="tasks"] .plan-card-task .archive-btn,
+body[data-page="tasks"] .plan-card-task .delete-btn,
 body[data-page="home"] .tier-expand-list .archive-btn,
-body[data-page="home"] .tier-expand-list .delete-btn {
+body[data-page="home"] .tier-expand-list .delete-btn,
+body[data-page="home"] .plan-card-task:not(.completed-wins-item):not(.history-wins-item) .delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -424,9 +426,10 @@ body[data-page="home"] .tier-expand-list .delete-btn {
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: rgba(17, 48, 44, 0.4);
+  color: rgba(17, 48, 44, 0.5);
   font-size: 1.1rem;
   line-height: 1;
+  opacity: 1;
   cursor: pointer;
 }
 
@@ -437,8 +440,10 @@ body[data-page="tasks"] .tier-expand-list .delete-btn:hover,
 body[data-page="tasks"] .tasks-flat-item .archive-btn:hover,
 body[data-page="tasks"] .tasks-flat-item .delete-btn:hover,
 body[data-page="tasks"] .plan-card-task .archive-btn:hover,
+body[data-page="tasks"] .plan-card-task .delete-btn:hover,
 body[data-page="home"] .tier-expand-list .archive-btn:hover,
-body[data-page="home"] .tier-expand-list .delete-btn:hover {
+body[data-page="home"] .tier-expand-list .delete-btn:hover,
+body[data-page="home"] .plan-card-task:not(.completed-wins-item):not(.history-wins-item) .delete-btn:hover {
   color: #11302c;
   background: rgba(17, 48, 44, 0.06);
 }
