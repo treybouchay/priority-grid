@@ -70,9 +70,9 @@
     <link rel="stylesheet" href="styles.css?v=166" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
     <link rel="stylesheet" href="design/home-presence.css?v=103" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=37" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=38" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
-    <link rel="stylesheet" href="design/settings-page.css?v=6" />
+    <link rel="stylesheet" href="design/settings-page.css?v=7" />
     <link rel="stylesheet" href="design/reflection.css?v=36" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -645,6 +645,7 @@
                   <button type="button" class="sidebar-tab" role="tab" data-tab="135" aria-selected="false" id="sidebar-tab-135">1-3-5</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="daily" aria-selected="false">Every Day</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="nextweek" aria-selected="false">Next Week</button>
+                  <button type="button" class="sidebar-tab" role="tab" data-tab="anxiety" aria-selected="false">Anxiety</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="archive" aria-selected="false">Archive</button>
                 </div>
                 <div class="sidebar-tab-panels">
@@ -741,6 +742,31 @@
                         <ul class="next-week-deferred-list" id="next-week-deferred-list"></ul>
                         <p class="next-week-deferred-empty" id="next-week-deferred-empty">No tasks pushed yet.</p>
                       </section>
+                    </aside>
+                  </div>
+                  <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-anxiety" role="tabpanel" data-tab="anxiety">
+                    <aside class="anxiety-panel" id="anxiety-panel" aria-label="Anxiety Box">
+                      <header class="anxiety-panel-header">
+                        <div>
+                          <p class="anxiety-panel-eyebrow">A quiet place to set things down</p>
+                          <h3 class="anxiety-panel-title">Anxiety Box</h3>
+                          <p class="anxiety-panel-sub">Park a task or thought here for now. Toss what you no longer need — or decide during Reflection.</p>
+                        </div>
+                      </header>
+                      <form class="anxiety-panel-form" id="anxiety-box-form">
+                        <label class="sr-only" for="anxiety-box-input">Task or thought to set aside</label>
+                        <input
+                          type="text"
+                          id="anxiety-box-input"
+                          placeholder="What can you set down for now?"
+                          maxlength="180"
+                          autocomplete="off"
+                          required
+                        />
+                        <button type="submit" class="anxiety-panel-save">Set it down</button>
+                      </form>
+                      <ul class="anxiety-panel-list" id="anxiety-box-list" aria-live="polite"></ul>
+                      <p class="anxiety-panel-empty" id="anxiety-box-empty">Nothing waiting here. A little more room to breathe.</p>
                     </aside>
                   </div>
                   <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-archive" role="tabpanel" data-tab="archive">
@@ -877,23 +903,11 @@
               <header class="settings-card-header">
                 <p class="anxiety-box-eyebrow">A quiet place to set things down</p>
                 <h2 class="settings-card-title" id="anxiety-box-heading">Anxiety Box</h2>
-                <p class="settings-card-desc">Park a task or thought here for now. You can decide what to keep or toss during Reflection.</p>
+                <p class="settings-card-desc">
+                  Open the <strong>Anxiety</strong> tab in Brain Dump to park thoughts and toss what no longer needs your energy.
+                  Reflection still offers an end-of-day toss when you’re closing the day.
+                </p>
               </header>
-              <form class="anxiety-box-form" id="anxiety-box-form">
-                <label class="sr-only" for="anxiety-box-input">Task or thought to set aside</label>
-                <input
-                  type="text"
-                  id="anxiety-box-input"
-                  class="settings-text-input"
-                  placeholder="What can you set down for now?"
-                  maxlength="180"
-                  autocomplete="off"
-                  required
-                />
-                <button type="submit" class="btn-secondary">Set it down</button>
-              </form>
-              <ul class="anxiety-box-list" id="anxiety-box-list" aria-live="polite"></ul>
-              <p class="anxiety-box-empty" id="anxiety-box-empty">Nothing waiting here. A little more room to breathe.</p>
             </article>
 
             <article class="settings-card" aria-labelledby="settings-lists-heading">
@@ -1260,6 +1274,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=256"></script>
+    <script src="app.js?v=257"></script>
   </body>
 </html>

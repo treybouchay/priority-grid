@@ -2566,11 +2566,11 @@ function setupSettingsPreferences() {
 }
 
 function anxietyBoxItemHtml(item, { reflection = false } = {}) {
-  const action = reflection ? "Toss" : "Remove";
+  const action = "Toss";
   return `
-    <li class="${reflection ? "reflection-anxiety-item" : "anxiety-box-item"}" data-anxiety-id="${escapeHtml(item.id)}">
-      <span class="${reflection ? "reflection-anxiety-item-text" : "anxiety-box-item-text"}">${escapeHtml(item.text)}</span>
-      <button type="button" class="${reflection ? "reflection-anxiety-toss" : "anxiety-box-remove"}" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
+    <li class="${reflection ? "reflection-anxiety-item" : "anxiety-panel-item"}" data-anxiety-id="${escapeHtml(item.id)}">
+      <span class="${reflection ? "reflection-anxiety-item-text" : "anxiety-panel-item-text"}">${escapeHtml(item.text)}</span>
+      <button type="button" class="${reflection ? "reflection-anxiety-toss" : "anxiety-panel-toss"}" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
     </li>`;
 }
 
@@ -2603,10 +2603,11 @@ function setupAnxietyBox() {
     addAnxietyBoxItem(input.value);
     input.value = "";
     renderAnxietyBox();
+    renderReflectionAnxietyBox();
   });
 
   document.getElementById("anxiety-box-list")?.addEventListener("click", (event) => {
-    const button = event.target.closest(".anxiety-box-remove");
+    const button = event.target.closest(".anxiety-panel-toss");
     const item = button?.closest("[data-anxiety-id]");
     if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
   });
