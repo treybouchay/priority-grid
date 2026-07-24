@@ -5425,16 +5425,20 @@ function reflectionPersonaMarkSvg(kind) {
   const marks = {
     bookend: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-bookend-glow" cx="16" cy="16" r="11" fill="#ffdbd2" opacity="0.35"/>
         <g class="rpm-bookend-left">
-          <path d="M11 6.5c-4.2 2.6-6.2 6.2-6.2 9.5S6.8 22.9 11 25.5" stroke="#0e3030" stroke-width="2.2" stroke-linecap="round"/>
-          <circle cx="6.4" cy="16" r="2.1" fill="#0e3030"/>
+          <rect x="3.5" y="6.5" width="5.2" height="19" rx="0.9" fill="#0e3030"/>
+          <path d="M5.2 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
+        </g>
+        <g class="rpm-bookend-mids">
+          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#fc9174"/>
+          <rect x="12.7" y="8" width="2.6" height="17.5" rx="0.55" fill="#ffdbd2"/>
+          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#fc9174" opacity="0.9"/>
+          <rect x="19.1" y="8.5" width="2.4" height="17" rx="0.5" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
         </g>
         <g class="rpm-bookend-right">
-          <path d="M21 6.5c4.2 2.6 6.2 6.2 6.2 9.5S25.2 22.9 21 25.5" stroke="#fc9174" stroke-width="2.2" stroke-linecap="round"/>
-          <circle cx="25.6" cy="16" r="2.1" fill="#fc9174"/>
+          <rect x="23.2" y="6.5" width="5.2" height="19" rx="0.9" fill="#0e3030"/>
+          <path d="M26.7 8v16" stroke="#fc9174" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
         </g>
-        <circle class="rpm-bookend-spark" cx="16" cy="16" r="1.6" fill="#fc9174"/>
       </svg>`,
     morning: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">

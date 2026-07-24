@@ -669,8 +669,8 @@ html.reflection-open body .capture-clip-fab {
 .reflection-persona--bookend .reflection-persona-mark {
   top: 0;
   right: 0;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 .reflection-persona-mark-svg {
@@ -738,32 +738,27 @@ html.reflection-open body .capture-clip-fab {
   padding-right: 0;
 }
 
-/* Persona mark motions — Bookend Day (clear open/close) */
+/* Persona mark motions — Bookend Day (literal books leaning in) */
 .rpm-bookend-left,
 .rpm-bookend-right {
   transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform, opacity;
+  transform-origin: 50% 100%;
+  will-change: transform;
 }
 
 .rpm-bookend-left {
-  animation: rpm-bookend-open-left 1.8s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+  animation: rpm-bookend-lean-left 2.4s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
 }
 
 .rpm-bookend-right {
-  animation: rpm-bookend-open-right 1.8s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+  animation: rpm-bookend-lean-right 2.4s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
 }
 
-.rpm-bookend-glow {
+.rpm-bookend-slot {
   transform-box: fill-box;
-  transform-origin: center;
-  animation: rpm-bookend-glow 1.8s ease-in-out infinite;
-}
-
-.rpm-bookend-spark {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: rpm-bookend-spark 1.8s ease-in-out infinite;
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
+  animation: rpm-bookend-slot 2.4s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
 }
 
 .rpm-sunrise-glow {
@@ -882,67 +877,36 @@ html.reflection-open body .capture-clip-fab {
   animation: rpm-check-pulse 3.6s ease-in-out infinite;
 }
 
-@keyframes rpm-bookend-open-left {
+@keyframes rpm-bookend-lean-left {
   0%,
   100% {
-    transform: translateX(0) scale(1);
-    opacity: 0.9;
+    transform: rotate(-7deg);
   }
-  45% {
-    transform: translateX(-5.5px) scale(1.12);
-    opacity: 1;
-  }
-  60% {
-    transform: translateX(-4.2px) scale(1.06);
-    opacity: 1;
+  50% {
+    transform: rotate(5deg);
   }
 }
 
-@keyframes rpm-bookend-open-right {
+@keyframes rpm-bookend-lean-right {
   0%,
   100% {
-    transform: translateX(0) scale(1);
-    opacity: 0.9;
+    transform: rotate(7deg);
   }
-  45% {
-    transform: translateX(5.5px) scale(1.12);
-    opacity: 1;
-  }
-  60% {
-    transform: translateX(4.2px) scale(1.06);
-    opacity: 1;
+  50% {
+    transform: rotate(-5deg);
   }
 }
 
-@keyframes rpm-bookend-glow {
+@keyframes rpm-bookend-slot {
   0%,
   100% {
-    transform: scale(0.72);
-    opacity: 0.12;
-  }
-  45% {
-    transform: scale(1.18);
+    transform: translateY(-2.2px);
     opacity: 0.55;
   }
+  40%,
   70% {
-    transform: scale(1);
-    opacity: 0.28;
-  }
-}
-
-@keyframes rpm-bookend-spark {
-  0%,
-  100% {
-    transform: scale(0.55);
-    opacity: 0.35;
-  }
-  45% {
-    transform: scale(1.35);
-    opacity: 1;
-  }
-  70% {
-    transform: scale(0.9);
-    opacity: 0.7;
+    transform: translateY(0);
+    opacity: 0.95;
   }
 }
 
@@ -1828,8 +1792,8 @@ html.reflection-open body .capture-clip-fab {
   .reflection-persona--bookend .reflection-persona-mark {
     top: 0;
     right: 0;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.55rem;
+    height: 1.55rem;
   }
 
   .reflection-persona-name {
@@ -1890,8 +1854,7 @@ html.reflection-open body .capture-clip-fab {
   .reflection-story-sun-core,
   .rpm-bookend-left,
   .rpm-bookend-right,
-  .rpm-bookend-glow,
-  .rpm-bookend-spark,
+  .rpm-bookend-slot,
   .rpm-sunrise-glow,
   .rpm-sunrise-arc,
   .rpm-dusk-moon,
