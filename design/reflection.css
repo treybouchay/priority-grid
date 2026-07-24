@@ -164,7 +164,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-back-btn:focus-visible {
-  outline: 2px solid #ffdbd2;
+  outline: 2px solid #0e3030;
   outline-offset: 2px;
 }
 
@@ -209,13 +209,13 @@ html.reflection-open body .capture-clip-fab {
 .reflection-progress-dot {
   width: 0.45rem;
   height: 0.45rem;
-  background: #ffdbd2;
+  background: #0e3030;
   border-radius: 50%;
   position: absolute;
   left: -0.1rem;
   top: 50%;
   transform: translateY(-50%);
-  box-shadow: 0 0 0 3px rgba(255, 219, 210, 0.25);
+  box-shadow: 0 0 0 3px #ffdbd2;
   animation: reflection-dot-pop 0.35s ease;
 }
 
@@ -437,7 +437,7 @@ html.reflection-open body .capture-clip-fab {
   bottom: 0.85rem;
   width: 3px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #ffdbd2 0%, rgba(255, 219, 210, 0.55) 55%, rgba(14, 48, 48, 0.35) 100%);
+  background: linear-gradient(180deg, #ffdbd2 0%, #ffdbd2 45%, #0e3030 100%);
 }
 
 .reflection-story-top {
@@ -576,8 +576,9 @@ html.reflection-open body .capture-clip-fab {
   transform: scaleX(1);
 }
 
+/* 2nd priority: soft pink wash with forest end-cap (1st stays solid forest) */
 .reflection-story-bar-fill--peach {
-  background: linear-gradient(90deg, #ffdbd2 0%, rgba(255, 219, 210, 0.55) 100%);
+  background: linear-gradient(90deg, #ffdbd2 0%, #ffdbd2 78%, #0e3030 100%);
 }
 
 .reflection-story-bar-value {
@@ -1287,7 +1288,7 @@ html.reflection-open body .capture-clip-fab {
 
 .reflection-favourite-selected-mark {
   flex-shrink: 0;
-  color: #ffdbd2;
+  color: #0e3030;
   font-size: 0.95rem;
   line-height: 1.2;
 }
@@ -1331,8 +1332,8 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-favourite-option:hover {
-  background: #fff;
-  border-color: rgba(255, 219, 210, 0.45);
+  background: #ffdbd2;
+  border-color: rgba(14, 48, 48, 0.18);
 }
 
 .reflection-favourite-option.is-selected {
@@ -1350,7 +1351,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-favourite-option:focus-visible {
-  outline: 2px solid #ffdbd2;
+  outline: 2px solid #0e3030;
   outline-offset: 2px;
 }
 
@@ -1422,7 +1423,7 @@ html.reflection-open body .capture-clip-fab {
 .reflection-anxiety-toss {
   flex-shrink: 0;
   padding: 0.38rem 0.65rem;
-  border: 1px solid rgba(255, 219, 210, 0.5);
+  border: 1px solid rgba(14, 48, 48, 0.2);
   border-radius: 999px;
   background: #ffdbd2;
   color: #0e3030;
@@ -1439,7 +1440,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-anxiety-toss:focus-visible {
-  outline: 2px solid #ffdbd2;
+  outline: 2px solid #0e3030;
   outline-offset: 2px;
 }
 
@@ -1489,15 +1490,15 @@ html.reflection-open body .capture-clip-fab {
 
 .reflection-review-item--favourite {
   background:
-    radial-gradient(ellipse 70% 80% at 0% 0%, rgba(255, 219, 210, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 80% at 0% 0%, rgba(255, 219, 210, 0.7) 0%, transparent 55%),
     rgba(253, 249, 244, 0.95);
-  border-color: rgba(255, 219, 210, 0.45);
+  border-color: rgba(14, 48, 48, 0.22);
   box-shadow: 0 6px 16px rgba(14, 48, 48, 0.08);
 }
 
 .reflection-review-item--favourite .reflection-review-check {
-  background: #ffdbd2;
-  color: #0e3030;
+  background: #0e3030;
+  color: #ffdbd2;
 }
 
 .reflection-review-favourite-tag {
@@ -1506,7 +1507,7 @@ html.reflection-open body .capture-clip-fab {
   margin-left: 0.2rem;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: rgba(255, 219, 210, 0.22);
+  background: #ffdbd2;
   color: #0e3030;
   font-size: 0.625rem;
   font-weight: 700;
@@ -1708,8 +1709,8 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-prompt-btn:hover {
-  background: #fff;
-  border-color: rgba(255, 219, 210, 0.45);
+  background: #ffdbd2;
+  border-color: rgba(14, 48, 48, 0.2);
   transform: translateX(0.2rem);
 }
 
@@ -1961,7 +1962,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .persona-mark-preview-close:hover {
-  background: rgba(255, 219, 210, 0.35);
+  background: #ffdbd2;
 }
 
 .persona-mark-preview-grid {
