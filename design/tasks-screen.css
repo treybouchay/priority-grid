@@ -1338,7 +1338,8 @@ body[data-page="tasks"] .archive-empty-sub {
   }
 
   body[data-page="tasks"] .daily-repeat-form,
-  body[data-page="tasks"] .brain-panel-form {
+  body[data-page="tasks"] .brain-panel-form,
+  body[data-page="tasks"] .anxiety-panel-form {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -1347,7 +1348,8 @@ body[data-page="tasks"] .archive-empty-sub {
 
   body[data-page="tasks"] .daily-repeat-form input,
   body[data-page="tasks"] .daily-repeat-form select,
-  body[data-page="tasks"] .brain-panel-form input {
+  body[data-page="tasks"] .brain-panel-form input,
+  body[data-page="tasks"] .anxiety-panel-form input {
     width: 100%;
     min-width: 0;
     max-width: 100%;
@@ -1378,7 +1380,8 @@ body[data-page="tasks"] .archive-empty-sub {
     box-sizing: border-box;
   }
 
-  body[data-page="tasks"] .brain-panel-add {
+  body[data-page="tasks"] .brain-panel-add,
+  body[data-page="tasks"] .anxiety-panel-save {
     width: 100%;
   }
 
