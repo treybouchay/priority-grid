@@ -72,8 +72,8 @@
     <link rel="stylesheet" href="design/home-presence.css?v=103" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=37" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
-    <link rel="stylesheet" href="design/settings-page.css?v=5" />
-    <link rel="stylesheet" href="design/reflection.css?v=35" />
+    <link rel="stylesheet" href="design/settings-page.css?v=6" />
+    <link rel="stylesheet" href="design/reflection.css?v=36" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -873,6 +873,29 @@
               </div>
             </article>
 
+            <article class="settings-card anxiety-box-card" aria-labelledby="anxiety-box-heading">
+              <header class="settings-card-header">
+                <p class="anxiety-box-eyebrow">A quiet place to set things down</p>
+                <h2 class="settings-card-title" id="anxiety-box-heading">Anxiety Box</h2>
+                <p class="settings-card-desc">Park a task or thought here for now. You can decide what to keep or toss during Reflection.</p>
+              </header>
+              <form class="anxiety-box-form" id="anxiety-box-form">
+                <label class="sr-only" for="anxiety-box-input">Task or thought to set aside</label>
+                <input
+                  type="text"
+                  id="anxiety-box-input"
+                  class="settings-text-input"
+                  placeholder="What can you set down for now?"
+                  maxlength="180"
+                  autocomplete="off"
+                  required
+                />
+                <button type="submit" class="btn-secondary">Set it down</button>
+              </form>
+              <ul class="anxiety-box-list" id="anxiety-box-list" aria-live="polite"></ul>
+              <p class="anxiety-box-empty" id="anxiety-box-empty">Nothing waiting here. A little more room to breathe.</p>
+            </article>
+
             <article class="settings-card" aria-labelledby="settings-lists-heading">
               <header class="settings-card-header">
                 <h2 class="settings-card-title" id="settings-lists-heading">Categories</h2>
@@ -1137,6 +1160,13 @@
               <ul class="reflection-review-list" id="reflection-review-list"></ul>
               <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were checked off yesterday.</p>
             </section>
+            <section class="reflection-anxiety" id="reflection-anxiety" aria-labelledby="reflection-anxiety-heading">
+              <p class="reflection-anxiety-eyebrow">Before you close the day</p>
+              <h2 class="reflection-anxiety-heading" id="reflection-anxiety-heading">What can you let go of?</h2>
+              <p class="reflection-anxiety-copy">These have been resting in your Anxiety Box. Toss anything that no longer needs your energy.</p>
+              <ul class="reflection-anxiety-list" id="reflection-anxiety-list"></ul>
+              <p class="reflection-anxiety-empty" id="reflection-anxiety-empty">Your Anxiety Box is clear.</p>
+            </section>
             <footer class="reflection-footer">
               <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
                 <span>Continue to thoughts</span>
@@ -1230,6 +1260,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=255"></script>
+    <script src="app.js?v=256"></script>
   </body>
 </html>

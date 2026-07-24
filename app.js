@@ -17,6 +17,7 @@ const REPEAT_RESET_KEY = "priority-grid-repeat-last-reset";
 const DONE_ROLLOVER_KEY = "priority-grid-done-rollover";
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
+const ANXIETY_BOX_KEY = "priority-grid-anxiety-box";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
@@ -1504,6 +1505,55 @@ function createId() {
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function normalizeAnxietyBoxItem(item) {
+  if (!item || typeof item.text !== "string" || !item.text.trim()) return null;
+  return {
+    id: typeof item.id === "string" && item.id ? item.id : createId(),
+    text: item.text.trim().slice(0, 180),
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+    ...(typeof item.tossedAt === "string" ? { tossedAt: item.tossedAt } : {}),
+  };
+}
+
+function loadAnxietyBox({ includeTossed = false } = {}) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ANXIETY_BOX_KEY) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    const items = parsed.map(normalizeAnxietyBoxItem).filter(Boolean);
+    return includeTossed ? items : items.filter((item) => !item.tossedAt);
+  } catch {
+    return [];
+  }
+}
+
+function saveAnxietyBox(items, options = {}) {
+  localStorage.setItem(
+    ANXIETY_BOX_KEY,
+    JSON.stringify((Array.isArray(items) ? items : []).map(normalizeAnxietyBoxItem).filter(Boolean))
+  );
+  if (!options.skipSync) markSyncDirty();
+}
+
+function addAnxietyBoxItem(text) {
+  const trimmed = String(text || "").trim().slice(0, 180);
+  if (!trimmed) return;
+  saveAnxietyBox([
+    ...loadAnxietyBox({ includeTossed: true }),
+    { id: createId(), text: trimmed, createdAt: new Date().toISOString() },
+  ]);
+}
+
+function tossAnxietyBoxItem(id) {
+  const tossedAt = new Date().toISOString();
+  saveAnxietyBox(
+    loadAnxietyBox({ includeTossed: true }).map((item) =>
+      item.id === id ? { ...item, tossedAt } : item
+    )
+  );
+  renderAnxietyBox();
+  renderReflectionAnxietyBox();
+}
+
 function updateBoardHint() {
   const hint = document.getElementById("board-hint");
   if (!hint) return;
@@ -1525,6 +1575,7 @@ function exportAllData() {
     customBrainDump: collectCustomBrainDumpPayload(),
     displayName: getDisplayName(),
     profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
+    anxietyBox: loadAnxietyBox({ includeTossed: true }),
     theme: getTheme(),
     font: getFont(),
     weekStart: getWeekStartPreference(),
@@ -1563,6 +1614,9 @@ function importAllData(file) {
       if (typeof data.profileAvatar === "string") setProfileAvatar(data.profileAvatar, { skipSync: true });
       if (data.weekStart === "sunday" || data.weekStart === "monday") {
         setWeekStartPreference(data.weekStart, { skipSync: true });
+      }
+      if (Array.isArray(data.anxietyBox)) {
+        saveAnxietyBox(data.anxietyBox, { skipSync: true });
       }
       rebuildContextUi();
       renderAll();
@@ -1661,6 +1715,7 @@ function buildSyncPayload() {
     forgetIt: collectNextWeekFromStorage(),
     displayName: getDisplayName(),
     profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
+    anxietyBox: loadAnxietyBox({ includeTossed: true }),
     weekStart: getWeekStartPreference(),
   };
 }
@@ -1758,6 +1813,17 @@ function applySyncPayload(payload, options = {}) {
 
   if (payload.weekStart === "sunday" || payload.weekStart === "monday") {
     if (preferRemote) setWeekStartPreference(payload.weekStart, { skipSync: true });
+  }
+
+  if (Array.isArray(payload.anxietyBox) || loadAnxietyBox({ includeTossed: true }).length > 0) {
+    saveAnxietyBox(
+      mergeTaskLists(
+        loadAnxietyBox({ includeTossed: true }),
+        payload.anxietyBox || [],
+        preferRemote
+      ),
+      skipSync
+    );
   }
 
   const remoteCustomTasks = payload.customTasks || {};
@@ -2496,6 +2562,59 @@ function setupSettingsPreferences() {
   syncSettingsMode135Toggle();
   input.addEventListener("change", () => {
     setMode135(input.checked);
+  });
+}
+
+function anxietyBoxItemHtml(item, { reflection = false } = {}) {
+  const action = reflection ? "Toss" : "Remove";
+  return `
+    <li class="${reflection ? "reflection-anxiety-item" : "anxiety-box-item"}" data-anxiety-id="${escapeHtml(item.id)}">
+      <span class="${reflection ? "reflection-anxiety-item-text" : "anxiety-box-item-text"}">${escapeHtml(item.text)}</span>
+      <button type="button" class="${reflection ? "reflection-anxiety-toss" : "anxiety-box-remove"}" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
+    </li>`;
+}
+
+function renderAnxietyBox() {
+  const list = document.getElementById("anxiety-box-list");
+  const empty = document.getElementById("anxiety-box-empty");
+  if (!list || !empty) return;
+  const items = loadAnxietyBox();
+  list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
+  empty.classList.toggle("hidden", items.length > 0);
+}
+
+function renderReflectionAnxietyBox() {
+  const list = document.getElementById("reflection-anxiety-list");
+  const empty = document.getElementById("reflection-anxiety-empty");
+  if (!list || !empty) return;
+  const items = loadAnxietyBox();
+  list.innerHTML = items
+    .map((item) => anxietyBoxItemHtml(item, { reflection: true }))
+    .join("");
+  empty.classList.toggle("hidden", items.length > 0);
+}
+
+function setupAnxietyBox() {
+  const form = document.getElementById("anxiety-box-form");
+  const input = document.getElementById("anxiety-box-input");
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!input?.value.trim()) return;
+    addAnxietyBoxItem(input.value);
+    input.value = "";
+    renderAnxietyBox();
+  });
+
+  document.getElementById("anxiety-box-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest(".anxiety-box-remove");
+    const item = button?.closest("[data-anxiety-id]");
+    if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
+  });
+
+  document.getElementById("reflection-anxiety-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest(".reflection-anxiety-toss");
+    const item = button?.closest("[data-anxiety-id]");
+    if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
   });
 }
 
@@ -5594,7 +5713,8 @@ function reflectionFavouritePickerHtml(completed, favouriteId) {
 
   return `
     <section class="reflection-favourite" aria-label="Favourite task from yesterday">
-      <h3 class="reflection-favourite-heading">Favourite task from yesterday?</h3>
+      <p class="reflection-favourite-eyebrow">One small moment to keep</p>
+      <h3 class="reflection-favourite-heading">Which was your favourite task yesterday?</h3>
       ${selectedBanner}
       <div class="reflection-favourite-options" role="group" aria-label="Choose a favourite win">
         ${options}
@@ -5936,6 +6056,7 @@ function openReflectionDialog() {
   updateReflectionCharCount();
   renderReflectionPrompts(shuffleReflectionPrompts());
   renderReflectionReview();
+  renderReflectionAnxietyBox();
   setReflectionTab("review");
   setReflectionOpenState(true);
   dialog.showModal();
@@ -7575,33 +7696,45 @@ function stripTaskBulletPrefix(line) {
     .trim();
 }
 
+function splitTaskSegment(segment) {
+  const single = stripTaskBulletPrefix(segment.trim());
+  if (!single) return [];
+
+  let parts = null;
+  if (/[•·▪︎◦]/.test(single)) {
+    parts = single.split(/\s*[•·▪︎◦]\s*/);
+  } else if (/(?:^|\s)\d+[\.\)]\s+\S/.test(single)) {
+    parts = single.split(/(?:^|\s+)\d+[\.\)]\s+/);
+  } else if (/;\s*/.test(single)) {
+    parts = single.split(/\s*;\s*/);
+  } else if (
+    /\b(?:and then|and also|after that|then|also|plus)\b/i.test(single) ||
+    /\bnext\b(?!\s+(?:week|month|year|time|day)\b)/i.test(single)
+  ) {
+    parts = single.split(
+      /\s*(?:,\s*)?(?:\band\s+then\b|\band\s+also\b|\bafter\s+that\b|\bthen\b|\balso\b|\bplus\b|\bnext\b(?!\s+(?:week|month|year|time|day)\b))\s*[:,]?\s*/i
+    );
+  }
+
+  if (!parts) return [single];
+  const cleaned = parts
+    .map((part) => stripTaskBulletPrefix(part.trim()))
+    .filter((part) => part.length > 1);
+  return cleaned.length > 1 ? cleaned : [single];
+}
+
 function parseTasksFromText(raw) {
   if (typeof raw !== "string") return [];
   const text = raw.replace(/\u00a0/g, " ").trim();
   if (!text) return [];
 
-  let lines = text
-    .split(/\r?\n+/)
-    .map((line) => stripTaskBulletPrefix(line.trim()))
+  // A blank line is always a hard task boundary. Single line breaks continue
+  // to support pasted bullet and numbered lists.
+  const lines = text
+    .split(/\r?\n[ \t]*\r?\n+/)
+    .flatMap((block) => block.split(/\r?\n/))
+    .flatMap(splitTaskSegment)
     .filter(Boolean);
-
-  if (lines.length === 1) {
-    const single = lines[0];
-    let parts = null;
-    if (/[•·▪︎◦]/.test(single)) {
-      parts = single.split(/\s*[•·▪︎◦]\s*/);
-    } else if (/(?:^|\s)\d+[\.\)]\s+\S/.test(single)) {
-      parts = single.split(/(?:^|\s+)\d+[\.\)]\s+/);
-    } else if (/;\s+/.test(single)) {
-      parts = single.split(/;\s+/);
-    } else if (/\b(?:and then|also|plus)\b/i.test(single)) {
-      parts = single.split(/\s*(?:,\s*and\s+|,\s*|\band then\b|\balso\b|\bplus\b)\s*/i);
-    }
-    if (parts) {
-      const cleaned = parts.map((part) => stripTaskBulletPrefix(part.trim())).filter((part) => part.length > 1);
-      if (cleaned.length > 1) lines = cleaned;
-    }
-  }
 
   const seen = new Set();
   const tasks = [];
@@ -8306,6 +8439,9 @@ function renderAll() {
     renderArchivePanel();
     syncSidebarTabs();
   }
+  if (page === "settings") {
+    renderAnxietyBox();
+  }
   if (expandedTier && document.getElementById("tier-expand-dialog")?.open) {
     refreshTierExpand(expandedTier);
   }
@@ -8357,6 +8493,7 @@ setupHomeDesignPicker();
 setupNavigation();
 setupListsManager();
 setupSettingsPreferences();
+setupAnxietyBox();
 setupScribbleCaptureGesture();
 setupDropZones();
 setupTouchListDrag();
