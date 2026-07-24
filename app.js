@@ -4596,8 +4596,8 @@ function taskCardHtml(task) {
           <button type="button" class="task-text-btn">${escapeHtml(task.text)}</button>
         </div>
         <div class="task-card-trailing">
-          ${contextBadge}
           ${attachHtml}
+          ${contextBadge}
           ${taskDragHandleHtml()}
         </div>
       </div>
@@ -6380,8 +6380,8 @@ function tasksFlatRowHtml(task) {
         <button type="button" class="task-text-btn history-text">${escapeHtml(task.text)}</button>
         <span class="history-meta tasks-flat-meta">
           <span class="plan-135-tier-badge ${plan135TierBadgeClass(task.tier)}">${TIER_LABELS[task.tier - 1]}</span>
-          ${contextBadge}
           ${taskAttachmentIndicatorHtml(task)}
+          ${contextBadge}
           ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         </span>
       </div>
@@ -6490,8 +6490,8 @@ function planCardTaskHtml(task) {
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
       <span class="plan-card-task-meta">
-        ${contextIconHtml(task.context, "plan-card-task-ctx")}
         ${taskAttachmentIndicatorHtml(task)}
+        ${contextIconHtml(task.context, "plan-card-task-ctx")}
         ${deleteButtonHtml()}
       </span>
       <button type="button" class="plan-card-drag task-drag-handle" tabindex="-1" aria-label="Drag to reorder">
@@ -6564,8 +6564,8 @@ function homeCardTaskHtml(task, options = {}) {
         ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
       </div>
       <span class="home-card-task-meta">
-        ${contextIconHtml(task.context, "home-card-task-ctx")}
         ${taskAttachmentIndicatorHtml(task)}
+        ${contextIconHtml(task.context, "home-card-task-ctx")}
       </span>
     </li>`;
 }
