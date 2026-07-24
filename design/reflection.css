@@ -55,17 +55,26 @@ html.reflection-open .main {
   overscroll-behavior: none;
 }
 
-/* Insurance: fixed Home chrome stays under the fullscreen Reflection layer */
+/* Insurance: fixed Home chrome stays under the fullscreen Reflection layer.
+   Use display:none on the FAB so it cannot jump into the nav when
+   --bottom-chrome-height collapses while the shell is hidden. */
 body:has(.reflection-dialog[open]) .mobile-nav-shell,
-body:has(.reflection-dialog[open]) .capture-clip-fab,
-html.reflection-open .mobile-nav-shell,
-html.reflection-open .capture-clip-fab {
+html.reflection-open .mobile-nav-shell {
   visibility: hidden;
   pointer-events: none;
 }
 
+body:has(.reflection-dialog[open]) .capture-clip-fab,
+html.reflection-open .capture-clip-fab,
+html.reflection-open body .capture-clip-fab {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 .reflection-screen {
-  --reflection-pad-x: clamp(0.85rem, 4vw, 1.5rem);
+  --reflection-pad-x: clamp(1rem, 4.5vw, 1.75rem);
   --reflection-wallpaper-height: 100dvh;
   position: relative;
   display: flex;
@@ -236,7 +245,8 @@ html.reflection-open .capture-clip-fab {
   flex: 1 0 auto;
   min-width: 0;
   min-height: 0;
-  max-width: 26rem;
+  /* Mobile / narrow webviews: use full useful width (pad comes from .reflection-screen) */
+  max-width: none;
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
@@ -1535,9 +1545,9 @@ html.reflection-open .capture-clip-fab {
 }
 
 /* Keep content column readable on large screens; wallpaper stays full-bleed */
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .reflection-tab-panels {
-    max-width: 28rem;
+    max-width: min(32rem, 100%);
   }
 }
 

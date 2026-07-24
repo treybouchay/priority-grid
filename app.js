@@ -14,6 +14,7 @@ const PLAN_135_PREFIX = "priority-grid-135-";
 const NEXT_WEEK_PREFIX = "priority-grid-next-week-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
 const REPEAT_RESET_KEY = "priority-grid-repeat-last-reset";
+const DONE_ROLLOVER_KEY = "priority-grid-done-rollover";
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
 const SYNC_API = "/api/sync";
@@ -375,7 +376,8 @@ async function listIconDataUrlFromFile(file) {
   if (file.size > 8 * 1024 * 1024) throw new Error("Image is too large");
   const dataUrl = await readFileAsDataUrl(file);
   const img = await loadImageFromDataUrl(dataUrl);
-  const scale = Math.min(1, LIST_ICON_EDGE / Math.max(img.width, img.height));
+  // Scale up or down to fit LIST_ICON_EDGE (contain), so tiny uploads aren't left postage-stamp sized
+  const scale = LIST_ICON_EDGE / Math.max(img.width, img.height);
   const width = Math.max(1, Math.round(img.width * scale));
   const height = Math.max(1, Math.round(img.height * scale));
   const canvas = document.createElement("canvas");
@@ -383,6 +385,8 @@ async function listIconDataUrlFromFile(file) {
   canvas.height = LIST_ICON_EDGE;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, LIST_ICON_EDGE, LIST_ICON_EDGE);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(
     img,
     Math.round((LIST_ICON_EDGE - width) / 2),
@@ -630,6 +634,44 @@ let renderFocusTimerChrome = () => {};
 let focusCardVisible = false;
 let focusCardObserver = null;
 let bottomChromeObserver = null;
+let focusWakeLock = null;
+
+async function requestFocusWakeLock() {
+  if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+  if (focusWakeLock) return;
+  try {
+    focusWakeLock = await navigator.wakeLock.request("screen");
+    focusWakeLock.addEventListener("release", () => {
+      focusWakeLock = null;
+    });
+  } catch {
+    focusWakeLock = null;
+  }
+}
+
+async function releaseFocusWakeLock() {
+  try {
+    await focusWakeLock?.release();
+  } catch {
+    /* ignore */
+  }
+  focusWakeLock = null;
+}
+
+function setupFocusWakeLockVisibility() {
+  if (setupFocusWakeLockVisibility.ready) return;
+  setupFocusWakeLockVisibility.ready = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") {
+      releaseFocusWakeLock();
+      return;
+    }
+    // Re-request only if a focus timer is actively running (body class set in render)
+    if (document.body.classList.contains("focus-timer-wake")) {
+      requestFocusWakeLock();
+    }
+  });
+}
 
 function syncBottomChrome() {
   const shell = document.querySelector(".mobile-nav-shell");
@@ -638,8 +680,17 @@ function syncBottomChrome() {
     return;
   }
 
+  // While Reflection is open the shell is visibility:hidden — do not collapse
+  // --bottom-chrome-height to 0 or the Quick Note FAB jumps into the nav slot.
+  if (
+    document.documentElement.classList.contains("reflection-open") ||
+    document.body.classList.contains("reflection-open")
+  ) {
+    return;
+  }
+
   const style = getComputedStyle(shell);
-  if (style.display === "none" || style.visibility === "hidden") {
+  if (style.display === "none") {
     document.documentElement.style.setProperty("--bottom-chrome-height", "0px");
     return;
   }
@@ -1052,6 +1103,9 @@ function setupFocusTimer() {
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
+    document.body.classList.toggle("focus-timer-wake", running);
+    if (running) requestFocusWakeLock();
+    else releaseFocusWakeLock();
 
     const toggleLabel = document.getElementById("focus-timer-toggle-label");
     if (toggleLabel) {
@@ -1295,6 +1349,7 @@ function setupFocusTimer() {
   });
   setupFocusCardObserver();
   setupBottomChromeObserver();
+  setupFocusWakeLockVisibility();
   if (mini && typeof ResizeObserver !== "undefined") {
     const miniResizeObserver = new ResizeObserver(() => {
       syncFocusTimerOffset();
@@ -2146,6 +2201,10 @@ function archiveButtonHtml() {
   return `<button type="button" class="archive-btn" aria-label="Archive task" title="Archive task"><svg class="icon icon-archive-btn" aria-hidden="true"><use href="#icon-archive"></use></svg></button>`;
 }
 
+function deleteButtonHtml() {
+  return `<button type="button" class="delete-btn" aria-label="Delete task permanently" title="Delete permanently"><svg class="icon icon-delete-btn" aria-hidden="true"><use href="#icon-trash"></use></svg></button>`;
+}
+
 function taskHasNotes(task) {
   return Boolean(task?.notes?.trim());
 }
@@ -2735,6 +2794,82 @@ function resetRepeatDailyTasksIfNeeded() {
   } catch {
     /* ignore */
   }
+}
+
+/** Local calendar day key (YYYY-MM-DD) for midnight rollover. */
+function localDayKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * At local midnight (or on open/visibility after midnight), archive completed
+ * tasks from previous days so they leave active lists but stay in history.
+ */
+function archiveCompletedTasksPastMidnight() {
+  const today = localDayKey();
+  let lastRollover = null;
+  try {
+    lastRollover = localStorage.getItem(DONE_ROLLOVER_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (lastRollover === today) return false;
+
+  const archivedAt = new Date().toISOString();
+  const toClear = [];
+
+  getContexts().forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let changed = false;
+    const next = list.map((t) => {
+      if (t.archived || !t.done || t.repeatDaily) return t;
+      const completedDay = t.completedAt ? archiveDayKey(t.completedAt) : null;
+      if (completedDay === today) return t;
+      changed = true;
+      toClear.push({ id: t.id, context: ctx });
+      const archived = { ...t, archived: true, archivedAt, done: true };
+      if (!archived.completedAt) archived.completedAt = archivedAt;
+      return archived;
+    });
+    if (changed) saveTasks(ctx, next);
+  });
+
+  if (toClear.length) {
+    toClear.forEach(({ id, context }) => clearTaskRefs(id, context));
+    focusTimerAttached = focusTimerAttached.filter(
+      (ref) => !toClear.some((t) => t.id === ref.id && t.context === ref.context)
+    );
+    saveFocusTimerAttached();
+  }
+
+  try {
+    localStorage.setItem(DONE_ROLLOVER_KEY, today);
+  } catch {
+    /* ignore */
+  }
+  return toClear.length > 0;
+}
+
+function runDailyMaintenance({ render = false } = {}) {
+  clearExpiredDeferredTasks();
+  resetRepeatDailyTasksIfNeeded();
+  const rolled = archiveCompletedTasksPastMidnight();
+  if (render && rolled) renderAll();
+}
+
+function setupDailyMaintenance() {
+  runDailyMaintenance();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      runDailyMaintenance({ render: true });
+    }
+  });
+  window.addEventListener("focus", () => {
+    runDailyMaintenance({ render: true });
+  });
 }
 
 function getRepeatDailyTasks() {
@@ -4348,8 +4483,18 @@ function undoLastWinsArchive() {
 
 function deleteTask(id, ctx) {
   clearTaskRefs(id, ctx);
+  focusTimerAttached = focusTimerAttached.filter(
+    (ref) => !(ref.id === id && ref.context === ctx)
+  );
+  saveFocusTimerAttached();
   updateTaskInContext(ctx, (list) => list.filter((t) => t.id !== id));
   renderAll();
+}
+
+function confirmDeleteTask(id, ctx) {
+  if (!confirm("Permanently delete this task? This cannot be undone.")) return false;
+  deleteTask(id, ctx);
+  return true;
 }
 
 function isTaskInPlan135(id, ctx) {
@@ -4460,6 +4605,7 @@ function taskCardHtml(task) {
         ${inForgetIt ? `<span class="forget-it-indicator" title="In Next Week box" aria-label="In Next Week box"><svg class="icon icon-forget-box" aria-hidden="true"><use href="#icon-forget-box"></use></svg></span>` : ""}
         <button type="button" class="edit-btn" aria-label="Edit task"><svg class="icon icon-edit" aria-hidden="true"><use href="#icon-pencil"></use></svg></button>
         ${archiveButtonHtml()}
+        ${deleteButtonHtml()}
       </div>
     </li>`;
 }
@@ -5677,6 +5823,9 @@ function onReflectionScreenScroll() {
 function setReflectionOpenState(open) {
   document.documentElement.classList.toggle("reflection-open", open);
   document.body.classList.toggle("reflection-open", open);
+  if (!open) {
+    requestAnimationFrame(() => syncBottomChrome());
+  }
 }
 
 function getReflectionScrollRoot() {
@@ -6144,6 +6293,7 @@ function tasksFlatRowHtml(task) {
       </div>
       <div class="task-card-actions">
         ${archiveButtonHtml()}
+        ${deleteButtonHtml()}
       </div>
     </li>`;
 }
@@ -7144,6 +7294,11 @@ function bindTaskEvents(card) {
     archiveTask(id, ctx);
   });
 
+  card.querySelector(".delete-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    confirmDeleteTask(id, ctx);
+  });
+
   const openEdit = () => {
     const task = loadTasks(ctx).find((t) => t.id === id);
     if (task) openEditTaskDialog(task, ctx);
@@ -7306,6 +7461,12 @@ function setTaskDialogSubmitLabel(label) {
   if (btn) btn.textContent = label;
 }
 
+function setTaskDialogDeleteVisible(visible) {
+  const btn = document.getElementById("dialog-delete");
+  if (!btn) return;
+  btn.classList.toggle("hidden", !visible);
+}
+
 function stripTaskBulletPrefix(line) {
   return line
     .replace(/^(?:[-*•·▪︎◦]|\d+[\.\)])\s+/, "")
@@ -7406,6 +7567,7 @@ async function openTaskDialog(tier = 1) {
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
   setTaskDialogSubmitLabel("Save");
+  setTaskDialogDeleteVisible(false);
   syncDialogParsePreview();
 
   dialog.showModal();
@@ -7425,6 +7587,7 @@ async function openEditTaskDialog(task, ctx) {
   document.getElementById("dialog-original-context").value = ctx;
   document.getElementById("dialog-notes").value = task.notes || "";
   setTaskDialogSubmitLabel("Save");
+  setTaskDialogDeleteVisible(true);
   syncDialogParsePreview();
   await renderPhotoGrid(
     document.getElementById("dialog-photo-grid"),
@@ -7451,6 +7614,7 @@ function openBrainDumpSendDialog(item, ctx) {
   document.getElementById("dialog-brain-id").value = item.id;
   document.getElementById("dialog-brain-context").value = ctx;
   setTaskDialogSubmitLabel("Send");
+  setTaskDialogDeleteVisible(false);
   syncDialogParsePreview();
 
   dialog.showModal();
@@ -7551,6 +7715,18 @@ function setupTaskDialog() {
   document.getElementById("dialog-cancel").addEventListener("click", () => {
     clearDialogBrainFields();
     resetDialogMediaFields();
+    setTaskDialogDeleteVisible(false);
+    dialog.close();
+  });
+
+  document.getElementById("dialog-delete")?.addEventListener("click", () => {
+    const id = document.getElementById("dialog-edit-id")?.value;
+    const ctx = document.getElementById("dialog-original-context")?.value;
+    if (!id || !ctx) return;
+    if (!confirmDeleteTask(id, ctx)) return;
+    clearDialogBrainFields();
+    resetDialogMediaFields();
+    setTaskDialogDeleteVisible(false);
     dialog.close();
   });
 
@@ -7558,6 +7734,7 @@ function setupTaskDialog() {
     clearDialogBrainFields();
     resetDialogMediaFields();
     setTaskDialogSubmitLabel("Save");
+    setTaskDialogDeleteVisible(false);
     syncDialogParsePreview();
   });
 
@@ -7980,9 +8157,7 @@ function renderArchivePanel() {
     const ctx = el.dataset.context;
     el.querySelector(".archive-restore-btn").addEventListener("click", () => restoreTask(id, ctx));
     el.querySelector(".archive-delete-btn").addEventListener("click", () => {
-      if (confirm("Permanently delete this task? This cannot be undone.")) {
-        deleteTask(id, ctx);
-      }
+      confirmDeleteTask(id, ctx);
     });
   });
 }
@@ -8064,8 +8239,7 @@ function seedHomeFromNotebook() {
 }
 
 migrateLegacyData();
-clearExpiredDeferredTasks();
-resetRepeatDailyTasksIfNeeded();
+setupDailyMaintenance();
 ensureAppStartedDay();
 
 document.documentElement.dataset.font = getFont();

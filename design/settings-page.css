@@ -313,6 +313,14 @@ body[data-page="settings"] .list-icon-picker {
   margin: 0;
 }
 
+body[data-page="settings"] .list-icon-size-hint {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.6);
+}
+
 body[data-page="settings"] .list-icon-option {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(14, 48, 48, 0.12);
