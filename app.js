@@ -2572,23 +2572,25 @@ function anxietyBoxItemHtml(item) {
         aria-label="Toss ${escapeHtml(item.text)}"
         title="Toss"
       >
-        <svg class="icon reflection-anxiety-toss-icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+        <svg class="icon reflection-anxiety-toss-icon" aria-hidden="true"><use href="#icon-crumple"></use></svg>
       </button>
     </li>`;
 }
 
 function renderReflectionAnxietyBox() {
+  const card = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
-  const empty = document.getElementById("reflection-anxiety-empty");
   const countEl = document.getElementById("reflection-anxiety-count");
-  if (!list) return;
   const items = loadAnxietyBox();
-  list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
+  const hasItems = items.length > 0;
+
+  card?.classList.toggle("hidden", !hasItems);
   if (countEl) {
     countEl.textContent = String(items.length);
-    countEl.hidden = items.length === 0;
+    countEl.hidden = !hasItems;
   }
-  empty?.classList.toggle("hidden", items.length > 0);
+  if (!list) return;
+  list.innerHTML = hasItems ? items.map((item) => anxietyBoxItemHtml(item)).join("") : "";
 }
 
 function setupAnxietyBox() {
@@ -5561,6 +5563,7 @@ function pickReflectionPersona(sorted) {
 
 /**
  * Tiny SVG mark for the persona title card — one simple motion per kind.
+ * Bookend Day books animation is intentional; other kinds are literal name matches.
  */
 function reflectionPersonaMarkSvg(kind) {
   const k = kind || "fallback";
@@ -5584,88 +5587,142 @@ function reflectionPersonaMarkSvg(kind) {
       </svg>`,
     morning: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#fc9174" stroke-width="1.7" stroke-linecap="round"/>
-        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#fc9174" opacity="0.55"/>
+        <path class="rpm-sunrise-horizon" d="M3 23.5h26" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M3 23.5c4.5-2.2 9-3.2 13-3.2s8.5 1 13 3.2" fill="#ffdbd2" opacity="0.55"/>
+        <g class="rpm-sunrise-sun">
+          <g class="rpm-sunrise-rays" stroke="#fc9174" stroke-width="1.35" stroke-linecap="round">
+            <path d="M16 6.2v2.6"/>
+            <path d="M8.4 10.2l1.9 1.9"/>
+            <path d="M23.6 10.2l-1.9 1.9"/>
+            <path d="M5.8 17.5h2.5"/>
+            <path d="M23.7 17.5h2.5"/>
+          </g>
+          <circle cx="16" cy="17.5" r="5.1" fill="#fc9174"/>
+          <circle cx="14.4" cy="16" r="1.5" fill="#ffdbd2" opacity="0.55"/>
+        </g>
       </svg>`,
     "front-loaded": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" opacity="0.55"/>
-        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#fc9174" opacity="0.6"/>
+        <path class="rpm-sunrise-horizon" d="M3 23.5h26" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+        <path d="M3 23.5c4.5-2.2 9-3.2 13-3.2s8.5 1 13 3.2" fill="#0e3030" opacity="0.12"/>
+        <g class="rpm-sunrise-sun">
+          <g class="rpm-sunrise-rays" stroke="#0e3030" stroke-width="1.35" stroke-linecap="round" opacity="0.55">
+            <path d="M16 6.2v2.6"/>
+            <path d="M8.4 10.2l1.9 1.9"/>
+            <path d="M23.6 10.2l-1.9 1.9"/>
+          </g>
+          <circle cx="16" cy="17.5" r="5.1" fill="#fc9174"/>
+        </g>
       </svg>`,
     closing: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-dusk-moon" cx="17" cy="15" r="5.2" fill="#fc9174" opacity="0.85"/>
-        <circle cx="20.2" cy="13.2" r="4.4" fill="#fdf9f4"/>
+        <g class="rpm-dusk-moon">
+          <path d="M19.2 8.2a8.2 8.2 0 1 0 6.1 12.8 6.6 6.6 0 1 1-6.1-12.8Z" fill="#fc9174"/>
+        </g>
+        <g class="rpm-dusk-stars" fill="#0e3030">
+          <circle class="rpm-dusk-star rpm-dusk-star-1" cx="8.2" cy="11" r="1.15"/>
+          <circle class="rpm-dusk-star rpm-dusk-star-2" cx="12.5" cy="7.2" r="0.85"/>
+          <circle class="rpm-dusk-star rpm-dusk-star-3" cx="9.8" cy="16.5" r="0.7" fill="#ffdbd2"/>
+        </g>
       </svg>`,
     closer: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-check-ring" cx="16" cy="16" r="9" stroke="#0e3030" stroke-width="1.5" opacity="0.35"/>
-        <path class="rpm-check-mark" d="M11 16.2l3.1 3.1L21.4 12" stroke="#0e3030" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="16" r="11" fill="#ffdbd2"/>
+        <circle class="rpm-check-ring" cx="16" cy="16" r="11" stroke="#0e3030" stroke-width="1.4" opacity="0.2"/>
+        <path class="rpm-check-mark" d="M10.2 16.4l3.6 3.6 8.2-8.4" stroke="#0e3030" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
     hunter: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-target-ring" cx="16" cy="16" r="9" stroke="#0e3030" stroke-width="1.4" opacity="0.35"/>
-        <circle class="rpm-target-ring" cx="16" cy="16" r="5.2" stroke="#fc9174" stroke-width="1.4"/>
-        <circle class="rpm-target-core" cx="16" cy="16" r="2.2" fill="#0e3030"/>
+        <circle class="rpm-target-ring" cx="16" cy="16" r="10" stroke="#0e3030" stroke-width="1.5" opacity="0.35"/>
+        <circle class="rpm-target-ring" cx="16" cy="16" r="6.2" stroke="#fc9174" stroke-width="1.6"/>
+        <circle class="rpm-target-core" cx="16" cy="16" r="2.4" fill="#0e3030"/>
+        <g class="rpm-target-cross" stroke="#0e3030" stroke-width="1.3" stroke-linecap="round" opacity="0.55">
+          <path d="M16 4.5v3.2M16 24.3v3.2M4.5 16h3.2M24.3 16h3.2"/>
+        </g>
       </svg>`,
     "cat-home": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-house">
-          <path d="M6.5 15.5L16 7.5l9.5 8" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M9.5 14.8V24h13V14.8" stroke="#0e3030" stroke-width="1.7" stroke-linejoin="round"/>
-          <rect x="13.6" y="18.2" width="4.8" height="5.8" rx="0.6" fill="#fc9174" opacity="0.85"/>
+          <path d="M5.5 15.2L16 6.2l10.5 9" stroke="#0e3030" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.8 14.5V25h14.4V14.5" stroke="#0e3030" stroke-width="1.75" stroke-linejoin="round"/>
+          <rect x="13.5" y="18.2" width="5" height="6.8" rx="0.55" fill="#fc9174"/>
+          <path d="M21.2 10.2v-2.4h2.6" stroke="#0e3030" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="10.2" y="16.8" width="3.2" height="2.6" rx="0.35" fill="#ffdbd2"/>
         </g>
       </svg>`,
     "soft-landing": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <ellipse class="rpm-soft-shadow" cx="16" cy="24.2" rx="6.2" ry="1.35" fill="#0e3030" opacity="0.18"/>
-        <path class="rpm-soft-ground" d="M7 24.5h18" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" opacity="0.4"/>
+        <ellipse class="rpm-soft-shadow" cx="16" cy="25.2" rx="7.2" ry="1.4" fill="#0e3030" opacity="0.18"/>
+        <path class="rpm-soft-ground" d="M6 25.2h20" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
         <g class="rpm-soft-lander">
-          <ellipse class="rpm-soft-shape" cx="16" cy="12.5" rx="7.6" ry="5.1" fill="#fc9174"/>
-          <ellipse cx="13.6" cy="10.6" rx="2.6" ry="1.5" fill="#fdf9f4" opacity="0.55"/>
+          <ellipse cx="16" cy="13.2" rx="8.4" ry="5.4" fill="#fc9174"/>
+          <ellipse cx="16" cy="13.8" rx="5.6" ry="3.2" fill="#ffdbd2" opacity="0.55"/>
+          <ellipse cx="12.8" cy="11.4" rx="2.2" ry="1.3" fill="#fdf9f4" opacity="0.7"/>
         </g>
       </svg>`,
     "easy-wins": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-tick rpm-tick-1" d="M8 11l2.2 2.2L14.5 9" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path class="rpm-tick rpm-tick-2" d="M8 17l2.2 2.2L14.5 15" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path class="rpm-tick rpm-tick-3" d="M8 23l2.2 2.2L14.5 21" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="22" cy="12" r="1.4" fill="#fc9174" opacity="0.7"/>
-        <circle cx="22" cy="18" r="1.4" fill="#0e3030" opacity="0.35"/>
-        <circle cx="22" cy="24" r="1.4" fill="#fc9174" opacity="0.55"/>
+        <g class="rpm-tick rpm-tick-1">
+          <rect x="6" y="5.5" width="20" height="6.2" rx="1.2" fill="#ffdbd2"/>
+          <path d="M9.2 8.6l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <g class="rpm-tick rpm-tick-2">
+          <rect x="6" y="12.9" width="20" height="6.2" rx="1.2" fill="#ffdbd2" opacity="0.9"/>
+          <path d="M9.2 16l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <g class="rpm-tick rpm-tick-3">
+          <rect x="6" y="20.3" width="20" height="6.2" rx="1.2" fill="#fc9174"/>
+          <path d="M9.2 23.4l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
       </svg>`,
     "cat-errands": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-errand-path" d="M5 20c3-8 7-11 11-11s8 3 11 11" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3" opacity="0.45"/>
-        <circle class="rpm-errand-dot" cx="8" cy="18" r="2.2" fill="#fc9174"/>
+        <path class="rpm-errand-path" d="M5 22c2.5-9 6.5-13 11-13 5.2 0 8.2 5.5 11 13" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" stroke-dasharray="2.8 2.4" opacity="0.4"/>
+        <path d="M24.5 9.5l2.2 1.2-1.5 2.4" stroke="#fc9174" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <g class="rpm-errand-dot">
+          <circle cx="7.5" cy="20.5" r="3.1" fill="#fc9174"/>
+          <circle cx="7.5" cy="20.5" r="1.15" fill="#0e3030" opacity="0.35"/>
+        </g>
       </svg>`,
     "cat-work": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-briefcase">
-          <rect x="6.5" y="12" width="19" height="12" rx="2" stroke="#0e3030" stroke-width="1.6"/>
-          <path d="M12 12V10.2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2V12" stroke="#0e3030" stroke-width="1.6"/>
-          <path d="M6.5 17h19" stroke="#fc9174" stroke-width="1.6"/>
+          <rect x="5.5" y="12" width="21" height="13.5" rx="2.2" fill="#ffdbd2" stroke="#0e3030" stroke-width="1.55"/>
+          <path d="M11.5 12V9.8a2.2 2.2 0 0 1 2.2-2.2h4.6A2.2 2.2 0 0 1 20.5 9.8V12" stroke="#0e3030" stroke-width="1.55"/>
+          <path d="M5.5 17.2h21" stroke="#fc9174" stroke-width="1.7"/>
+          <rect x="14.2" y="15.6" width="3.6" height="2.4" rx="0.5" fill="#0e3030"/>
         </g>
       </svg>`,
     "cat-health": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-health-pulse" d="M5 16h5l2.2-5 3.6 10 2.4-5H27" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle class="rpm-health-dot" cx="16" cy="16" r="1.6" fill="#fc9174"/>
+        <path class="rpm-health-heart" d="M16 26s-9.2-5.8-9.2-12.2A5.4 5.4 0 0 1 16 10.2a5.4 5.4 0 0 1 9.2 3.6C25.2 20.2 16 26 16 26Z" fill="#fc9174"/>
+        <path class="rpm-health-pulse" d="M9.5 15.8h3.2l1.6-3.4 2.6 6.6 1.5-3.2h4.1" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
     "cat-personal": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-personal-ring" cx="16" cy="16" r="8.5" stroke="#fc9174" stroke-width="1.5" opacity="0.55"/>
-        <circle class="rpm-personal-core" cx="16" cy="16" r="3.4" fill="#0e3030" opacity="0.75"/>
+        <g class="rpm-personal">
+          <circle class="rpm-personal-core" cx="16" cy="11" r="4.6" fill="#0e3030"/>
+          <path class="rpm-personal-ring" d="M7.5 26c1.4-5.2 4.6-7.8 8.5-7.8S23.1 20.8 24.5 26" stroke="#fc9174" stroke-width="2.2" stroke-linecap="round"/>
+        </g>
       </svg>`,
     "cat-faith": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-faith-glow" cx="16" cy="16" r="7" fill="#fc9174" opacity="0.35"/>
-        <path d="M16 8.5v15M16 13.5c2.8 0 4.8 1.4 4.8 3.6S18.8 20.7 16 20.7" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
+        <g class="rpm-faith">
+          <rect x="14.2" y="18.5" width="3.6" height="7" rx="0.7" fill="#0e3030"/>
+          <path d="M11.5 18.5h9" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
+          <g class="rpm-faith-flame">
+            <path d="M16 6.5c3.2 3.2 5.2 5.4 5.2 8.1A5.2 5.2 0 0 1 16 19.8 5.2 5.2 0 0 1 10.8 14.6C10.8 11.9 12.8 9.7 16 6.5Z" fill="#fc9174"/>
+            <path d="M16 11.2c1.5 1.5 2.3 2.5 2.3 3.7A2.3 2.3 0 0 1 16 17.2a2.3 2.3 0 0 1-2.3-2.3c0-1.2.8-2.2 2.3-3.7Z" fill="#ffdbd2"/>
+          </g>
+        </g>
       </svg>`,
     fallback: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#fc9174" opacity="0.75"/>
-        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#ffdbd2" opacity="0.35"/>
+        <g class="rpm-fallback-orb">
+          <path d="M16 5.5l1.7 5.2h5.5l-4.4 3.2 1.7 5.3L16 16.2l-4.5 3 1.7-5.3-4.4-3.2h5.5L16 5.5Z" fill="#fc9174"/>
+          <path d="M24.5 18.5l.9 2.7h2.8l-2.3 1.7.9 2.7-2.3-1.6-2.3 1.6.9-2.7-2.3-1.7h2.8l.9-2.7Z" fill="#ffdbd2"/>
+          <path d="M7.2 19l.7 2.1h2.2L8.4 22.4l.7 2.1-1.9-1.3-1.9 1.3.7-2.1-1.7-1.3h2.2L7.2 19Z" fill="#0e3030" opacity="0.55"/>
+        </g>
       </svg>`,
   };
   return marks[k] || marks.fallback;

@@ -106,9 +106,9 @@ html.reflection-open body .capture-clip-fab {
   background-repeat: no-repeat;
 }
 
-/* Sticky chrome: compact day/date strip, then Anxiety dock below it.
-   Continuous forest palette (matches Anxiety bubble). No cream shell / back button.
-   When Anxiety is .hidden, no sticky gap. */
+/* Sticky chrome: flat full-bleed date nav, then optional Anxiety dock below.
+   Date strip is square (no rounded corners). Anxiety bubble keeps rounded bottom.
+   When Anxiety is .hidden, no sticky gap — date sits flush above content. */
 .reflection-sticky-chrome {
   position: sticky;
   top: 0;
@@ -117,12 +117,12 @@ html.reflection-open body .capture-clip-fab {
   flex-direction: column;
   flex-shrink: 0;
   margin: 0 calc(-1 * var(--reflection-pad-x));
-  padding-top: env(safe-area-inset-top, 0px);
-  background-color: #0e3030;
+  padding-top: 0;
+  background-color: transparent;
   color: #ffdbd2;
-  border-radius: 0 0 1.25rem 1.25rem;
-  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
-  overflow: hidden;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .reflection-tab-panels {
@@ -650,52 +650,90 @@ html.reflection-open body .capture-clip-fab {
   animation: rpm-bookend-slot 2.4s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
 }
 
-.rpm-sunrise-glow {
+/* Morning / Front-loaded — rising sun over horizon */
+.rpm-sunrise-sun {
   transform-box: fill-box;
-  transform-origin: 16px 22px;
-  animation: rpm-sunrise-rise 4s ease-in-out infinite;
+  transform-origin: 16px 23.5px;
+  animation: rpm-sunrise-rise 3.8s ease-in-out infinite;
 }
 
-.rpm-sunrise-arc {
+.rpm-sunrise-rays {
+  transform-box: fill-box;
+  transform-origin: 16px 17.5px;
+  animation: rpm-sunrise-rays 3.8s ease-in-out infinite;
+}
+
+.rpm-sunrise-horizon {
   transform-box: fill-box;
   transform-origin: center;
-  animation: rpm-fade-soft 4s ease-in-out infinite;
+  animation: rpm-fade-soft 3.8s ease-in-out infinite;
 }
 
+/* Closing Shift — crescent moon + twinkling stars */
 .rpm-dusk-moon {
-  transform-origin: 17px 15px;
-  animation: rpm-dusk-fade 3.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 18px 14px;
+  animation: rpm-dusk-fade 4s ease-in-out infinite;
 }
 
-.rpm-check-mark,
-.rpm-check-ring {
+.rpm-dusk-star {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rpm-star-twinkle 2.8s ease-in-out infinite;
+}
+
+.rpm-dusk-star-2 {
+  animation-delay: 0.45s;
+}
+
+.rpm-dusk-star-3 {
+  animation-delay: 0.9s;
+}
+
+/* The Closer — stamp check */
+.rpm-check-mark {
+  transform-box: fill-box;
   transform-origin: 16px 16px;
-  animation: rpm-check-pulse 2.8s ease-in-out infinite;
+  animation: rpm-check-stamp 2.6s ease-in-out infinite;
 }
 
+.rpm-check-ring {
+  transform-box: fill-box;
+  transform-origin: 16px 16px;
+  animation: rpm-check-pulse 2.6s ease-in-out infinite;
+}
+
+/* Top-priority Hunter — target rings */
 .rpm-target-core {
+  transform-box: fill-box;
   transform-origin: 16px 16px;
   animation: rpm-check-pulse 2.6s ease-in-out infinite;
 }
 
 .rpm-target-ring {
+  transform-box: fill-box;
   transform-origin: 16px 16px;
   animation: rpm-target-ring 3.2s ease-in-out infinite;
 }
 
-.rpm-house {
+.rpm-target-cross {
+  transform-box: fill-box;
   transform-origin: 16px 16px;
+  animation: rpm-fade-soft 3.2s ease-in-out infinite;
+}
+
+/* Home Captain — house bob */
+.rpm-house {
+  transform-box: fill-box;
+  transform-origin: 16px 25px;
   animation: rpm-house-bob 3.6s ease-in-out infinite;
 }
 
+/* Soft Landing — cushion descends and settles */
 .rpm-soft-lander {
   transform-box: fill-box;
-  transform-origin: 16px 24px;
+  transform-origin: 16px 25px;
   animation: rpm-soft-land 2.6s cubic-bezier(0.22, 1.15, 0.36, 1) infinite;
-}
-
-.rpm-soft-shape {
-  transform-origin: 16px 12.5px;
 }
 
 .rpm-soft-shadow {
@@ -710,7 +748,10 @@ html.reflection-open body .capture-clip-fab {
   animation: rpm-soft-ground 2.6s cubic-bezier(0.22, 1.15, 0.36, 1) infinite;
 }
 
+/* Easy-wins Collector — stacked checks pop in */
 .rpm-tick {
+  transform-box: fill-box;
+  transform-origin: center;
   animation: rpm-tick-pop 3.2s ease-in-out infinite;
 }
 
@@ -722,6 +763,7 @@ html.reflection-open body .capture-clip-fab {
   animation-delay: 0.36s;
 }
 
+/* Errand Runner — runner along path */
 .rpm-errand-dot {
   transform-box: fill-box;
   transform-origin: center;
@@ -734,36 +776,51 @@ html.reflection-open body .capture-clip-fab {
   animation: rpm-fade-soft 3.4s ease-in-out infinite;
 }
 
+/* Work Lead — briefcase */
 .rpm-briefcase {
-  transform-origin: 16px 16px;
+  transform-box: fill-box;
+  transform-origin: 16px 18px;
   animation: rpm-briefcase-pulse 3s ease-in-out infinite;
+}
+
+/* Body Mover — heart + pulse */
+.rpm-health-heart {
+  transform-box: fill-box;
+  transform-origin: 16px 16px;
+  animation: rpm-heart-beat 1.8s ease-in-out infinite;
 }
 
 .rpm-health-pulse {
   transform-box: fill-box;
   transform-origin: center;
-  animation: rpm-fade-soft 2.8s ease-in-out infinite;
+  animation: rpm-fade-soft 1.8s ease-in-out infinite;
 }
 
-.rpm-health-dot {
-  transform-origin: 16px 16px;
-  animation: rpm-check-pulse 2.8s ease-in-out infinite;
+/* Personal Pace — person silhouette */
+.rpm-personal {
+  transform-box: fill-box;
+  transform-origin: 16px 26px;
+  animation: rpm-house-bob 3.4s ease-in-out infinite;
 }
 
-.rpm-personal-ring,
-.rpm-personal-core {
-  transform-origin: 16px 16px;
-  animation: rpm-check-pulse 3.4s ease-in-out infinite;
+.rpm-personal-core,
+.rpm-personal-ring {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-.rpm-faith-glow {
-  transform-origin: 16px 16px;
-  animation: rpm-faith-glow 3.6s ease-in-out infinite;
+/* Quiet Keeper — candle flame */
+.rpm-faith-flame {
+  transform-box: fill-box;
+  transform-origin: 16px 19px;
+  animation: rpm-flame-flicker 2.2s ease-in-out infinite;
 }
 
+/* Presence Player — sparkle */
 .rpm-fallback-orb {
+  transform-box: fill-box;
   transform-origin: 16px 16px;
-  animation: rpm-check-pulse 3.6s ease-in-out infinite;
+  animation: rpm-sparkle 3.2s ease-in-out infinite;
 }
 
 @keyframes rpm-bookend-lean-left {
@@ -802,24 +859,48 @@ html.reflection-open body .capture-clip-fab {
 @keyframes rpm-sunrise-rise {
   0%,
   100% {
-    transform: translateY(2px) scale(0.92);
-    opacity: 0.45;
+    transform: translateY(5px) scale(0.9);
+    opacity: 0.7;
   }
   50% {
-    transform: translateY(-1.5px) scale(1.05);
-    opacity: 0.85;
+    transform: translateY(-1px) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes rpm-sunrise-rays {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
   }
 }
 
 @keyframes rpm-dusk-fade {
   0%,
   100% {
-    opacity: 0.95;
-    transform: scale(1);
+    opacity: 1;
+    transform: translateY(0) rotate(-2deg);
   }
   50% {
-    opacity: 0.55;
-    transform: scale(0.94);
+    opacity: 0.82;
+    transform: translateY(1.2px) rotate(2deg);
+  }
+}
+
+@keyframes rpm-star-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
   }
 }
 
@@ -830,8 +911,28 @@ html.reflection-open body .capture-clip-fab {
     opacity: 1;
   }
   50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
+
+@keyframes rpm-check-stamp {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  35% {
+    transform: scale(0.88);
+    opacity: 0.7;
+  }
+  55% {
     transform: scale(1.08);
-    opacity: 0.82;
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
@@ -945,7 +1046,7 @@ html.reflection-open body .capture-clip-fab {
     transform: translate(0, 0);
   }
   50% {
-    transform: translate(14px, -6px);
+    transform: translate(15px, -8px);
   }
   100% {
     transform: translate(0, 0);
@@ -955,22 +1056,61 @@ html.reflection-open body .capture-clip-fab {
 @keyframes rpm-briefcase-pulse {
   0%,
   100% {
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
   50% {
-    transform: scale(1.06);
+    transform: translateY(-1px) scale(1.04);
   }
 }
 
-@keyframes rpm-faith-glow {
+@keyframes rpm-heart-beat {
   0%,
   100% {
-    transform: scale(0.92);
-    opacity: 0.28;
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  40% {
+    transform: scale(0.96);
+  }
+  55% {
+    transform: scale(1.08);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@keyframes rpm-flame-flicker {
+  0%,
+  100% {
+    transform: scaleY(1) translateX(0);
+    opacity: 0.95;
+  }
+  25% {
+    transform: scaleY(1.08) translateX(0.4px);
+    opacity: 1;
   }
   50% {
-    transform: scale(1.08);
-    opacity: 0.5;
+    transform: scaleY(0.92) translateX(-0.35px);
+    opacity: 0.85;
+  }
+  75% {
+    transform: scaleY(1.05) translateX(0.25px);
+    opacity: 1;
+  }
+}
+
+@keyframes rpm-sparkle {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(0.94);
+    opacity: 0.75;
+  }
+  50% {
+    transform: rotate(12deg) scale(1.08);
+    opacity: 1;
   }
 }
 
@@ -1254,14 +1394,13 @@ html.reflection-open body .capture-clip-fab {
   box-sizing: border-box;
   width: auto;
   max-width: none;
-  /* Merges into sticky forest chrome under the date strip */
   margin: 0;
   padding: 0.55rem var(--reflection-pad-x) 0.85rem;
   border: none;
-  border-radius: 0;
-  background-color: transparent;
+  border-radius: 0 0 1.25rem 1.25rem;
+  background-color: #0e3030;
   color: #ffdbd2;
-  box-shadow: none;
+  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
   text-align: left;
 }
 
@@ -1317,60 +1456,6 @@ html.reflection-open body .capture-clip-fab {
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-}
-
-.reflection-anxiety-form {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.reflection-anxiety-input {
-  flex: 1;
-  min-width: 0;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid rgba(255, 219, 210, 0.22);
-  border-radius: 0.75rem;
-  background: rgba(255, 219, 210, 0.08);
-  color: #ffdbd2;
-  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-.reflection-anxiety-input::placeholder {
-  color: rgba(255, 219, 210, 0.45);
-}
-
-.reflection-anxiety-input:focus {
-  outline: none;
-  border-color: rgba(252, 145, 116, 0.7);
-  background: rgba(255, 219, 210, 0.12);
-}
-
-.reflection-anxiety-add {
-  flex-shrink: 0;
-  border: none;
-  border-radius: 0.75rem;
-  padding: 0.55rem 0.85rem;
-  background: #ffdbd2;
-  color: #0e3030;
-  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.reflection-anxiety-add:hover {
-  background: #fc9174;
-}
-
-.reflection-anxiety-add:focus-visible {
-  outline: 2px solid #fc9174;
-  outline-offset: 2px;
 }
 
 .reflection-anxiety-list {
@@ -1442,15 +1527,15 @@ html.reflection-open body .capture-clip-fab {
   border: none;
   border-radius: 999px;
   padding: 0;
-  background: rgba(255, 219, 210, 0.14);
-  color: #ffdbd2;
+  background: rgba(252, 145, 116, 0.18);
+  color: #fc9174;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .reflection-anxiety-toss-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.15rem;
+  height: 1.15rem;
   display: block;
 }
 
@@ -1464,16 +1549,108 @@ html.reflection-open body .capture-clip-fab {
   outline-offset: 2px;
 }
 
-.reflection-anxiety-empty {
-  margin: 0;
-  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(255, 219, 210, 0.5);
+/* Cream park card — after Wins; matches favourite / story Presence cards */
+.reflection-anxiety-park {
+  margin: 1.15rem 0 0;
+  padding: 1rem 1.05rem 1.15rem;
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(ellipse 70% 60% at 100% 0%, rgba(255, 219, 210, 0.55) 0%, transparent 55%),
+    rgba(253, 249, 244, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 18px rgba(14, 48, 48, 0.06);
+  flex-shrink: 0;
 }
 
-.reflection-anxiety-empty.hidden {
-  display: none;
+.reflection-anxiety-park-eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(14, 48, 48, 0.52);
+}
+
+.reflection-anxiety-park-heading {
+  margin: 0 0 0.35rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #0e3030;
+}
+
+.reflection-anxiety-park-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(14, 48, 48, 0.65);
+}
+
+.reflection-anxiety-park-label {
+  display: block;
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: rgba(14, 48, 48, 0.72);
+}
+
+.reflection-anxiety-park-form {
+  margin: 0;
+}
+
+.reflection-anxiety-park-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.reflection-anxiety-park-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.72);
+  color: #0e3030;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.reflection-anxiety-park-input::placeholder {
+  color: rgba(14, 48, 48, 0.38);
+}
+
+.reflection-anxiety-park-input:focus {
+  outline: none;
+  border-color: rgba(252, 145, 116, 0.55);
+  background: #fff;
+}
+
+.reflection-anxiety-park-add {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.95rem;
+  background: #0e3030;
+  color: #ffdbd2;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reflection-anxiety-park-add:hover {
+  background: #134040;
+}
+
+.reflection-anxiety-park-add:focus-visible {
+  outline: 2px solid #fc9174;
+  outline-offset: 2px;
 }
 
 .reflection-story-favourite {
@@ -1836,6 +2013,15 @@ html.reflection-open body .capture-clip-fab {
     padding: 0.8rem 0.85rem;
   }
 
+  .reflection-anxiety-park-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reflection-anxiety-park-add {
+    width: 100%;
+  }
+
   #reflection-panel-review .reflection-footer {
     padding-top: 1.25rem;
   }
@@ -1878,13 +2064,16 @@ html.reflection-open body .capture-clip-fab {
   .rpm-bookend-left,
   .rpm-bookend-right,
   .rpm-bookend-slot,
-  .rpm-sunrise-glow,
-  .rpm-sunrise-arc,
+  .rpm-sunrise-sun,
+  .rpm-sunrise-rays,
+  .rpm-sunrise-horizon,
   .rpm-dusk-moon,
+  .rpm-dusk-star,
   .rpm-check-mark,
   .rpm-check-ring,
   .rpm-target-core,
   .rpm-target-ring,
+  .rpm-target-cross,
   .rpm-house,
   .rpm-soft-lander,
   .rpm-soft-shadow,
@@ -1893,11 +2082,10 @@ html.reflection-open body .capture-clip-fab {
   .rpm-errand-dot,
   .rpm-errand-path,
   .rpm-briefcase,
+  .rpm-health-heart,
   .rpm-health-pulse,
-  .rpm-health-dot,
-  .rpm-personal-ring,
-  .rpm-personal-core,
-  .rpm-faith-glow,
+  .rpm-personal,
+  .rpm-faith-flame,
   .rpm-fallback-orb {
     animation: none;
   }
@@ -2032,14 +2220,16 @@ html.reflection-open body .capture-clip-fab {
   }
 }
 
-/* ---- Day pager — compact forest strip (matches Anxiety dock palette) ---- */
+/* ---- Day pager — forest nav bar with slight bottom rounding ---- */
 .reflection-day-pager-slot {
   box-sizing: border-box;
   width: 100%;
   margin: 0;
-  padding: 0.55rem var(--reflection-pad-x) 0.35rem;
-  background: transparent;
+  padding: calc(0.55rem + env(safe-area-inset-top, 0px)) var(--reflection-pad-x) calc(0.35rem + 10px);
+  background-color: #0e3030;
   color: #ffdbd2;
+  border-radius: 0 0 0.65rem 0.65rem;
+  box-shadow: 0 2px 10px rgba(14, 48, 48, 0.1);
   touch-action: pan-y;
 }
 
