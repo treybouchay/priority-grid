@@ -2581,17 +2581,17 @@ function renderAnxietyBox() {
   const items = loadAnxietyBox();
   list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
   empty.classList.toggle("hidden", items.length > 0);
-  renderHomeAnxietyMini();
+  renderReflectionAnxietyMini();
 }
 
-function renderHomeAnxietyMini() {
-  const mini = document.getElementById("presence-anxiety-mini");
+function renderReflectionAnxietyMini() {
+  const mini = document.getElementById("reflection-anxiety-mini");
   if (!mini) return;
   const items = loadAnxietyBox();
   const count = items.length;
   mini.classList.toggle("hidden", count === 0);
   if (count === 0) return;
-  const label = mini.querySelector(".presence-anxiety-mini-text");
+  const label = document.getElementById("reflection-anxiety-mini-text");
   if (label) {
     label.textContent =
       count === 1 ? "Anxiety Box · 1 thought" : `Anxiety Box · ${count} thoughts`;
@@ -2599,22 +2599,25 @@ function renderHomeAnxietyMini() {
   mini.setAttribute(
     "aria-label",
     count === 1
-      ? "Open Anxiety Box, 1 thought waiting"
-      : `Open Anxiety Box, ${count} thoughts waiting`
+      ? "Jump to Anxiety Box, 1 thought waiting"
+      : `Jump to Anxiety Box, ${count} thoughts waiting`
   );
 }
 
-function openAnxietyBoxFromHome() {
-  const reflection = document.getElementById("reflection-dialog");
-  if (reflection?.open) reflection.close();
-  setPage("tasks");
-  setSidebarTab("anxiety");
+function openReflectionAnxietySection() {
+  setReflectionTab("review");
+  const section = document.getElementById("reflection-anxiety");
+  const dialog = document.getElementById("reflection-dialog");
   requestAnimationFrame(() => {
-    document.getElementById("anxiety-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!section && dialog) {
+      dialog.scrollTo({ top: dialog.scrollHeight, behavior: "smooth" });
+    }
   });
 }
 
 function renderReflectionAnxietyBox() {
+  const section = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
   const empty = document.getElementById("reflection-anxiety-empty");
   if (!list || !empty) return;
@@ -2623,6 +2626,8 @@ function renderReflectionAnxietyBox() {
     .map((item) => anxietyBoxItemHtml(item, { reflection: true }))
     .join("");
   empty.classList.toggle("hidden", items.length > 0);
+  section?.classList.toggle("hidden", items.length === 0);
+  renderReflectionAnxietyMini();
 }
 
 function setupAnxietyBox() {
@@ -2648,6 +2653,8 @@ function setupAnxietyBox() {
     const item = button?.closest("[data-anxiety-id]");
     if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
   });
+
+  document.getElementById("reflection-anxiety-mini")?.addEventListener("click", openReflectionAnxietySection);
 }
 
 function setupDateHeader() {
@@ -5104,56 +5111,134 @@ function buildDemoReflectionWins(dayKey = reflectionTodayKey()) {
     stamp.setHours(hours, minutes, 0, 0);
     return stamp.toISOString();
   };
+  const week = getReflectionWeekDayKeys();
+  const slot = Math.max(0, week.indexOf(dayKey));
+  const id = (n) => `${DEMO_REFLECTION_ID_PREFIX}${slot}-${n}`;
 
-  return [
-    {
-      id: `${DEMO_REFLECTION_ID_PREFIX}1`,
-      text: "Send client proposal",
-      tier: 1,
-      done: true,
-      notes: "Felt clearer after outlining the ask.",
-      completedAt: at(9, 20),
-      context: "work",
-    },
-    {
-      id: `${DEMO_REFLECTION_ID_PREFIX}2`,
-      text: "Morning stretch + walk",
-      tier: 2,
-      done: true,
-      notes: "",
-      completedAt: at(7, 45),
-      context: "health",
-    },
-    {
-      id: `${DEMO_REFLECTION_ID_PREFIX}3`,
-      text: "Walk the dog at sunset",
-      tier: 2,
-      done: true,
-      notes: "",
-      completedAt: at(18, 40),
-      context: "home",
-    },
-    {
-      id: `${DEMO_REFLECTION_ID_PREFIX}4`,
-      text: "Clear kitchen counters",
-      tier: 3,
-      done: true,
-      notes: "Quick reset before dinner.",
-      completedAt: at(17, 10),
-      context: "home",
-    },
-    {
-      id: `${DEMO_REFLECTION_ID_PREFIX}5`,
-      text: "Pick up prescriptions",
-      tier: 4,
-      done: true,
-      notes: "",
-      completedAt: at(12, 5),
-      context: "errands",
-    },
-  ].sort(
+  /** Seven distinct shapes so each day chip lands on a different persona. */
+  const sets = [
+    // 0 Today — Bookend Day (morning + evening anchors)
+    [
+      { id: id(1), text: "Morning stretch + walk", tier: 2, done: true, notes: "", completedAt: at(7, 45), context: "health" },
+      { id: id(2), text: "Send client proposal", tier: 1, done: true, notes: "Felt clearer after outlining the ask.", completedAt: at(11, 20), context: "work" },
+      { id: id(3), text: "Walk the dog at sunset", tier: 2, done: true, notes: "", completedAt: at(18, 40), context: "home" },
+    ],
+    // 1 — Morning Machine (2 morning + 2 afternoon so front-loaded doesn’t outrank)
+    [
+      { id: id(1), text: "Inbox zero sprint", tier: 2, done: true, notes: "", completedAt: at(7, 15), context: "work" },
+      { id: id(2), text: "Prep lunch for the week", tier: 3, done: true, notes: "", completedAt: at(8, 40), context: "home" },
+      { id: id(3), text: "Afternoon stretch", tier: 2, done: true, notes: "", completedAt: at(13, 20), context: "health" },
+      { id: id(4), text: "Clear desk clutter", tier: 3, done: true, notes: "", completedAt: at(15, 10), context: "work" },
+    ],
+    // 2 — The Closer (tier-1 finish)
+    [
+      { id: id(1), text: "Clear kitchen counters", tier: 3, done: true, notes: "", completedAt: at(10, 5), context: "home" },
+      { id: id(2), text: "Pick up prescriptions", tier: 4, done: true, notes: "", completedAt: at(14, 20), context: "errands" },
+      { id: id(3), text: "Ship the deck to stakeholders", tier: 1, done: true, notes: "Last move of the day.", completedAt: at(16, 55), context: "work" },
+    ],
+    // 3 — Home Captain
+    [
+      { id: id(1), text: "Fold laundry", tier: 3, done: true, notes: "", completedAt: at(9, 10), context: "home" },
+      { id: id(2), text: "Reset living room", tier: 3, done: true, notes: "", completedAt: at(12, 30), context: "home" },
+      { id: id(3), text: "Cook a real dinner", tier: 2, done: true, notes: "", completedAt: at(18, 15), context: "home" },
+    ],
+    // 4 — Soft Landing (hard afternoon open → soft evening close; avoids Bookend)
+    [
+      { id: id(1), text: "Lead standup + unblockers", tier: 1, done: true, notes: "", completedAt: at(13, 5), context: "work" },
+      { id: id(2), text: "Draft follow-up emails", tier: 2, done: true, notes: "", completedAt: at(15, 40), context: "work" },
+      { id: id(3), text: "Evening journal", tier: 3, done: true, notes: "", completedAt: at(20, 10), context: "personal" },
+    ],
+    // 5 — Closing Shift (evening-heavy)
+    [
+      { id: id(1), text: "Grocery run", tier: 3, done: true, notes: "", completedAt: at(17, 20), context: "errands" },
+      { id: id(2), text: "Pack tomorrow’s bag", tier: 3, done: true, notes: "", completedAt: at(19, 5), context: "home" },
+      { id: id(3), text: "Wind-down walk", tier: 2, done: true, notes: "", completedAt: at(20, 30), context: "health" },
+    ],
+    // 6 — Top-priority Hunter (tier-1 first)
+    [
+      { id: id(1), text: "Finish board update", tier: 1, done: true, notes: "", completedAt: at(8, 50), context: "work" },
+      { id: id(2), text: "Schedule dentist", tier: 4, done: true, notes: "", completedAt: at(11, 15), context: "errands" },
+      { id: id(3), text: "Water plants", tier: 3, done: true, notes: "", completedAt: at(15, 40), context: "home" },
+    ],
+  ];
+
+  return [...(sets[slot] || sets[0])].sort(
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
+}
+
+/**
+ * Catalog fills for week browsing — distinct personas across the 7 day chips.
+ * Used when a day is sparse / demo and we still want variety in the vibe card.
+ */
+const REFLECTION_WEEK_PERSONA_FILLS = [
+  {
+    kind: "bookend",
+    name: "Bookend Day",
+    meaning: "You started and ended with care — morning win, evening win.",
+    blurb: "Sunrise and lamplight both got a check — two anchors holding the middle steady.",
+    tone: "forest",
+  },
+  {
+    kind: "morning",
+    name: "Morning Machine",
+    meaning: "You got a lot done in the morning.",
+    blurb: "First light favored you. That early pocket did real work.",
+    tone: "forest",
+  },
+  {
+    kind: "closer",
+    name: "The Closer",
+    meaning: "You knocked out a top priority.",
+    blurb: "You warmed up, then saved the punch for a clean finish.",
+    tone: "forest",
+  },
+  {
+    kind: "cat-home",
+    name: "Home Captain",
+    meaning: "Most of the day’s energy went to Home.",
+    blurb: "Home got the lion’s share — the fort held.",
+    tone: "peach",
+  },
+  {
+    kind: "soft-landing",
+    name: "Soft Landing",
+    meaning: "You opened strong and closed soft.",
+    blurb: "Serious open, then a soft close. The day knew when to exhale.",
+    tone: "peach",
+  },
+  {
+    kind: "closing",
+    name: "Closing Shift",
+    meaning: "Your evening carried the wins.",
+    blurb: "Evening carried it. Last light, still moving.",
+    tone: "peach",
+  },
+  {
+    kind: "hunter",
+    name: "Top-priority Hunter",
+    meaning: "You went after what mattered most first.",
+    blurb: "Big rocks before pebbles — you went after what mattered first.",
+    tone: "forest",
+  },
+];
+
+function getReflectionWeekSlotIndex(dayKey) {
+  const week = getReflectionWeekDayKeys();
+  const index = week.indexOf(dayKey);
+  return index >= 0 ? index : 0;
+}
+
+function getWeekSlotPersonaFill(dayKey) {
+  const fill = REFLECTION_WEEK_PERSONA_FILLS[getReflectionWeekSlotIndex(dayKey)];
+  if (!fill) return null;
+  return {
+    name: fill.name,
+    meaning: fill.meaning,
+    blurb: fill.blurb,
+    tone: fill.tone || "forest",
+    kind: fill.kind,
+  };
 }
 
 function getCompletedTasksForDay(dayKey) {
@@ -5172,13 +5257,25 @@ function getCompletedTasksForDay(dayKey) {
     });
   });
 
+  const sorted = tasks.sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+
   if (wantsForcedReflectionDemoWins()) {
     return buildDemoReflectionWins(target);
   }
 
-  return tasks.sort(
-    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-  );
+  // Live today: keep real completions only (2+ rule for persona stays intact).
+  if (target === reflectionTodayKey()) {
+    return sorted;
+  }
+
+  // Past days with sparse data: seed distinct week-slot wins so browsing shows variety.
+  if (sorted.length < 2) {
+    return buildDemoReflectionWins(target);
+  }
+
+  return sorted;
 }
 
 function truncateReflectionLabel(text, max = 28) {
@@ -5678,14 +5775,24 @@ function setupPersonaMarkPreview() {
   });
 }
 
-/** Day vibe persona for the merged review card — needs 2+ completions. */
-function buildReflectionInsights(completed) {
-  if (!completed || completed.length < 2) return { persona: null };
+/** Day vibe persona for the merged review card — needs 2+ completions (live today). */
+function buildReflectionInsights(completed, dayKey = reflectionTodayKey()) {
+  const isToday = dayKey === reflectionTodayKey();
+  const forcedDemo = wantsForcedReflectionDemoWins();
 
-  const sorted = [...completed].sort(
-    (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
-  );
-  return { persona: pickReflectionPersona(sorted) };
+  if (completed && completed.length >= 2) {
+    const sorted = [...completed].sort(
+      (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
+    );
+    return { persona: pickReflectionPersona(sorted) };
+  }
+
+  // Live today without 2+ wins: keep empty (growing note handles copy).
+  if (isToday && !forcedDemo) {
+    return { persona: null };
+  }
+
+  return { persona: getWeekSlotPersonaFill(dayKey) };
 }
 
 function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
@@ -5742,7 +5849,7 @@ function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
     text: truncateReflectionLabel(task.text, 26),
   }));
 
-  const insights = buildReflectionInsights(completed);
+  const insights = buildReflectionInsights(completed, dayKey);
   const listNames = categories.map((c) => c.name).join(", ");
   const ariaSummary =
     completed.length === 1
@@ -6203,6 +6310,7 @@ function setReflectionTab(tab) {
     panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
     panel.classList.toggle("active", panel.dataset.tab === nextTab);
   });
+  document.getElementById("reflection-day-pager-slot")?.classList.toggle("hidden", nextTab !== "review");
   const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
   applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   if (nextTab === "thoughts") {
@@ -6302,7 +6410,6 @@ function setupReflection() {
   const promptsList = document.getElementById("reflection-prompts-list");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
-  document.getElementById("presence-anxiety-mini")?.addEventListener("click", openAnxietyBoxFromHome);
 
   setupFocusTimer();
 
@@ -7402,7 +7509,6 @@ function renderHome() {
   renderHomePriorities();
   renderHomeCompletedToday();
   refreshFocusTimerUI();
-  renderHomeAnxietyMini();
 }
 
 function openTierExpand(tier) {
@@ -8662,8 +8768,6 @@ function renderAll() {
   }
   if (page === "settings") {
     renderAnxietyBox();
-  } else if (page === "home") {
-    renderHomeAnxietyMini();
   }
   if (expandedTier && document.getElementById("tier-expand-dialog")?.open) {
     refreshTierExpand(expandedTier);
