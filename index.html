@@ -69,11 +69,11 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=166" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
-    <link rel="stylesheet" href="design/home-presence.css?v=103" />
+    <link rel="stylesheet" href="design/home-presence.css?v=104" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=39" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=41" />
+    <link rel="stylesheet" href="design/reflection.css?v=42" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -396,6 +396,21 @@
                 <button type="button" class="presence-focus-btn" id="focus-reflection-btn">
                   <span>View Reflection</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                    <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button type="button" class="presence-anxiety-mini hidden" id="presence-anxiety-mini">
+                  <span class="presence-anxiety-mini-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                      <circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                      <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                    </svg>
+                  </span>
+                  <span class="presence-anxiety-mini-text">Anxiety Box</span>
+                  <svg class="presence-anxiety-mini-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
                     <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
@@ -1165,14 +1180,15 @@
           <section class="reflection-tab-panel active" id="reflection-panel-review" role="tabpanel" data-tab="review" aria-labelledby="reflection-tab-review">
             <section class="reflection-hero reflection-hero--review">
               <p class="reflection-hero-label">REFLECTION</p>
-              <h1 class="reflection-hero-title">Look what you<br>pulled off.</h1>
-              <div class="reflection-summary" id="reflection-summary" aria-label="Yesterday's accomplishments"></div>
+              <h1 class="reflection-hero-title">Look what you’re<br>pulling off.</h1>
+              <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
+              <div class="reflection-summary" id="reflection-summary" aria-label="Today's accomplishments"></div>
             </section>
             <section class="reflection-review">
-              <h2 class="reflection-review-heading" id="reflection-review-heading">Wins from yesterday</h2>
+              <h2 class="reflection-review-heading" id="reflection-review-heading">Wins from today</h2>
               <div id="reflection-favourite-slot"></div>
               <ul class="reflection-review-list" id="reflection-review-list"></ul>
-              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks were checked off yesterday.</p>
+              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks checked off yet today.</p>
             </section>
             <section class="reflection-anxiety" id="reflection-anxiety" aria-labelledby="reflection-anxiety-heading">
               <p class="reflection-anxiety-eyebrow">Before you close the day</p>
@@ -1274,6 +1290,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=262"></script>
+    <script src="app.js?v=263"></script>
   </body>
 </html>

@@ -2581,6 +2581,37 @@ function renderAnxietyBox() {
   const items = loadAnxietyBox();
   list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
   empty.classList.toggle("hidden", items.length > 0);
+  renderHomeAnxietyMini();
+}
+
+function renderHomeAnxietyMini() {
+  const mini = document.getElementById("presence-anxiety-mini");
+  if (!mini) return;
+  const items = loadAnxietyBox();
+  const count = items.length;
+  mini.classList.toggle("hidden", count === 0);
+  if (count === 0) return;
+  const label = mini.querySelector(".presence-anxiety-mini-text");
+  if (label) {
+    label.textContent =
+      count === 1 ? "Anxiety Box · 1 thought" : `Anxiety Box · ${count} thoughts`;
+  }
+  mini.setAttribute(
+    "aria-label",
+    count === 1
+      ? "Open Anxiety Box, 1 thought waiting"
+      : `Open Anxiety Box, ${count} thoughts waiting`
+  );
+}
+
+function openAnxietyBoxFromHome() {
+  const reflection = document.getElementById("reflection-dialog");
+  if (reflection?.open) reflection.close();
+  setPage("tasks");
+  setSidebarTab("anxiety");
+  requestAnimationFrame(() => {
+    document.getElementById("anxiety-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
 }
 
 function renderReflectionAnxietyBox() {
@@ -4895,14 +4926,14 @@ const REFLECTION_PROMPT_POOL = [
   { emoji: "⚡", text: "Something that energized me" },
   { emoji: "🌿", text: "A quiet moment I noticed" },
   { emoji: "🎯", text: "Something I moved forward on" },
-  { emoji: "☀️", text: "What felt easy yesterday" },
+  { emoji: "☀️", text: "What felt easy today" },
   { emoji: "🤝", text: "A kind gesture I received" },
   { emoji: "🎉", text: "Something worth celebrating" },
   { emoji: "🧭", text: "What I'd do again tomorrow" },
 ];
 
 function reflectionTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return archiveDayKey(new Date().toISOString());
 }
 
 function loadReflectionJournal() {
@@ -4990,15 +5021,71 @@ function getOpenTasksSnapshot() {
   return tasks;
 }
 
-function getYesterdayDailySummary() {
-  const completed = getCompletedYesterdayTasks();
+let reflectionSelectedDayKey = null;
+
+function getReflectionWeekDayKeys() {
+  const keys = [];
+  const now = new Date();
+  for (let offset = 0; offset < 7; offset += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
+    keys.push(archiveDayKey(d.toISOString()));
+  }
+  return keys;
+}
+
+function ensureReflectionSelectedDayKey() {
+  const week = getReflectionWeekDayKeys();
+  if (!reflectionSelectedDayKey || !week.includes(reflectionSelectedDayKey)) {
+    reflectionSelectedDayKey = week[0];
+  }
+  return reflectionSelectedDayKey;
+}
+
+function setReflectionSelectedDayKey(dayKey) {
+  const week = getReflectionWeekDayKeys();
+  if (!week.includes(dayKey)) return ensureReflectionSelectedDayKey();
+  reflectionSelectedDayKey = dayKey;
+  return reflectionSelectedDayKey;
+}
+
+function reflectionDayPhrase(dayKey, { short = false } = {}) {
+  const today = reflectionTodayKey();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = archiveDayKey(yesterdayDate.toISOString());
+  if (dayKey === today) return short ? "today" : "today";
+  if (dayKey === yesterday) return short ? "yesterday" : "yesterday";
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  if (!y || !m || !d) return short ? "that day" : "that day";
+  const date = new Date(y, m - 1, d);
+  if (short) {
+    return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+  return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+}
+
+function reflectionDayChipLabel(dayKey) {
+  const today = reflectionTodayKey();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = archiveDayKey(yesterdayDate.toISOString());
+  if (dayKey === today) return "Today";
+  if (dayKey === yesterday) return "Yest";
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString(undefined, { weekday: "short" });
+}
+
+function getDailySummaryForDay(dayKey) {
+  const completed = getCompletedTasksForDay(dayKey);
   return {
+    dayKey,
     completedCount: completed.length,
     completed,
   };
 }
 
-/** In-memory only — never written to localStorage / sync. Used when yesterday has no wins. */
+/** In-memory only — never written to localStorage / sync. Used when a day has no wins. */
 const DEMO_REFLECTION_ID_PREFIX = "demo-reflect-";
 
 function wantsForcedReflectionDemoWins() {
@@ -5009,13 +5096,13 @@ function wantsForcedReflectionDemoWins() {
   }
 }
 
-function buildDemoReflectionWins() {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
+function buildDemoReflectionWins(dayKey = reflectionTodayKey()) {
+  const [y, m, d] = String(dayKey).split("-").map(Number);
+  const base = new Date(y, m - 1, d);
   const at = (hours, minutes) => {
-    const d = new Date(yesterday);
-    d.setHours(hours, minutes, 0, 0);
-    return d.toISOString();
+    const stamp = new Date(base);
+    stamp.setHours(hours, minutes, 0, 0);
+    return stamp.toISOString();
   };
 
   return [
@@ -5069,17 +5156,15 @@ function buildDemoReflectionWins() {
   );
 }
 
-function getCompletedYesterdayTasks() {
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = archiveDayKey(yesterdayDate.toISOString());
+function getCompletedTasksForDay(dayKey) {
+  const target = dayKey || reflectionTodayKey();
   const seen = new Set();
   const tasks = [];
   getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
       if (!t.done || !t.completedAt) return;
       if (String(t.id || "").startsWith(DEMO_REFLECTION_ID_PREFIX)) return;
-      if (archiveDayKey(t.completedAt) !== yesterday) return;
+      if (archiveDayKey(t.completedAt) !== target) return;
       const key = `${ctx}:${t.id}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -5087,9 +5172,8 @@ function getCompletedYesterdayTasks() {
     });
   });
 
-  // Preview filled Reflection UI when yesterday had no real wins (or ?reflection-demo=1).
-  if (tasks.length === 0 || wantsForcedReflectionDemoWins()) {
-    return buildDemoReflectionWins();
+  if (wantsForcedReflectionDemoWins()) {
+    return buildDemoReflectionWins(target);
   }
 
   return tasks.sort(
@@ -5136,7 +5220,7 @@ function reflectionTaskCatBit(task) {
 }
 
 /**
- * Pick one playful persona for Yesterday’s vibe.
+ * Pick one playful persona for the day’s vibe.
  * Data-driven (category / priority / timing / arc) — not random.
  * Blurb expands on the persona and cites real completed tasks.
  */
@@ -5328,7 +5412,7 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-home",
         name: "Home Captain",
-        meaning: "Most of yesterday’s energy went to Home.",
+        meaning: "Most of the day’s energy went to Home.",
         blurb: `Home got the lion’s share — ${reflectionTaskCite(sample)}${
           sample2 ? ` and ${reflectionTaskCite(sample2)}` : ""
         } held the fort. ${dominantCat.count} win${dominantCat.count === 1 ? "" : "s"} under that roof.`,
@@ -5338,8 +5422,8 @@ function pickReflectionPersona(sorted) {
         score: dominantCat.count >= 2 ? 74 : 62,
         kind: "cat-work",
         name: "Work Lead",
-        meaning: "Most of yesterday’s energy went to Work.",
-        blurb: `The desk led yesterday — ${reflectionTaskCite(sample)}${
+        meaning: "Most of the day’s energy went to Work.",
+        blurb: `The desk led the day — ${reflectionTaskCite(sample)}${
           sample2 ? `, then ${reflectionTaskCite(sample2)}` : ""
         }. ${catLabel} carried ${dominantCat.count} check${dominantCat.count === 1 ? "" : "s"}.`,
         tone: "forest",
@@ -5361,7 +5445,7 @@ function pickReflectionPersona(sorted) {
         meaning: "You made room to move your body.",
         blurb: `You moved on purpose with ${reflectionTaskCite(sample)}${
           sample2 ? ` and ${reflectionTaskCite(sample2)}` : ""
-        }. Body got a real vote yesterday.`,
+        }. Body got a real vote that day.`,
         tone: "forest",
       },
       personal: {
@@ -5430,31 +5514,30 @@ function reflectionPersonaMarkSvg(kind) {
           <path d="M5.2 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
         </g>
         <g class="rpm-bookend-mids">
-          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#ffdbd2"/>
-          <rect x="12.7" y="8" width="2.6" height="17.5" rx="0.55" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
-          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#ffdbd2" opacity="0.9"/>
+          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#fc9174"/>
+          <rect x="12.7" y="8" width="2.6" height="17.5" rx="0.55" fill="#ffdbd2"/>
+          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#fc9174" opacity="0.9"/>
           <rect x="19.1" y="8.5" width="2.4" height="17" rx="0.5" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
         </g>
         <g class="rpm-bookend-right">
           <rect x="23.2" y="6.5" width="5.2" height="19" rx="0.9" fill="#0e3030"/>
-          <path d="M26.7 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
+          <path d="M26.7 8v16" stroke="#fc9174" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
         </g>
       </svg>`,
     morning: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round"/>
-        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#ffdbd2" opacity="0.85"/>
+        <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#fc9174" stroke-width="1.7" stroke-linecap="round"/>
+        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#fc9174" opacity="0.55"/>
       </svg>`,
     "front-loaded": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-sunrise-arc" d="M6 22c2.8-7 7-10.5 10-10.5S23.2 15 26 22" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" opacity="0.55"/>
-        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#ffdbd2" opacity="0.85"/>
+        <circle class="rpm-sunrise-glow" cx="16" cy="14" r="3.2" fill="#fc9174" opacity="0.6"/>
       </svg>`,
     closing: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-dusk-moon" cx="17" cy="15" r="5.2" fill="#ffdbd2"/>
+        <circle class="rpm-dusk-moon" cx="17" cy="15" r="5.2" fill="#fc9174" opacity="0.85"/>
         <circle cx="20.2" cy="13.2" r="4.4" fill="#fdf9f4"/>
-        <circle cx="17" cy="15" r="5.2" stroke="#0e3030" stroke-width="1.2" opacity="0.35"/>
       </svg>`,
     closer: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -5464,15 +5547,15 @@ function reflectionPersonaMarkSvg(kind) {
     hunter: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <circle class="rpm-target-ring" cx="16" cy="16" r="9" stroke="#0e3030" stroke-width="1.4" opacity="0.35"/>
-        <circle class="rpm-target-ring" cx="16" cy="16" r="5.2" stroke="#0e3030" stroke-width="1.4"/>
-        <circle class="rpm-target-core" cx="16" cy="16" r="2.2" fill="#ffdbd2"/>
+        <circle class="rpm-target-ring" cx="16" cy="16" r="5.2" stroke="#fc9174" stroke-width="1.4"/>
+        <circle class="rpm-target-core" cx="16" cy="16" r="2.2" fill="#0e3030"/>
       </svg>`,
     "cat-home": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-house">
           <path d="M6.5 15.5L16 7.5l9.5 8" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M9.5 14.8V24h13V14.8" stroke="#0e3030" stroke-width="1.7" stroke-linejoin="round"/>
-          <rect x="13.6" y="18.2" width="4.8" height="5.8" rx="0.6" fill="#ffdbd2" opacity="0.95"/>
+          <rect x="13.6" y="18.2" width="4.8" height="5.8" rx="0.6" fill="#fc9174" opacity="0.85"/>
         </g>
       </svg>`,
     "soft-landing": `
@@ -5480,8 +5563,7 @@ function reflectionPersonaMarkSvg(kind) {
         <ellipse class="rpm-soft-shadow" cx="16" cy="24.2" rx="6.2" ry="1.35" fill="#0e3030" opacity="0.18"/>
         <path class="rpm-soft-ground" d="M7 24.5h18" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" opacity="0.4"/>
         <g class="rpm-soft-lander">
-          <ellipse class="rpm-soft-shape" cx="16" cy="12.5" rx="7.6" ry="5.1" fill="#ffdbd2"/>
-          <ellipse class="rpm-soft-shape" cx="16" cy="12.5" rx="7.6" ry="5.1" stroke="#0e3030" stroke-width="1.1" opacity="0.35"/>
+          <ellipse class="rpm-soft-shape" cx="16" cy="12.5" rx="7.6" ry="5.1" fill="#fc9174"/>
           <ellipse cx="13.6" cy="10.6" rx="2.6" ry="1.5" fill="#fdf9f4" opacity="0.55"/>
         </g>
       </svg>`,
@@ -5489,45 +5571,43 @@ function reflectionPersonaMarkSvg(kind) {
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-tick rpm-tick-1" d="M8 11l2.2 2.2L14.5 9" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <path class="rpm-tick rpm-tick-2" d="M8 17l2.2 2.2L14.5 15" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path class="rpm-tick rpm-tick-3" d="M8 23l2.2 2.2L14.5 21" stroke="#0e3030" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="22" cy="12" r="1.4" fill="#0e3030" opacity="0.7"/>
+        <path class="rpm-tick rpm-tick-3" d="M8 23l2.2 2.2L14.5 21" stroke="#fc9174" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="22" cy="12" r="1.4" fill="#fc9174" opacity="0.7"/>
         <circle cx="22" cy="18" r="1.4" fill="#0e3030" opacity="0.35"/>
-        <circle cx="22" cy="24" r="1.4" fill="#ffdbd2" stroke="#0e3030" stroke-width="0.8"/>
+        <circle cx="22" cy="24" r="1.4" fill="#fc9174" opacity="0.55"/>
       </svg>`,
     "cat-errands": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-errand-path" d="M5 20c3-8 7-11 11-11s8 3 11 11" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3" opacity="0.45"/>
-        <circle class="rpm-errand-dot" cx="8" cy="18" r="2.2" fill="#ffdbd2" stroke="#0e3030" stroke-width="1.1"/>
+        <circle class="rpm-errand-dot" cx="8" cy="18" r="2.2" fill="#fc9174"/>
       </svg>`,
     "cat-work": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-briefcase">
           <rect x="6.5" y="12" width="19" height="12" rx="2" stroke="#0e3030" stroke-width="1.6"/>
           <path d="M12 12V10.2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2V12" stroke="#0e3030" stroke-width="1.6"/>
-          <path d="M6.5 17h19" stroke="#0e3030" stroke-width="1.6"/>
-          <rect x="13.5" y="14.2" width="5" height="3.2" rx="0.5" fill="#ffdbd2"/>
+          <path d="M6.5 17h19" stroke="#fc9174" stroke-width="1.6"/>
         </g>
       </svg>`,
     "cat-health": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-health-pulse" d="M5 16h5l2.2-5 3.6 10 2.4-5H27" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle class="rpm-health-dot" cx="16" cy="16" r="1.6" fill="#ffdbd2" stroke="#0e3030" stroke-width="0.9"/>
+        <circle class="rpm-health-dot" cx="16" cy="16" r="1.6" fill="#fc9174"/>
       </svg>`,
     "cat-personal": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-personal-ring" cx="16" cy="16" r="8.5" stroke="#0e3030" stroke-width="1.5" opacity="0.35"/>
-        <circle cx="16" cy="16" r="5.6" fill="#ffdbd2" opacity="0.85"/>
-        <circle class="rpm-personal-core" cx="16" cy="16" r="3.4" fill="#0e3030" opacity="0.85"/>
+        <circle class="rpm-personal-ring" cx="16" cy="16" r="8.5" stroke="#fc9174" stroke-width="1.5" opacity="0.55"/>
+        <circle class="rpm-personal-core" cx="16" cy="16" r="3.4" fill="#0e3030" opacity="0.75"/>
       </svg>`,
     "cat-faith": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-faith-glow" cx="16" cy="16" r="7" fill="#ffdbd2" opacity="0.55"/>
+        <circle class="rpm-faith-glow" cx="16" cy="16" r="7" fill="#fc9174" opacity="0.35"/>
         <path d="M16 8.5v15M16 13.5c2.8 0 4.8 1.4 4.8 3.6S18.8 20.7 16 20.7" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
       </svg>`,
     fallback: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#ffdbd2"/>
-        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" stroke="#0e3030" stroke-width="1.3"/>
+        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#fc9174" opacity="0.75"/>
+        <circle class="rpm-fallback-orb" cx="16" cy="16" r="6" fill="#ffdbd2" opacity="0.35"/>
       </svg>`,
   };
   return marks[k] || marks.fallback;
@@ -5598,9 +5678,9 @@ function setupPersonaMarkPreview() {
   });
 }
 
-/** Yesterday’s vibe persona for the merged review card. */
+/** Day vibe persona for the merged review card — needs 2+ completions. */
 function buildReflectionInsights(completed) {
-  if (!completed.length) return { persona: null };
+  if (!completed || completed.length < 2) return { persona: null };
 
   const sorted = [...completed].sort(
     (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
@@ -5608,16 +5688,24 @@ function buildReflectionInsights(completed) {
   return { persona: pickReflectionPersona(sorted) };
 }
 
-function buildYesterdayAccomplishStory(completed) {
+function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
+  const isToday = dayKey === reflectionTodayKey();
+  const dayPhrase = reflectionDayPhrase(dayKey);
+
   if (!completed.length) {
     return {
-      title: "A quieter day",
+      title: isToday ? "Your day is still opening" : "A quieter day",
       categories: [],
       priorityBars: [],
       thumbs: [],
-      insights: [],
-      quietNote: "Nothing checked off — still a day worth noticing.",
-      ariaSummary: "Nothing was checked off yesterday.",
+      insights: { persona: null },
+      quietNote: isToday
+        ? "Complete a couple of tasks and your day’s vibe will start to take shape."
+        : "Nothing checked off — still a day worth noticing.",
+      growingNote: "",
+      ariaSummary: isToday
+        ? "No tasks completed today yet."
+        : `Nothing was checked off ${dayPhrase}.`,
     };
   }
 
@@ -5647,7 +5735,7 @@ function buildYesterdayAccomplishStory(completed) {
       label: TIER_LABELS[tier - 1],
       count: byTier[tier],
       pct: Math.round((byTier[tier] / maxTier) * 100),
-      peach: tier === 2,
+      peach: tier <= 2,
     }));
 
   const thumbs = completed.slice(0, 4).map((task) => ({
@@ -5655,22 +5743,116 @@ function buildYesterdayAccomplishStory(completed) {
   }));
 
   const insights = buildReflectionInsights(completed);
-
   const listNames = categories.map((c) => c.name).join(", ");
   const ariaSummary =
     completed.length === 1
-      ? `You finished 1 thing yesterday${listNames ? ` in ${listNames}` : ""}.`
-      : `You finished ${completed.length} things yesterday${listNames ? ` across ${listNames}` : ""}.`;
+      ? `You finished 1 thing ${dayPhrase}${listNames ? ` in ${listNames}` : ""}.`
+      : `You finished ${completed.length} things ${dayPhrase}${listNames ? ` across ${listNames}` : ""}.`;
+
+  let growingNote = "";
+  if (completed.length === 1) {
+    growingNote = isToday
+      ? "One win down — finish one more and your day’s persona will fill in."
+      : "Only one win that day — personas show up at two or more.";
+  }
+
+  const title =
+    completed.length === 1
+      ? isToday
+        ? "Today’s first win"
+        : "One win that day"
+      : isToday
+        ? "What you’re pulling off"
+        : "What you accomplished";
 
   return {
-    title: completed.length === 1 ? "Yesterday's win" : "What you accomplished",
+    title,
     categories,
     priorityBars,
     thumbs,
     insights,
     quietNote: "",
+    growingNote,
     ariaSummary,
   };
+}
+
+function reflectionDayPagerHtml(selectedDayKey) {
+  const week = getReflectionWeekDayKeys();
+  const index = Math.max(0, week.indexOf(selectedDayKey));
+  const canNewer = index > 0;
+  const canOlder = index < week.length - 1;
+  const chips = week
+    .map((key) => {
+      const selected = key === selectedDayKey;
+      return `
+      <button
+        type="button"
+        class="reflection-day-chip${selected ? " is-selected" : ""}"
+        data-reflection-day="${escapeHtml(key)}"
+        aria-pressed="${selected ? "true" : "false"}"
+        aria-label="${escapeHtml(formatArchiveDayHeading(key))}"
+      >
+        <span class="reflection-day-chip-label">${escapeHtml(reflectionDayChipLabel(key))}</span>
+        <span class="reflection-day-chip-num">${escapeHtml(String(key).slice(8))}</span>
+      </button>`;
+    })
+    .join("");
+
+  return `
+    <nav class="reflection-day-pager" aria-label="Last 7 days">
+      <div class="reflection-day-pager-row">
+        <button
+          type="button"
+          class="reflection-day-nav"
+          id="reflection-day-newer"
+          aria-label="Newer day"
+          ${canNewer ? "" : "disabled"}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <p class="reflection-day-pager-label" id="reflection-day-label">${escapeHtml(formatArchiveDayHeading(selectedDayKey))}</p>
+        <button
+          type="button"
+          class="reflection-day-nav"
+          id="reflection-day-older"
+          aria-label="Older day"
+          ${canOlder ? "" : "disabled"}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="reflection-day-chips" role="group" aria-label="Choose a day">
+        ${chips}
+      </div>
+    </nav>`;
+}
+
+function bindReflectionDayPager(selectedDayKey) {
+  const week = getReflectionWeekDayKeys();
+  const index = Math.max(0, week.indexOf(selectedDayKey));
+  document.getElementById("reflection-day-newer")?.addEventListener("click", () => {
+    if (index <= 0) return;
+    setReflectionSelectedDayKey(week[index - 1]);
+    renderReflectionReview();
+  });
+  document.getElementById("reflection-day-older")?.addEventListener("click", () => {
+    if (index >= week.length - 1) return;
+    setReflectionSelectedDayKey(week[index + 1]);
+    renderReflectionReview();
+  });
+  document.querySelectorAll("[data-reflection-day]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-reflection-day");
+      if (!key) return;
+      setReflectionSelectedDayKey(key);
+      renderReflectionReview();
+    });
+  });
 }
 
 function reflectionReviewItemHtml(task, index = 0, favouriteId = "") {
@@ -5694,8 +5876,10 @@ function reflectionReviewItemHtml(task, index = 0, favouriteId = "") {
     </li>`;
 }
 
-function reflectionFavouritePickerHtml(completed, favouriteId) {
+function reflectionFavouritePickerHtml(completed, favouriteId, dayKey = reflectionTodayKey()) {
   if (!completed.length) return "";
+  const isToday = dayKey === reflectionTodayKey();
+  const dayPhrase = reflectionDayPhrase(dayKey);
   const options = completed
     .map((task) => {
       const selected = task.id === favouriteId;
@@ -5721,9 +5905,13 @@ function reflectionFavouritePickerHtml(completed, favouriteId) {
     : `<p class="reflection-favourite-hint">Tap one win to pin it as your favourite.</p>`;
 
   return `
-    <section class="reflection-favourite" aria-label="Favourite task from yesterday">
+    <section class="reflection-favourite" aria-label="Favourite task from ${escapeHtml(dayPhrase)}">
       <p class="reflection-favourite-eyebrow">One small moment to keep</p>
-      <h3 class="reflection-favourite-heading">Which was your favourite task yesterday?</h3>
+      <h3 class="reflection-favourite-heading">${
+        isToday
+          ? "Which is your favourite task so far?"
+          : `Which was your favourite task ${escapeHtml(dayPhrase)}?`
+      }</h3>
       ${selectedBanner}
       <div class="reflection-favourite-options" role="group" aria-label="Choose a favourite win">
         ${options}
@@ -5746,7 +5934,7 @@ function observeReflectionScrollCards(container) {
 
   const cards = [
     ...root.querySelectorAll(
-      ".reflection-story, .reflection-favourite, .reflection-review-item, .reflection-input-card, .reflection-prompt-btn"
+      ".reflection-story, .reflection-favourite, .reflection-review-item, .reflection-input-card, .reflection-prompt-btn, .reflection-day-pager"
     ),
   ];
   if (!cards.length) return;
@@ -5791,12 +5979,21 @@ function renderReflectionReview() {
   const summary = document.getElementById("reflection-summary");
   const heading = document.getElementById("reflection-review-heading");
   const favouriteSlot = document.getElementById("reflection-favourite-slot");
+  const dayPagerSlot = document.getElementById("reflection-day-pager-slot");
   if (!list || !empty) return;
 
-  const { completedCount, completed } = getYesterdayDailySummary();
-  const story = buildYesterdayAccomplishStory(completed);
-  const favouriteId = getReflectionFavouriteId();
+  const dayKey = ensureReflectionSelectedDayKey();
+  const isToday = dayKey === reflectionTodayKey();
+  const dayPhrase = reflectionDayPhrase(dayKey);
+  const { completedCount, completed } = getDailySummaryForDay(dayKey);
+  const story = buildDayAccomplishStory(completed, dayKey);
+  const favouriteId = getReflectionFavouriteId(dayKey);
   const favouriteTask = completed.find((t) => t.id === favouriteId) || null;
+
+  if (dayPagerSlot) {
+    dayPagerSlot.innerHTML = reflectionDayPagerHtml(dayKey);
+    bindReflectionDayPager(dayKey);
+  }
 
   if (summary) {
     const categoriesHtml = (story.categories || [])
@@ -5845,6 +6042,12 @@ function renderReflectionReview() {
         </div>`;
     } else {
       const parts = [];
+      if (story.growingNote) {
+        parts.push(`
+          <div class="reflection-story-growing">
+            <p class="reflection-story-growing-text">${escapeHtml(story.growingNote)}</p>
+          </div>`);
+      }
       if (categoriesHtml) {
         parts.push(`
           <div>
@@ -5882,12 +6085,13 @@ function renderReflectionReview() {
 
     const insightBundle = story.insights || {};
     const insightPersona = Array.isArray(insightBundle) ? null : insightBundle.persona || null;
+    const vibeKicker = isToday ? "Today’s vibe" : `${formatArchiveDayHeading(dayKey)}’s vibe`;
 
     const vibeHtml = insightPersona
       ? `
         <div class="reflection-persona reflection-persona--${escapeHtml(insightPersona.kind || "fallback")}">
           <span class="reflection-persona-mark" aria-hidden="true">${reflectionPersonaMarkSvg(insightPersona.kind)}</span>
-          <p class="reflection-persona-kicker">Yesterday’s vibe</p>
+          <p class="reflection-persona-kicker">${escapeHtml(vibeKicker)}</p>
           <p class="reflection-persona-name">${escapeHtml(insightPersona.name)}</p>
           ${
             insightPersona.meaning
@@ -5901,7 +6105,7 @@ function renderReflectionReview() {
     const favouriteCardHtml = favouriteTask
       ? `
         <div class="reflection-story-favourite">
-          <p class="reflection-story-section-label">Favourite from yesterday</p>
+          <p class="reflection-story-section-label">${isToday ? "Favourite so far" : `Favourite from ${escapeHtml(dayPhrase)}`}</p>
           <div class="reflection-story-favourite-pill">
             <span class="reflection-story-favourite-star" aria-hidden="true">★</span>
             <span class="reflection-story-favourite-text">${escapeHtml(favouriteTask.text)}</span>
@@ -5912,7 +6116,7 @@ function renderReflectionReview() {
     const reviewBodyHtml = `
       <div class="reflection-story-body${insightPersona ? " reflection-story-body--after-vibe" : ""}">
         <div class="reflection-story-top">
-          <p class="reflection-story-kicker">Yesterday in review</p>
+          <p class="reflection-story-kicker">${isToday ? "Today in motion" : `${escapeHtml(formatArchiveDayHeading(dayKey))} in review`}</p>
         </div>
         <h2 class="reflection-story-title">${escapeHtml(story.title)}</h2>
         ${favouriteCardHtml}
@@ -5920,7 +6124,7 @@ function renderReflectionReview() {
       </div>`;
 
     const storyAria = insightPersona
-      ? `Yesterday’s vibe — ${insightPersona.name}. ${story.ariaSummary || story.title}`
+      ? `${vibeKicker} — ${insightPersona.name}. ${story.ariaSummary || story.title}`
       : story.ariaSummary || story.title;
 
     summary.innerHTML = `
@@ -5934,21 +6138,24 @@ function renderReflectionReview() {
   }
 
   if (heading) {
-    heading.textContent =
-      completedCount === 0
-        ? "Wins from yesterday"
-        : completedCount === 1
-          ? "Your win from yesterday"
-          : `${completedCount} wins from yesterday`;
+    if (completedCount === 0) {
+      heading.textContent = isToday ? "Wins from today" : `Wins from ${formatArchiveDayHeading(dayKey)}`;
+    } else if (completedCount === 1) {
+      heading.textContent = isToday ? "Your win so far today" : `Your win from ${dayPhrase}`;
+    } else {
+      heading.textContent = isToday
+        ? `${completedCount} wins so far today`
+        : `${completedCount} wins from ${dayPhrase}`;
+    }
   }
 
   if (favouriteSlot) {
-    favouriteSlot.innerHTML = reflectionFavouritePickerHtml(completed, favouriteId);
+    favouriteSlot.innerHTML = reflectionFavouritePickerHtml(completed, favouriteId, dayKey);
     favouriteSlot.querySelectorAll(".reflection-favourite-option").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.dataset.favouriteId;
         if (!id) return;
-        saveReflectionFavourite(id);
+        saveReflectionFavourite(id, dayKey);
         renderReflectionReview();
       });
     });
@@ -5957,8 +6164,9 @@ function renderReflectionReview() {
   if (completed.length === 0) {
     list.innerHTML = "";
     empty.classList.remove("hidden");
-    empty.textContent =
-      "No tasks were checked off yesterday. Use the next step to note what still mattered.";
+    empty.textContent = isToday
+      ? "No tasks checked off yet today. Keep going — your vibe fills in after two wins."
+      : `No tasks were checked off ${dayPhrase}.`;
     observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
     return;
   }
@@ -6060,6 +6268,7 @@ function openReflectionDialog() {
   const textarea = document.getElementById("reflection-text");
   if (!dialog || !textarea) return;
 
+  setReflectionSelectedDayKey(reflectionTodayKey());
   const journal = loadReflectionJournal();
   textarea.value = journal[reflectionTodayKey()] || "";
   updateReflectionCharCount();
@@ -6093,6 +6302,7 @@ function setupReflection() {
   const promptsList = document.getElementById("reflection-prompts-list");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
+  document.getElementById("presence-anxiety-mini")?.addEventListener("click", openAnxietyBoxFromHome);
 
   setupFocusTimer();
 
@@ -7192,6 +7402,7 @@ function renderHome() {
   renderHomePriorities();
   renderHomeCompletedToday();
   refreshFocusTimerUI();
+  renderHomeAnxietyMini();
 }
 
 function openTierExpand(tier) {
@@ -8447,12 +8658,20 @@ function renderAll() {
     renderForgetItPanel();
     renderArchivePanel();
     syncSidebarTabs();
+    renderAnxietyBox();
   }
   if (page === "settings") {
     renderAnxietyBox();
+  } else if (page === "home") {
+    renderHomeAnxietyMini();
   }
   if (expandedTier && document.getElementById("tier-expand-dialog")?.open) {
     refreshTierExpand(expandedTier);
+  }
+  const reflectionDialog = document.getElementById("reflection-dialog");
+  if (reflectionDialog?.open) {
+    renderReflectionReview();
+    renderReflectionAnxietyBox();
   }
   renderFocusTimerChrome();
 }
