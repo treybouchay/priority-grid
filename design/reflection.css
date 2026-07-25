@@ -2090,15 +2090,12 @@ html.reflection-open body .capture-clip-fab {
   width: calc(100% + 2 * var(--reflection-pad-x));
   margin: 0.45rem calc(-1 * var(--reflection-pad-x)) -0.85rem;
   padding: 0.55rem var(--reflection-pad-x) 0.7rem;
-  background: #fdf9f4;
-  border-radius: 0 0 1.15rem 1.15rem;
-  box-shadow: 0 4px 14px rgba(14, 48, 48, 0.08);
+  background: transparent;
 }
 
 .reflection-anxiety-mini:not(.hidden) + .reflection-day-pager-slot {
   margin-top: 0;
   padding-top: 0.55rem;
-  border-radius: 0 0 1.15rem 1.15rem;
 }
 
 .reflection-day-pager-slot.hidden {
