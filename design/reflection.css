@@ -164,7 +164,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-back-btn:focus-visible {
-  outline: 2px solid #fc9174;
+  outline: 2px solid #ffdbd2;
   outline-offset: 2px;
 }
 
@@ -209,13 +209,13 @@ html.reflection-open body .capture-clip-fab {
 .reflection-progress-dot {
   width: 0.45rem;
   height: 0.45rem;
-  background: #fc9174;
+  background: #ffdbd2;
   border-radius: 50%;
   position: absolute;
   left: -0.1rem;
   top: 50%;
   transform: translateY(-50%);
-  box-shadow: 0 0 0 3px rgba(252, 145, 116, 0.25);
+  box-shadow: 0 0 0 3px rgba(255, 219, 210, 0.25);
   animation: reflection-dot-pop 0.35s ease;
 }
 
@@ -437,7 +437,7 @@ html.reflection-open body .capture-clip-fab {
   bottom: 0.85rem;
   width: 3px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #fc9174 0%, #ffdbd2 55%, rgba(14, 48, 48, 0.35) 100%);
+  background: linear-gradient(180deg, #ffdbd2 0%, rgba(255, 219, 210, 0.55) 55%, rgba(14, 48, 48, 0.35) 100%);
 }
 
 .reflection-story-top {
@@ -577,7 +577,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-story-bar-fill--peach {
-  background: linear-gradient(90deg, #fc9174 0%, #ffdbd2 100%);
+  background: linear-gradient(90deg, #ffdbd2 0%, rgba(255, 219, 210, 0.55) 100%);
 }
 
 .reflection-story-bar-value {
@@ -1287,7 +1287,7 @@ html.reflection-open body .capture-clip-fab {
 
 .reflection-favourite-selected-mark {
   flex-shrink: 0;
-  color: #fc9174;
+  color: #ffdbd2;
   font-size: 0.95rem;
   line-height: 1.2;
 }
@@ -1332,7 +1332,7 @@ html.reflection-open body .capture-clip-fab {
 
 .reflection-favourite-option:hover {
   background: #fff;
-  border-color: rgba(252, 145, 116, 0.45);
+  border-color: rgba(255, 219, 210, 0.45);
 }
 
 .reflection-favourite-option.is-selected {
@@ -1342,7 +1342,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-favourite-option.is-selected .reflection-favourite-option-mark {
-  color: #fc9174;
+  color: #ffdbd2;
 }
 
 .reflection-favourite-option:active {
@@ -1350,7 +1350,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-favourite-option:focus-visible {
-  outline: 2px solid #fc9174;
+  outline: 2px solid #ffdbd2;
   outline-offset: 2px;
 }
 
@@ -1408,7 +1408,7 @@ html.reflection-open body .capture-clip-fab {
   height: 1.85rem;
   border-radius: 999px;
   background: rgba(255, 219, 210, 0.16);
-  color: #fc9174;
+  color: #ffdbd2;
   flex-shrink: 0;
 }
 
@@ -1437,7 +1437,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-anxiety-mini:focus-visible {
-  outline: 2px solid #fc9174;
+  outline: 2px solid #ffdbd2;
   outline-offset: 2px;
 }
 
@@ -1498,7 +1498,7 @@ html.reflection-open body .capture-clip-fab {
 .reflection-anxiety-toss {
   flex-shrink: 0;
   padding: 0.38rem 0.65rem;
-  border: 1px solid rgba(252, 145, 116, 0.5);
+  border: 1px solid rgba(255, 219, 210, 0.5);
   border-radius: 999px;
   background: #ffdbd2;
   color: #0e3030;
@@ -1509,11 +1509,13 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-anxiety-toss:hover {
-  background: #fc9174;
+  background: #0e3030;
+  color: #ffdbd2;
+  border-color: #0e3030;
 }
 
 .reflection-anxiety-toss:focus-visible {
-  outline: 2px solid #fc9174;
+  outline: 2px solid #ffdbd2;
   outline-offset: 2px;
 }
 
@@ -1547,7 +1549,7 @@ html.reflection-open body .capture-clip-fab {
 
 .reflection-story-favourite-star {
   flex-shrink: 0;
-  color: #fc9174;
+  color: #ffdbd2;
   font-size: 0.9rem;
   line-height: 1;
 }
@@ -1565,12 +1567,12 @@ html.reflection-open body .capture-clip-fab {
   background:
     radial-gradient(ellipse 70% 80% at 0% 0%, rgba(255, 219, 210, 0.55) 0%, transparent 55%),
     rgba(253, 249, 244, 0.95);
-  border-color: rgba(252, 145, 116, 0.45);
+  border-color: rgba(255, 219, 210, 0.45);
   box-shadow: 0 6px 16px rgba(14, 48, 48, 0.08);
 }
 
 .reflection-review-item--favourite .reflection-review-check {
-  background: #fc9174;
+  background: #ffdbd2;
   color: #0e3030;
 }
 
@@ -1580,7 +1582,7 @@ html.reflection-open body .capture-clip-fab {
   margin-left: 0.2rem;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: rgba(252, 145, 116, 0.22);
+  background: rgba(255, 219, 210, 0.22);
   color: #0e3030;
   font-size: 0.625rem;
   font-weight: 700;
@@ -1783,7 +1785,7 @@ html.reflection-open body .capture-clip-fab {
 
 .reflection-prompt-btn:hover {
   background: #fff;
-  border-color: rgba(252, 145, 116, 0.45);
+  border-color: rgba(255, 219, 210, 0.45);
   transform: translateX(0.2rem);
 }
 
@@ -2035,7 +2037,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .persona-mark-preview-close:hover {
-  background: rgba(252, 145, 116, 0.35);
+  background: rgba(255, 219, 210, 0.35);
 }
 
 .persona-mark-preview-grid {
@@ -2152,12 +2154,12 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-day-nav:not(:disabled):hover {
-  border-color: rgba(252, 145, 116, 0.55);
+  border-color: rgba(255, 219, 210, 0.55);
   background: #fff;
 }
 
 .reflection-day-nav:focus-visible {
-  outline: 2px solid #fc9174;
+  outline: 2px solid #ffdbd2;
   outline-offset: 2px;
 }
 
@@ -2210,21 +2212,21 @@ html.reflection-open body .capture-clip-fab {
   background: #0e3030;
   border-color: #0e3030;
   color: #ffdbd2;
-  box-shadow: 0 0 0 3px rgba(252, 145, 116, 0.28);
+  box-shadow: 0 0 0 3px rgba(255, 219, 210, 0.28);
 }
 
 .reflection-day-chip.is-selected .reflection-day-chip-label {
-  color: #fc9174;
+  color: #ffdbd2;
   opacity: 1;
 }
 
 .reflection-day-chip:not(.is-selected):hover {
-  border-color: rgba(252, 145, 116, 0.5);
+  border-color: rgba(255, 219, 210, 0.5);
   background: #fff;
 }
 
 .reflection-day-chip:focus-visible {
-  outline: 2px solid #fc9174;
+  outline: 2px solid #ffdbd2;
   outline-offset: 2px;
 }
 
@@ -2232,9 +2234,9 @@ html.reflection-open body .capture-clip-fab {
   padding: 0.75rem 0.9rem;
   border-radius: 1rem;
   background:
-    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(252, 145, 116, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(255, 219, 210, 0.22) 0%, transparent 55%),
     rgba(255, 219, 210, 0.45);
-  border: 1px solid rgba(252, 145, 116, 0.35);
+  border: 1px solid rgba(255, 219, 210, 0.35);
 }
 
 .reflection-story-growing-text {
