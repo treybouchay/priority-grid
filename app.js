@@ -2581,39 +2581,7 @@ function renderAnxietyBox() {
   const items = loadAnxietyBox();
   list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
   empty.classList.toggle("hidden", items.length > 0);
-  renderReflectionAnxietyMini();
-}
-
-function renderReflectionAnxietyMini() {
-  const mini = document.getElementById("reflection-anxiety-mini");
-  if (!mini) return;
-  const items = loadAnxietyBox();
-  const count = items.length;
-  mini.classList.toggle("hidden", count === 0);
-  if (count === 0) return;
-  const label = document.getElementById("reflection-anxiety-mini-text");
-  if (label) {
-    label.textContent =
-      count === 1 ? "Anxiety Box · 1 thought" : `Anxiety Box · ${count} thoughts`;
-  }
-  mini.setAttribute(
-    "aria-label",
-    count === 1
-      ? "Jump to Anxiety Box, 1 thought waiting"
-      : `Jump to Anxiety Box, ${count} thoughts waiting`
-  );
-}
-
-function openReflectionAnxietySection() {
-  setReflectionTab("review");
-  const section = document.getElementById("reflection-anxiety");
-  const dialog = document.getElementById("reflection-dialog");
-  requestAnimationFrame(() => {
-    section?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (!section && dialog) {
-      dialog.scrollTo({ top: dialog.scrollHeight, behavior: "smooth" });
-    }
-  });
+  renderReflectionAnxietyBox();
 }
 
 function renderReflectionAnxietyBox() {
@@ -2627,7 +2595,6 @@ function renderReflectionAnxietyBox() {
     .join("");
   empty.classList.toggle("hidden", items.length > 0);
   section?.classList.toggle("hidden", items.length === 0);
-  renderReflectionAnxietyMini();
 }
 
 function setupAnxietyBox() {
@@ -2653,8 +2620,6 @@ function setupAnxietyBox() {
     const item = button?.closest("[data-anxiety-id]");
     if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
   });
-
-  document.getElementById("reflection-anxiety-mini")?.addEventListener("click", openReflectionAnxietySection);
 }
 
 function setupDateHeader() {

@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=39" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=47" />
+    <link rel="stylesheet" href="design/reflection.css?v=48" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1159,21 +1159,26 @@
               <span class="reflection-progress-step"></span>
             </button>
           </div>
-          <button type="button" class="reflection-anxiety-mini hidden" id="reflection-anxiety-mini" aria-label="Open Anxiety Box">
-            <span class="reflection-anxiety-mini-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
-                <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none" />
-                <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
-              </svg>
-            </span>
-            <span class="reflection-anxiety-mini-text" id="reflection-anxiety-mini-text">Anxiety Box</span>
-            <svg class="reflection-anxiety-mini-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <polyline points="6 9 12 15 18 9" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
           <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
+          <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-labelledby="reflection-anxiety-heading">
+            <header class="reflection-anxiety-card-head">
+              <span class="reflection-anxiety-card-badge" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                  <circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                  <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
+              <div class="reflection-anxiety-card-titles">
+                <p class="reflection-anxiety-card-eyebrow">Before you close the day</p>
+                <h2 class="reflection-anxiety-card-title" id="reflection-anxiety-heading">Anxiety Box</h2>
+              </div>
+            </header>
+            <p class="reflection-anxiety-card-copy">Toss anything that no longer needs your energy.</p>
+            <ul class="reflection-anxiety-list" id="reflection-anxiety-list" aria-live="polite"></ul>
+            <p class="reflection-anxiety-empty hidden" id="reflection-anxiety-empty">Your Anxiety Box is clear.</p>
+          </aside>
         </header>
 
         <div class="reflection-tab-panels">
@@ -1188,13 +1193,6 @@
               <div id="reflection-favourite-slot"></div>
               <ul class="reflection-review-list" id="reflection-review-list"></ul>
               <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks checked off yet today.</p>
-            </section>
-            <section class="reflection-anxiety" id="reflection-anxiety" aria-labelledby="reflection-anxiety-heading">
-              <p class="reflection-anxiety-eyebrow">Before you close the day</p>
-              <h2 class="reflection-anxiety-heading" id="reflection-anxiety-heading">What can you let go of?</h2>
-              <p class="reflection-anxiety-copy">These have been resting in your Anxiety Box. Toss anything that no longer needs your energy.</p>
-              <ul class="reflection-anxiety-list" id="reflection-anxiety-list"></ul>
-              <p class="reflection-anxiety-empty" id="reflection-anxiety-empty">Your Anxiety Box is clear.</p>
             </section>
             <footer class="reflection-footer">
               <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
@@ -1289,6 +1287,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=267"></script>
+    <script src="app.js?v=268"></script>
   </body>
 </html>
