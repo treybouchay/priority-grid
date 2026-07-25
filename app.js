@@ -5849,30 +5849,25 @@ function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
   };
 }
 
+function reflectionDayPagerDayParts(dayKey) {
+  const label = reflectionDayChipLabel(dayKey);
+  const num = String(dayKey || "").slice(8);
+  return {
+    label,
+    num: /^\d{2}$/.test(num) ? String(Number(num)) : num,
+    aria: formatArchiveDayHeading(dayKey),
+  };
+}
+
 function reflectionDayPagerHtml(selectedDayKey) {
   const week = getReflectionWeekDayKeys();
   const index = Math.max(0, week.indexOf(selectedDayKey));
   const canNewer = index > 0;
   const canOlder = index < week.length - 1;
-  const chips = week
-    .map((key) => {
-      const selected = key === selectedDayKey;
-      return `
-      <button
-        type="button"
-        class="reflection-day-chip${selected ? " is-selected" : ""}"
-        data-reflection-day="${escapeHtml(key)}"
-        aria-pressed="${selected ? "true" : "false"}"
-        aria-label="${escapeHtml(formatArchiveDayHeading(key))}"
-      >
-        <span class="reflection-day-chip-label">${escapeHtml(reflectionDayChipLabel(key))}</span>
-        <span class="reflection-day-chip-num">${escapeHtml(String(key).slice(8))}</span>
-      </button>`;
-    })
-    .join("");
+  const parts = reflectionDayPagerDayParts(selectedDayKey);
 
   return `
-    <nav class="reflection-day-pager" aria-label="Last 7 days">
+    <nav class="reflection-day-pager" aria-label="Last 7 days" data-reflection-day-index="${index}">
       <div class="reflection-day-pager-row">
         <button
           type="button"
@@ -5885,7 +5880,11 @@ function reflectionDayPagerHtml(selectedDayKey) {
             <polyline points="15 18 9 12 15 6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
-        <p class="reflection-day-pager-label" id="reflection-day-label">${escapeHtml(formatArchiveDayHeading(selectedDayKey))}</p>
+        <div class="reflection-day-pager-current" id="reflection-day-label" aria-live="polite" aria-atomic="true">
+          <p class="reflection-day-pager-label">${escapeHtml(parts.label)}</p>
+          <p class="reflection-day-pager-num">${escapeHtml(parts.num)}</p>
+          <span class="sr-only">${escapeHtml(parts.aria)}</span>
+        </div>
         <button
           type="button"
           class="reflection-day-nav"
@@ -5898,10 +5897,18 @@ function reflectionDayPagerHtml(selectedDayKey) {
           </svg>
         </button>
       </div>
-      <div class="reflection-day-chips" role="group" aria-label="Choose a day">
-        ${chips}
-      </div>
     </nav>`;
+}
+
+function shiftReflectionSelectedDay(delta) {
+  const week = getReflectionWeekDayKeys();
+  const current = ensureReflectionSelectedDayKey();
+  const index = Math.max(0, week.indexOf(current));
+  const next = index + delta;
+  if (next < 0 || next >= week.length) return false;
+  setReflectionSelectedDayKey(week[next]);
+  renderReflectionReview();
+  return true;
 }
 
 function bindReflectionDayPager(selectedDayKey) {
@@ -5909,21 +5916,81 @@ function bindReflectionDayPager(selectedDayKey) {
   const index = Math.max(0, week.indexOf(selectedDayKey));
   document.getElementById("reflection-day-newer")?.addEventListener("click", () => {
     if (index <= 0) return;
-    setReflectionSelectedDayKey(week[index - 1]);
-    renderReflectionReview();
+    shiftReflectionSelectedDay(-1);
   });
   document.getElementById("reflection-day-older")?.addEventListener("click", () => {
     if (index >= week.length - 1) return;
-    setReflectionSelectedDayKey(week[index + 1]);
-    renderReflectionReview();
+    shiftReflectionSelectedDay(1);
   });
-  document.querySelectorAll("[data-reflection-day]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.getAttribute("data-reflection-day");
-      if (!key) return;
-      setReflectionSelectedDayKey(key);
-      renderReflectionReview();
-    });
+
+  const pager = document.querySelector(".reflection-day-pager");
+  if (!pager) return;
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let locked = false;
+
+  const onStart = (clientX, clientY) => {
+    startX = clientX;
+    startY = clientY;
+    tracking = true;
+    locked = false;
+  };
+
+  const onMove = (clientX, clientY, event) => {
+    if (!tracking) return;
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    if (!locked) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        tracking = false;
+        return;
+      }
+      locked = true;
+    }
+    if (locked && event?.cancelable) event.preventDefault();
+  };
+
+  const onEnd = (clientX) => {
+    if (!tracking) return;
+    const dx = clientX - startX;
+    tracking = false;
+    if (!locked || Math.abs(dx) < 40) return;
+    // Swipe left → older day; swipe right → newer day
+    shiftReflectionSelectedDay(dx < 0 ? 1 : -1);
+  };
+
+  pager.addEventListener(
+    "touchstart",
+    (event) => {
+      const touch = event.changedTouches?.[0];
+      if (!touch) return;
+      onStart(touch.clientX, touch.clientY);
+    },
+    { passive: true }
+  );
+  pager.addEventListener(
+    "touchmove",
+    (event) => {
+      const touch = event.changedTouches?.[0];
+      if (!touch) return;
+      onMove(touch.clientX, touch.clientY, event);
+    },
+    { passive: false }
+  );
+  pager.addEventListener(
+    "touchend",
+    (event) => {
+      const touch = event.changedTouches?.[0];
+      onEnd(touch?.clientX ?? startX);
+    },
+    { passive: true }
+  );
+  pager.addEventListener("touchcancel", () => {
+    tracking = false;
+    locked = false;
   });
 }
 
