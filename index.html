@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=39" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=50" />
+    <link rel="stylesheet" href="design/reflection.css?v=51" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1132,37 +1132,11 @@
               <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
-          <span class="reflection-screen-label">Reflection</span>
-          <div class="reflection-tabs" role="tablist" aria-label="Reflection steps">
-            <button
-              type="button"
-              class="reflection-tab active"
-              role="tab"
-              data-tab="review"
-              aria-selected="true"
-              id="reflection-tab-review"
-              aria-label="Review of the tasks completed yesterday"
-            >
-              <span class="reflection-progress-step reflection-progress-step--active">
-                <span class="reflection-progress-dot"></span>
-              </span>
-            </button>
-            <button
-              type="button"
-              class="reflection-tab"
-              role="tab"
-              data-tab="thoughts"
-              aria-selected="false"
-              id="reflection-tab-thoughts"
-              aria-label="Thoughts about those tasks"
-            >
-              <span class="reflection-progress-step"></span>
-            </button>
-          </div>
+          <p class="reflection-screen-date" id="reflection-screen-date" aria-live="polite"></p>
           <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
         </header>
 
-        <!-- Standalone dock below sticky header — avoids cream peeking at rounded corners -->
+        <!-- Dock hangs off the sticky header: square top, rounded bottom, full bleed -->
         <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-labelledby="reflection-anxiety-heading">
           <header class="reflection-anxiety-card-head">
             <span class="reflection-anxiety-card-badge" aria-hidden="true">
@@ -1184,7 +1158,7 @@
         </aside>
 
         <div class="reflection-tab-panels">
-          <section class="reflection-tab-panel active" id="reflection-panel-review" role="tabpanel" data-tab="review" aria-labelledby="reflection-tab-review">
+          <section class="reflection-tab-panel active" id="reflection-panel-review" role="region" data-tab="review" aria-label="Review of the day">
             <section class="reflection-hero reflection-hero--review">
               <p class="reflection-hero-label">REFLECTION</p>
               <h1 class="reflection-hero-title">Look what you’re<br>pulling off.</h1>
@@ -1206,7 +1180,7 @@
             </footer>
           </section>
 
-          <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="tabpanel" data-tab="thoughts" aria-labelledby="reflection-tab-thoughts">
+          <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="region" data-tab="thoughts" aria-label="Thoughts about the day">
             <section class="reflection-hero">
               <h1 class="reflection-hero-title">How did that<br>land with you?</h1>
               <p class="reflection-hero-subtitle">Celebrate what moved — and name what still wants care.</p>
@@ -1289,6 +1263,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=270"></script>
+    <script src="app.js?v=271"></script>
   </body>
 </html>

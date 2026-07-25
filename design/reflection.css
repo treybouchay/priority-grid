@@ -123,7 +123,7 @@ html.reflection-open body .capture-clip-fab {
   padding:
     calc(0.7rem + env(safe-area-inset-top, 0px))
     var(--reflection-pad-x)
-    0.85rem;
+    0.5rem;
   /* Opaque cream matching top of wallpaper veil — content scrolls under, never shows through */
   background: #fdf9f4;
   border-bottom: none;
@@ -168,72 +168,19 @@ html.reflection-open body .capture-clip-fab {
   outline-offset: 2px;
 }
 
-.reflection-screen-label {
-  margin: 0 0 0.75rem;
+/* Selected day, in place of the old title + step tabs */
+.reflection-screen-date {
+  margin: 0;
+  /* Clear the absolutely-positioned back chevron on narrow screens */
+  padding: 0.15rem 2.4rem 0;
+  max-width: 100%;
   font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(1.35rem, 4.5vw, 1.6rem);
+  font-size: clamp(1.15rem, 4.2vw, 1.4rem);
   font-weight: 700;
   letter-spacing: -0.01em;
+  line-height: 1.15;
+  text-align: center;
   color: #0e3030;
-}
-
-.reflection-tabs {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.reflection-tab {
-  display: flex;
-  align-items: center;
-  padding: 0.35rem 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.reflection-progress-step {
-  display: block;
-  width: 2.75rem;
-  height: 0.28rem;
-  background: rgba(14, 48, 48, 0.14);
-  border-radius: 999px;
-  position: relative;
-}
-
-.reflection-progress-step--active {
-  background: #0e3030;
-}
-
-.reflection-progress-dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  background: #fc9174;
-  border-radius: 50%;
-  position: absolute;
-  left: -0.1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  box-shadow: 0 0 0 3px rgba(252, 145, 116, 0.25);
-  animation: reflection-dot-pop 0.35s ease;
-}
-
-/* Thoughts step: knob sits on the right edge of the active bar */
-.reflection-tab[data-tab="thoughts"] .reflection-progress-dot {
-  left: auto;
-  right: -0.1rem;
-}
-
-@keyframes reflection-dot-pop {
-  from {
-    transform: translateY(-50%) scale(0.4);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(-50%) scale(1);
-    opacity: 1;
-  }
 }
 
 .reflection-tab-panels {
@@ -1354,7 +1301,8 @@ html.reflection-open body .capture-clip-fab {
   outline-offset: 2px;
 }
 
-/* Anxiety Box — compact Focus-timer-style dock below sticky header */
+/* Anxiety Box — full-bleed dock hanging off the sticky header, like the Home
+   Focus timer bar: flush square top, rounded bottom, no side gutters. */
 .reflection-anxiety-card {
   position: relative;
   z-index: 1;
@@ -1362,15 +1310,15 @@ html.reflection-open body .capture-clip-fab {
   flex-direction: column;
   align-items: stretch;
   box-sizing: border-box;
-  width: 100%;
+  width: auto;
   max-width: none;
-  margin: 0.4rem 0 0.2rem;
-  padding: 0.7rem 0.85rem 0.75rem;
+  margin: 0 calc(-1 * var(--reflection-pad-x)) 0.55rem;
+  padding: 0.7rem var(--reflection-pad-x) 0.9rem;
   border: none;
-  border-radius: 1.35rem;
+  border-radius: 0 0 1.75rem 1.75rem;
   background: #0e3030;
   color: #fff;
-  box-shadow: 0 6px 16px rgba(14, 48, 48, 0.18);
+  box-shadow: 0 12px 24px rgba(13, 43, 43, 0.28);
   text-align: left;
 }
 
@@ -1899,7 +1847,6 @@ html.reflection-open body .capture-clip-fab {
 @media (prefers-reduced-motion: reduce) {
   .reflection-tab-panel,
   .reflection-prompt-btn,
-  .reflection-progress-dot,
   .reflection-input-star,
   .reflection-story-sun-rays,
   .reflection-story-sun-core,

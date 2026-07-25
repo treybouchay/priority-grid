@@ -477,8 +477,13 @@ function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
 
 const REFLECTION_TEAL_SHIFT_REVIEW = 25;
 
+/* Header tabs were replaced by the date, so the panels are the source of truth. */
 function getActiveReflectionTab() {
-  return document.querySelector(".reflection-tab.active")?.dataset.tab || "review";
+  return (
+    document.querySelector(".reflection-tab-panel.active")?.dataset.tab ||
+    document.querySelector(".reflection-tab.active")?.dataset.tab ||
+    "review"
+  );
 }
 
 function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
@@ -5036,6 +5041,25 @@ function reflectionDayPhrase(dayKey, { short = false } = {}) {
   return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 
+function reflectionHeaderDateText(dayKey) {
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  if (!y || !m || !d) return "Today";
+  const date = new Date(y, m - 1, d);
+  const monthDay = date.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  const today = reflectionTodayKey();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  if (dayKey === today) return `Today · ${monthDay}`;
+  if (dayKey === archiveDayKey(yesterdayDate.toISOString())) return `Yesterday · ${monthDay}`;
+  return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+}
+
+function renderReflectionHeaderDate(dayKey) {
+  const el = document.getElementById("reflection-screen-date");
+  if (!el) return;
+  el.textContent = reflectionHeaderDateText(dayKey);
+}
+
 function reflectionDayChipLabel(dayKey) {
   const today = reflectionTodayKey();
   const yesterdayDate = new Date();
@@ -6129,6 +6153,8 @@ function renderReflectionReview() {
   const favouriteId = getReflectionFavouriteId(dayKey);
   const favouriteTask = completed.find((t) => t.id === favouriteId) || null;
 
+  renderReflectionHeaderDate(dayKey);
+
   if (dayPagerSlot) {
     dayPagerSlot.innerHTML = reflectionDayPagerHtml(dayKey);
     bindReflectionDayPager(dayKey);
@@ -6323,20 +6349,6 @@ function setReflectionTab(tab) {
     const active = btn.dataset.tab === nextTab;
     btn.classList.toggle("active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
-    const step = btn.querySelector(".reflection-progress-step");
-    if (!step) return;
-    step.classList.toggle("reflection-progress-step--active", active);
-    let dot = step.querySelector(".reflection-progress-dot");
-    if (active) {
-      if (!dot) {
-        dot = document.createElement("span");
-        dot.className = "reflection-progress-dot";
-        dot.setAttribute("aria-hidden", "true");
-        step.appendChild(dot);
-      }
-    } else if (dot) {
-      dot.remove();
-    }
   });
   document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
