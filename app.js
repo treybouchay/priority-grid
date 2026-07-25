@@ -2569,10 +2569,10 @@ function anxietyBoxItemHtml(item) {
       <button
         type="button"
         class="reflection-anxiety-toss"
-        aria-label="Toss ${escapeHtml(item.text)}"
+        aria-label="Toss"
         title="Toss"
       >
-        <svg class="icon reflection-anxiety-toss-icon" aria-hidden="true"><use href="#icon-crumple"></use></svg>
+        <svg class="icon reflection-anxiety-toss-icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
       </button>
     </li>`;
 }
@@ -5576,14 +5576,14 @@ function reflectionPersonaMarkSvg(kind) {
           <path d="M5.2 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
         </g>
         <g class="rpm-bookend-mids">
-          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#fc9174"/>
-          <rect x="12.7" y="8" width="2.6" height="17.5" rx="0.55" fill="#ffdbd2"/>
-          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#fc9174" opacity="0.9"/>
+          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#ffdbd2"/>
+          <rect x="12.7" y="8" width="2.6" height="17.5" rx="0.55" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
+          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#ffdbd2" opacity="0.9"/>
           <rect x="19.1" y="8.5" width="2.4" height="17" rx="0.5" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
         </g>
         <g class="rpm-bookend-right">
           <rect x="23.2" y="6.5" width="5.2" height="19" rx="0.9" fill="#0e3030"/>
-          <path d="M26.7 8v16" stroke="#fc9174" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
+          <path d="M26.7 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
         </g>
       </svg>`,
     morning: `
@@ -5591,14 +5591,14 @@ function reflectionPersonaMarkSvg(kind) {
         <path class="rpm-sunrise-horizon" d="M3 23.5h26" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
         <path d="M3 23.5c4.5-2.2 9-3.2 13-3.2s8.5 1 13 3.2" fill="#ffdbd2" opacity="0.55"/>
         <g class="rpm-sunrise-sun">
-          <g class="rpm-sunrise-rays" stroke="#fc9174" stroke-width="1.35" stroke-linecap="round">
+          <g class="rpm-sunrise-rays" stroke="#ffdbd2" stroke-width="1.35" stroke-linecap="round">
             <path d="M16 6.2v2.6"/>
             <path d="M8.4 10.2l1.9 1.9"/>
             <path d="M23.6 10.2l-1.9 1.9"/>
             <path d="M5.8 17.5h2.5"/>
             <path d="M23.7 17.5h2.5"/>
           </g>
-          <circle cx="16" cy="17.5" r="5.1" fill="#fc9174"/>
+          <circle cx="16" cy="17.5" r="5.1" fill="#ffdbd2"/>
           <circle cx="14.4" cy="16" r="1.5" fill="#ffdbd2" opacity="0.55"/>
         </g>
       </svg>`,
@@ -5612,13 +5612,13 @@ function reflectionPersonaMarkSvg(kind) {
             <path d="M8.4 10.2l1.9 1.9"/>
             <path d="M23.6 10.2l-1.9 1.9"/>
           </g>
-          <circle cx="16" cy="17.5" r="5.1" fill="#fc9174"/>
+          <circle cx="16" cy="17.5" r="5.1" fill="#ffdbd2"/>
         </g>
       </svg>`,
     closing: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-dusk-moon">
-          <path d="M19.2 8.2a8.2 8.2 0 1 0 6.1 12.8 6.6 6.6 0 1 1-6.1-12.8Z" fill="#fc9174"/>
+          <path d="M19.2 8.2a8.2 8.2 0 1 0 6.1 12.8 6.6 6.6 0 1 1-6.1-12.8Z" fill="#ffdbd2"/>
         </g>
         <g class="rpm-dusk-stars" fill="#0e3030">
           <circle class="rpm-dusk-star rpm-dusk-star-1" cx="8.2" cy="11" r="1.15"/>
@@ -5635,7 +5635,7 @@ function reflectionPersonaMarkSvg(kind) {
     hunter: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <circle class="rpm-target-ring" cx="16" cy="16" r="10" stroke="#0e3030" stroke-width="1.5" opacity="0.35"/>
-        <circle class="rpm-target-ring" cx="16" cy="16" r="6.2" stroke="#fc9174" stroke-width="1.6"/>
+        <circle class="rpm-target-ring" cx="16" cy="16" r="6.2" stroke="#ffdbd2" stroke-width="1.6"/>
         <circle class="rpm-target-core" cx="16" cy="16" r="2.4" fill="#0e3030"/>
         <g class="rpm-target-cross" stroke="#0e3030" stroke-width="1.3" stroke-linecap="round" opacity="0.55">
           <path d="M16 4.5v3.2M16 24.3v3.2M4.5 16h3.2M24.3 16h3.2"/>
@@ -5646,7 +5646,7 @@ function reflectionPersonaMarkSvg(kind) {
         <g class="rpm-house">
           <path d="M5.5 15.2L16 6.2l10.5 9" stroke="#0e3030" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M8.8 14.5V25h14.4V14.5" stroke="#0e3030" stroke-width="1.75" stroke-linejoin="round"/>
-          <rect x="13.5" y="18.2" width="5" height="6.8" rx="0.55" fill="#fc9174"/>
+          <rect x="13.5" y="18.2" width="5" height="6.8" rx="0.55" fill="#ffdbd2"/>
           <path d="M21.2 10.2v-2.4h2.6" stroke="#0e3030" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           <rect x="10.2" y="16.8" width="3.2" height="2.6" rx="0.35" fill="#ffdbd2"/>
         </g>
@@ -5656,7 +5656,7 @@ function reflectionPersonaMarkSvg(kind) {
         <ellipse class="rpm-soft-shadow" cx="16" cy="25.2" rx="7.2" ry="1.4" fill="#0e3030" opacity="0.18"/>
         <path class="rpm-soft-ground" d="M6 25.2h20" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
         <g class="rpm-soft-lander">
-          <ellipse cx="16" cy="13.2" rx="8.4" ry="5.4" fill="#fc9174"/>
+          <ellipse cx="16" cy="13.2" rx="8.4" ry="5.4" fill="#ffdbd2"/>
           <ellipse cx="16" cy="13.8" rx="5.6" ry="3.2" fill="#ffdbd2" opacity="0.55"/>
           <ellipse cx="12.8" cy="11.4" rx="2.2" ry="1.3" fill="#fdf9f4" opacity="0.7"/>
         </g>
@@ -5672,16 +5672,16 @@ function reflectionPersonaMarkSvg(kind) {
           <path d="M9.2 16l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
         <g class="rpm-tick rpm-tick-3">
-          <rect x="6" y="20.3" width="20" height="6.2" rx="1.2" fill="#fc9174"/>
+          <rect x="6" y="20.3" width="20" height="6.2" rx="1.2" fill="#ffdbd2"/>
           <path d="M9.2 23.4l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
       </svg>`,
     "cat-errands": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-errand-path" d="M5 22c2.5-9 6.5-13 11-13 5.2 0 8.2 5.5 11 13" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" stroke-dasharray="2.8 2.4" opacity="0.4"/>
-        <path d="M24.5 9.5l2.2 1.2-1.5 2.4" stroke="#fc9174" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24.5 9.5l2.2 1.2-1.5 2.4" stroke="#ffdbd2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
         <g class="rpm-errand-dot">
-          <circle cx="7.5" cy="20.5" r="3.1" fill="#fc9174"/>
+          <circle cx="7.5" cy="20.5" r="3.1" fill="#ffdbd2"/>
           <circle cx="7.5" cy="20.5" r="1.15" fill="#0e3030" opacity="0.35"/>
         </g>
       </svg>`,
@@ -5690,20 +5690,20 @@ function reflectionPersonaMarkSvg(kind) {
         <g class="rpm-briefcase">
           <rect x="5.5" y="12" width="21" height="13.5" rx="2.2" fill="#ffdbd2" stroke="#0e3030" stroke-width="1.55"/>
           <path d="M11.5 12V9.8a2.2 2.2 0 0 1 2.2-2.2h4.6A2.2 2.2 0 0 1 20.5 9.8V12" stroke="#0e3030" stroke-width="1.55"/>
-          <path d="M5.5 17.2h21" stroke="#fc9174" stroke-width="1.7"/>
+          <path d="M5.5 17.2h21" stroke="#ffdbd2" stroke-width="1.7"/>
           <rect x="14.2" y="15.6" width="3.6" height="2.4" rx="0.5" fill="#0e3030"/>
         </g>
       </svg>`,
     "cat-health": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-health-heart" d="M16 26s-9.2-5.8-9.2-12.2A5.4 5.4 0 0 1 16 10.2a5.4 5.4 0 0 1 9.2 3.6C25.2 20.2 16 26 16 26Z" fill="#fc9174"/>
+        <path class="rpm-health-heart" d="M16 26s-9.2-5.8-9.2-12.2A5.4 5.4 0 0 1 16 10.2a5.4 5.4 0 0 1 9.2 3.6C25.2 20.2 16 26 16 26Z" fill="#ffdbd2"/>
         <path class="rpm-health-pulse" d="M9.5 15.8h3.2l1.6-3.4 2.6 6.6 1.5-3.2h4.1" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
     "cat-personal": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-personal">
           <circle class="rpm-personal-core" cx="16" cy="11" r="4.6" fill="#0e3030"/>
-          <path class="rpm-personal-ring" d="M7.5 26c1.4-5.2 4.6-7.8 8.5-7.8S23.1 20.8 24.5 26" stroke="#fc9174" stroke-width="2.2" stroke-linecap="round"/>
+          <path class="rpm-personal-ring" d="M7.5 26c1.4-5.2 4.6-7.8 8.5-7.8S23.1 20.8 24.5 26" stroke="#ffdbd2" stroke-width="2.2" stroke-linecap="round"/>
         </g>
       </svg>`,
     "cat-faith": `
@@ -5712,7 +5712,7 @@ function reflectionPersonaMarkSvg(kind) {
           <rect x="14.2" y="18.5" width="3.6" height="7" rx="0.7" fill="#0e3030"/>
           <path d="M11.5 18.5h9" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
           <g class="rpm-faith-flame">
-            <path d="M16 6.5c3.2 3.2 5.2 5.4 5.2 8.1A5.2 5.2 0 0 1 16 19.8 5.2 5.2 0 0 1 10.8 14.6C10.8 11.9 12.8 9.7 16 6.5Z" fill="#fc9174"/>
+            <path d="M16 6.5c3.2 3.2 5.2 5.4 5.2 8.1A5.2 5.2 0 0 1 16 19.8 5.2 5.2 0 0 1 10.8 14.6C10.8 11.9 12.8 9.7 16 6.5Z" fill="#ffdbd2"/>
             <path d="M16 11.2c1.5 1.5 2.3 2.5 2.3 3.7A2.3 2.3 0 0 1 16 17.2a2.3 2.3 0 0 1-2.3-2.3c0-1.2.8-2.2 2.3-3.7Z" fill="#ffdbd2"/>
           </g>
         </g>
@@ -5720,7 +5720,7 @@ function reflectionPersonaMarkSvg(kind) {
     fallback: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-fallback-orb">
-          <path d="M16 5.5l1.7 5.2h5.5l-4.4 3.2 1.7 5.3L16 16.2l-4.5 3 1.7-5.3-4.4-3.2h5.5L16 5.5Z" fill="#fc9174"/>
+          <path d="M16 5.5l1.7 5.2h5.5l-4.4 3.2 1.7 5.3L16 16.2l-4.5 3 1.7-5.3-4.4-3.2h5.5L16 5.5Z" fill="#ffdbd2"/>
           <path d="M24.5 18.5l.9 2.7h2.8l-2.3 1.7.9 2.7-2.3-1.6-2.3 1.6.9-2.7-2.3-1.7h2.8l.9-2.7Z" fill="#ffdbd2"/>
           <path d="M7.2 19l.7 2.1h2.2L8.4 22.4l.7 2.1-1.9-1.3-1.9 1.3.7-2.1-1.7-1.3h2.2L7.2 19Z" fill="#0e3030" opacity="0.55"/>
         </g>
