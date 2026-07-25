@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=39" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=51" />
+    <link rel="stylesheet" href="design/reflection.css?v=53" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1132,14 +1132,13 @@
               <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
-          <p class="reflection-screen-date" id="reflection-screen-date" aria-live="polite"></p>
           <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
         </header>
 
-        <!-- Dock hangs off the sticky header: square top, rounded bottom, full bleed -->
-        <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-labelledby="reflection-anxiety-heading">
-          <header class="reflection-anxiety-card-head">
-            <span class="reflection-anxiety-card-badge" aria-hidden="true">
+        <!-- Dock mirrors Home focus-timer-mini: forest bubble, compact top row, task-style rows -->
+        <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-label="Anxiety Box">
+          <div class="reflection-anxiety-row">
+            <span class="reflection-anxiety-badge" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
                 <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
@@ -1147,14 +1146,10 @@
                 <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
               </svg>
             </span>
-            <div class="reflection-anxiety-card-titles">
-              <p class="reflection-anxiety-card-eyebrow">Before you close the day</p>
-              <h2 class="reflection-anxiety-card-title" id="reflection-anxiety-heading">Anxiety Box</h2>
-            </div>
-          </header>
-          <p class="reflection-anxiety-card-copy">Toss anything that no longer needs your energy.</p>
+            <p class="reflection-anxiety-display" id="reflection-anxiety-display">Anxiety Box</p>
+            <span class="reflection-anxiety-count" id="reflection-anxiety-count" aria-live="polite"></span>
+          </div>
           <ul class="reflection-anxiety-list" id="reflection-anxiety-list" aria-live="polite"></ul>
-          <p class="reflection-anxiety-empty hidden" id="reflection-anxiety-empty">Your Anxiety Box is clear.</p>
         </aside>
 
         <div class="reflection-tab-panels">
@@ -1263,6 +1258,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=271"></script>
+    <script src="app.js?v=273"></script>
   </body>
 </html>

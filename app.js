@@ -2572,10 +2572,18 @@ function setupSettingsPreferences() {
 
 function anxietyBoxItemHtml(item, { reflection = false } = {}) {
   const action = "Toss";
+  if (reflection) {
+    return `
+    <li class="reflection-anxiety-item" data-anxiety-id="${escapeHtml(item.id)}">
+      <span class="reflection-anxiety-marker" aria-hidden="true"></span>
+      <span class="reflection-anxiety-item-text">${escapeHtml(item.text)}</span>
+      <button type="button" class="reflection-anxiety-toss" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
+    </li>`;
+  }
   return `
-    <li class="${reflection ? "reflection-anxiety-item" : "anxiety-panel-item"}" data-anxiety-id="${escapeHtml(item.id)}">
-      <span class="${reflection ? "reflection-anxiety-item-text" : "anxiety-panel-item-text"}">${escapeHtml(item.text)}</span>
-      <button type="button" class="${reflection ? "reflection-anxiety-toss" : "anxiety-panel-toss"}" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
+    <li class="anxiety-panel-item" data-anxiety-id="${escapeHtml(item.id)}">
+      <span class="anxiety-panel-item-text">${escapeHtml(item.text)}</span>
+      <button type="button" class="anxiety-panel-toss" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
     </li>`;
 }
 
@@ -2592,13 +2600,16 @@ function renderAnxietyBox() {
 function renderReflectionAnxietyBox() {
   const section = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
-  const empty = document.getElementById("reflection-anxiety-empty");
-  if (!list || !empty) return;
+  const countEl = document.getElementById("reflection-anxiety-count");
+  if (!list) return;
   const items = loadAnxietyBox();
   list.innerHTML = items
     .map((item) => anxietyBoxItemHtml(item, { reflection: true }))
     .join("");
-  empty.classList.toggle("hidden", items.length > 0);
+  if (countEl) {
+    countEl.textContent = String(items.length);
+    countEl.hidden = items.length === 0;
+  }
   section?.classList.toggle("hidden", items.length === 0);
 }
 
@@ -5041,25 +5052,6 @@ function reflectionDayPhrase(dayKey, { short = false } = {}) {
   return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 
-function reflectionHeaderDateText(dayKey) {
-  const [y, m, d] = String(dayKey || "").split("-").map(Number);
-  if (!y || !m || !d) return "Today";
-  const date = new Date(y, m - 1, d);
-  const monthDay = date.toLocaleDateString(undefined, { month: "long", day: "numeric" });
-  const today = reflectionTodayKey();
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  if (dayKey === today) return `Today · ${monthDay}`;
-  if (dayKey === archiveDayKey(yesterdayDate.toISOString())) return `Yesterday · ${monthDay}`;
-  return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-}
-
-function renderReflectionHeaderDate(dayKey) {
-  const el = document.getElementById("reflection-screen-date");
-  if (!el) return;
-  el.textContent = reflectionHeaderDateText(dayKey);
-}
-
 function reflectionDayChipLabel(dayKey) {
   const today = reflectionTodayKey();
   const yesterdayDate = new Date();
@@ -6152,8 +6144,6 @@ function renderReflectionReview() {
   const story = buildDayAccomplishStory(completed, dayKey);
   const favouriteId = getReflectionFavouriteId(dayKey);
   const favouriteTask = completed.find((t) => t.id === favouriteId) || null;
-
-  renderReflectionHeaderDate(dayKey);
 
   if (dayPagerSlot) {
     dayPagerSlot.innerHTML = reflectionDayPagerHtml(dayKey);

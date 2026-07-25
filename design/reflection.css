@@ -121,7 +121,7 @@ html.reflection-open body .capture-clip-fab {
   flex-shrink: 0;
   margin: 0 calc(-1 * var(--reflection-pad-x));
   padding:
-    calc(0.7rem + env(safe-area-inset-top, 0px))
+    calc(2.85rem + env(safe-area-inset-top, 0px))
     var(--reflection-pad-x)
     0.5rem;
   /* Opaque cream matching top of wallpaper veil — content scrolls under, never shows through */
@@ -166,21 +166,6 @@ html.reflection-open body .capture-clip-fab {
 .reflection-back-btn:focus-visible {
   outline: 2px solid #fc9174;
   outline-offset: 2px;
-}
-
-/* Selected day, in place of the old title + step tabs */
-.reflection-screen-date {
-  margin: 0;
-  /* Clear the absolutely-positioned back chevron on narrow screens */
-  padding: 0.15rem 2.4rem 0;
-  max-width: 100%;
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(1.15rem, 4.2vw, 1.4rem);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
-  text-align: center;
-  color: #0e3030;
 }
 
 .reflection-tab-panels {
@@ -1301,24 +1286,24 @@ html.reflection-open body .capture-clip-fab {
   outline-offset: 2px;
 }
 
-/* Anxiety Box — full-bleed dock hanging off the sticky header, like the Home
-   Focus timer bar: flush square top, rounded bottom, no side gutters. */
+/* Anxiety Box — mirrors Home .focus-timer-mini dock (forest bubble + task rows) */
 .reflection-anxiety-card {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 0.5rem;
   box-sizing: border-box;
   width: auto;
   max-width: none;
   margin: 0 calc(-1 * var(--reflection-pad-x)) 0.55rem;
-  padding: 0.7rem var(--reflection-pad-x) 0.9rem;
+  padding: 0.75rem var(--reflection-pad-x) 0.85rem;
   border: none;
-  border-radius: 0 0 1.75rem 1.75rem;
-  background: #0e3030;
-  color: #fff;
-  box-shadow: 0 12px 24px rgba(13, 43, 43, 0.28);
+  border-radius: 0 0 1.25rem 1.25rem;
+  background-color: #0e3030;
+  color: #ffdbd2;
+  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
   text-align: left;
 }
 
@@ -1326,104 +1311,120 @@ html.reflection-open body .capture-clip-fab {
   display: none;
 }
 
-.reflection-anxiety-card-head {
+.reflection-anxiety-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.2rem;
+  gap: 0.75rem;
+  width: 100%;
 }
 
-.reflection-anxiety-card-badge {
+.reflection-anxiety-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   background: rgba(255, 219, 210, 0.12);
   color: #ffdbd2;
   flex-shrink: 0;
 }
 
-.reflection-anxiety-card-badge svg {
-  width: 0.9rem;
-  height: 0.9rem;
+.reflection-anxiety-badge svg {
+  width: 1rem;
+  height: 1rem;
 }
 
-.reflection-anxiety-card-titles {
+.reflection-anxiety-display {
+  margin: 0;
+  font-family: var(--font-heading, "Source Serif 4", Georgia, serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffdbd2;
+  flex: 1;
   min-width: 0;
 }
 
-.reflection-anxiety-card-eyebrow {
+.reflection-anxiety-count {
+  flex-shrink: 0;
   margin: 0;
-  font-size: 0.5625rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 219, 210, 0.72);
-}
-
-.reflection-anxiety-card-title {
-  margin: 0;
-  font-family: var(--font-heading, "Source Serif 4", Georgia, serif);
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.1;
-  color: #fff;
-}
-
-.reflection-anxiety-card-copy {
-  margin: 0 0 0.4rem;
+  padding: 0.35rem 0.15rem;
+  border: none;
+  background: transparent;
+  color: #ffdbd2;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .reflection-anxiety-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  list-style: none;
   margin: 0;
   padding: 0;
-  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
   max-height: min(32vh, 10.5rem);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  width: 100%;
 }
 
 .reflection-anxiety-item {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255, 219, 210, 0.85);
+  padding: 0;
+  min-height: 1.5rem;
+}
+
+.reflection-anxiety-marker {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.55rem;
-  border: none;
-  border-radius: 0.7rem;
-  background: rgba(253, 249, 244, 0.96);
+  justify-content: center;
+  width: 2rem;
+  height: 1.5rem;
+}
+
+.reflection-anxiety-marker::before {
+  content: "";
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 219, 210, 0.45);
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .reflection-anxiety-item-text {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.3;
-  color: #0e3030;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  justify-self: start;
+  width: 100%;
+  color: inherit;
+  font: inherit;
 }
 
 .reflection-anxiety-toss {
   flex-shrink: 0;
-  padding: 0.35rem 0.7rem;
   border: none;
   border-radius: 999px;
+  padding: 0.45rem 0.9rem;
   background: #ffdbd2;
   color: #11302c;
-  font-family: inherit;
-  font-size: 0.6875rem;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -1437,18 +1438,6 @@ html.reflection-open body .capture-clip-fab {
 .reflection-anxiety-toss:focus-visible {
   outline: 2px solid #fc9174;
   outline-offset: 2px;
-}
-
-.reflection-anxiety-empty {
-  margin: 0;
-  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: rgba(255, 219, 210, 0.65);
-}
-
-.reflection-anxiety-empty.hidden {
-  display: none;
 }
 
 .reflection-story-favourite {
