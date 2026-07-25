@@ -2233,6 +2233,11 @@ html.reflection-open body .capture-clip-fab {
   touch-action: pan-y;
 }
 
+/* Square bottoms when Anxiety dock is visible so no cream peeks at corners */
+html.reflection-anxiety-active .reflection-day-pager-slot {
+  border-radius: 0;
+}
+
 .reflection-day-pager-slot.hidden {
   display: none;
 }

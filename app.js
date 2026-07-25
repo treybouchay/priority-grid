@@ -2585,6 +2585,7 @@ function renderReflectionAnxietyBox() {
   const hasItems = items.length > 0;
 
   card?.classList.toggle("hidden", !hasItems);
+  document.documentElement.classList.toggle("reflection-anxiety-active", hasItems);
   if (countEl) {
     countEl.textContent = String(items.length);
     countEl.hidden = !hasItems;

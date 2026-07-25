@@ -2102,7 +2102,7 @@ body[data-page="home"] .plan-card--empty .plan-card-inner {
     justify-content: space-between;
     align-items: flex-end;
     gap: 0.25rem;
-    padding: 1.15rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
+    padding: calc(1.15rem - 5px) 1rem calc(1.5rem - 5px + env(safe-area-inset-bottom));
     background: #0e3030;
     border-top: none;
     box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05);
