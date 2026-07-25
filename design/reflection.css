@@ -19,13 +19,15 @@
      fails to receive touch pans on iOS / when Home .main is also scrollable. */
   display: block;
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Leave room for the standard bottom nav (nav stays above this layer) */
+  bottom: var(--bottom-chrome-height, 0px);
   width: 100%;
   max-width: 100%;
-  height: 100%;
-  height: 100dvh;
-  max-height: 100%;
-  max-height: 100dvh;
+  height: auto;
+  max-height: none;
   /* Beat global `dialog { margin: auto }` so this stays edge-to-edge */
   margin: 0;
   padding: 0;
@@ -37,6 +39,8 @@
   touch-action: pan-y;
   background: #0d2b2b;
   box-sizing: border-box;
+  /* Below .mobile-nav-shell (z-index: 100) so HOME/TASKS/… stay tappable */
+  z-index: 90;
 }
 
 .reflection-dialog::backdrop {
@@ -55,15 +59,7 @@ html.reflection-open .main {
   overscroll-behavior: none;
 }
 
-/* Insurance: fixed Home chrome stays under the fullscreen Reflection layer.
-   Use display:none on the FAB so it cannot jump into the nav when
-   --bottom-chrome-height collapses while the shell is hidden. */
-body:has(.reflection-dialog[open]) .mobile-nav-shell,
-html.reflection-open .mobile-nav-shell {
-  visibility: hidden;
-  pointer-events: none;
-}
-
+/* Keep the capture FAB tucked away; bottom nav stays visible above Reflection */
 body:has(.reflection-dialog[open]) .capture-clip-fab,
 html.reflection-open .capture-clip-fab,
 html.reflection-open body .capture-clip-fab {
@@ -82,10 +78,9 @@ html.reflection-open body .capture-clip-fab {
   width: 100%;
   min-width: 0;
   min-height: 100%;
-  min-height: 100dvh;
   max-width: none;
   box-sizing: border-box;
-  padding: 0 var(--reflection-pad-x) calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  padding: 0 var(--reflection-pad-x) 1.5rem;
   color: #0e3030;
   /* Let the dialog scroll — do not nest a second overflow trap */
   overflow: visible;
@@ -111,61 +106,23 @@ html.reflection-open body .capture-clip-fab {
   background-repeat: no-repeat;
 }
 
-.reflection-screen-header {
+/* Sticky chrome: compact day/date strip, then Anxiety dock below it.
+   Continuous forest palette (matches Anxiety bubble). No cream shell / back button.
+   When Anxiety is .hidden, no sticky gap. */
+.reflection-sticky-chrome {
   position: sticky;
   top: 0;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  align-items: center;
   flex-shrink: 0;
   margin: 0 calc(-1 * var(--reflection-pad-x));
-  padding:
-    calc(2.85rem + env(safe-area-inset-top, 0px))
-    var(--reflection-pad-x)
-    0.5rem;
-  /* Opaque cream matching top of wallpaper veil — content scrolls under, never shows through */
-  background: #fdf9f4;
-  border-bottom: none;
-  box-shadow: none;
-}
-
-.reflection-back-btn {
-  position: absolute;
-  top: calc(0.55rem + env(safe-area-inset-top, 0px));
-  left: calc(var(--reflection-pad-x) - 0.35rem);
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #0e3030;
-  cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.reflection-back-btn svg {
-  width: 1.35rem;
-  height: 1.35rem;
-  flex-shrink: 0;
-}
-
-.reflection-back-btn:hover {
-  opacity: 0.7;
-}
-
-.reflection-back-btn:active {
-  transform: scale(0.92);
-}
-
-.reflection-back-btn:focus-visible {
-  outline: 2px solid #fc9174;
-  outline-offset: 2px;
+  padding-top: env(safe-area-inset-top, 0px);
+  background-color: #0e3030;
+  color: #ffdbd2;
+  border-radius: 0 0 1.25rem 1.25rem;
+  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
+  overflow: hidden;
 }
 
 .reflection-tab-panels {
@@ -1289,7 +1246,7 @@ html.reflection-open body .capture-clip-fab {
 /* Anxiety Box — mirrors Home .focus-timer-mini dock (forest bubble + task rows) */
 .reflection-anxiety-card {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1297,13 +1254,14 @@ html.reflection-open body .capture-clip-fab {
   box-sizing: border-box;
   width: auto;
   max-width: none;
-  margin: 0 calc(-1 * var(--reflection-pad-x)) 0.55rem;
-  padding: 0.75rem var(--reflection-pad-x) 0.85rem;
+  /* Merges into sticky forest chrome under the date strip */
+  margin: 0;
+  padding: 0.55rem var(--reflection-pad-x) 0.85rem;
   border: none;
-  border-radius: 0 0 1.25rem 1.25rem;
-  background-color: #0e3030;
+  border-radius: 0;
+  background-color: transparent;
   color: #ffdbd2;
-  box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
+  box-shadow: none;
   text-align: left;
 }
 
@@ -1361,30 +1319,88 @@ html.reflection-open body .capture-clip-fab {
   font-variant-numeric: tabular-nums;
 }
 
+.reflection-anxiety-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.reflection-anxiety-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(255, 219, 210, 0.22);
+  border-radius: 0.75rem;
+  background: rgba(255, 219, 210, 0.08);
+  color: #ffdbd2;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.reflection-anxiety-input::placeholder {
+  color: rgba(255, 219, 210, 0.45);
+}
+
+.reflection-anxiety-input:focus {
+  outline: none;
+  border-color: rgba(252, 145, 116, 0.7);
+  background: rgba(255, 219, 210, 0.12);
+}
+
+.reflection-anxiety-add {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  background: #ffdbd2;
+  color: #0e3030;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reflection-anxiety-add:hover {
+  background: #fc9174;
+}
+
+.reflection-anxiety-add:focus-visible {
+  outline: 2px solid #fc9174;
+  outline-offset: 2px;
+}
+
 .reflection-anxiety-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.25rem;
   width: 100%;
   max-height: min(32vh, 10.5rem);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
+.reflection-anxiety-list:empty {
+  display: none;
+}
+
 .reflection-anxiety-item {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  grid-template-columns: 2rem minmax(0, 1fr) 2.5rem;
   align-items: center;
-  column-gap: 0.75rem;
+  column-gap: 0.55rem;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: rgba(255, 219, 210, 0.85);
   padding: 0;
-  min-height: 1.5rem;
+  min-height: 2rem;
 }
 
 .reflection-anxiety-marker {
@@ -1417,17 +1433,25 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-anxiety-toss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
   border: none;
   border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  background: #ffdbd2;
-  color: #11302c;
-  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.75rem;
-  font-weight: 700;
+  padding: 0;
+  background: rgba(255, 219, 210, 0.14);
+  color: #ffdbd2;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.reflection-anxiety-toss-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
 }
 
 .reflection-anxiety-toss:hover {
@@ -1438,6 +1462,18 @@ html.reflection-open body .capture-clip-fab {
 .reflection-anxiety-toss:focus-visible {
   outline: 2px solid #fc9174;
   outline-offset: 2px;
+}
+
+.reflection-anxiety-empty {
+  margin: 0;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 219, 210, 0.5);
+}
+
+.reflection-anxiety-empty.hidden {
+  display: none;
 }
 
 .reflection-story-favourite {
@@ -1996,12 +2032,14 @@ html.reflection-open body .capture-clip-fab {
   }
 }
 
-/* ---- Day pager — single selected day + swipe (transparent, under sticky chrome) ---- */
+/* ---- Day pager — compact forest strip (matches Anxiety dock palette) ---- */
 .reflection-day-pager-slot {
+  box-sizing: border-box;
   width: 100%;
-  margin: 0.35rem 0 0;
-  padding: 0.35rem 0 0.15rem;
+  margin: 0;
+  padding: 0.55rem var(--reflection-pad-x) 0.35rem;
   background: transparent;
+  color: #ffdbd2;
   touch-action: pan-y;
 }
 
@@ -2046,7 +2084,7 @@ html.reflection-open body .capture-clip-fab {
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fc9174;
+  color: #ffdbd2;
 }
 
 .reflection-day-pager-num {
@@ -2055,7 +2093,7 @@ html.reflection-open body .capture-clip-fab {
   font-size: 1.35rem;
   font-weight: 700;
   line-height: 1.05;
-  color: #0e3030;
+  color: #ffdbd2;
 }
 
 .reflection-day-nav {
@@ -2064,10 +2102,10 @@ html.reflection-open body .capture-clip-fab {
   justify-content: center;
   width: 2.15rem;
   height: 2.15rem;
-  border: 1px solid rgba(14, 48, 48, 0.16);
+  border: 1px solid rgba(255, 219, 210, 0.28);
   border-radius: 999px;
   background: transparent;
-  color: #0e3030;
+  color: #ffdbd2;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -2083,8 +2121,8 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-day-nav:not(:disabled):hover {
-  border-color: rgba(252, 145, 116, 0.55);
-  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(252, 145, 116, 0.65);
+  background: rgba(255, 219, 210, 0.12);
 }
 
 .reflection-day-nav:focus-visible {

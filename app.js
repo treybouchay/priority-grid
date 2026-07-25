@@ -686,15 +686,6 @@ function syncBottomChrome() {
     return;
   }
 
-  // While Reflection is open the shell is visibility:hidden — do not collapse
-  // --bottom-chrome-height to 0 or the Quick Note FAB jumps into the nav slot.
-  if (
-    document.documentElement.classList.contains("reflection-open") ||
-    document.body.classList.contains("reflection-open")
-  ) {
-    return;
-  }
-
   const style = getComputedStyle(shell);
   if (style.display === "none") {
     document.documentElement.style.setProperty("--bottom-chrome-height", "0px");
@@ -702,6 +693,7 @@ function syncBottomChrome() {
   }
 
   // Measure the whole chrome (session dock + nav) so content padding stays correct.
+  // Reflection sits above this height so the bottom nav stays visible and tappable.
   const height = Math.ceil(shell.getBoundingClientRect().height);
   document.documentElement.style.setProperty(
     "--bottom-chrome-height",
@@ -1555,7 +1547,6 @@ function tossAnxietyBoxItem(id) {
       item.id === id ? { ...item, tossedAt } : item
     )
   );
-  renderAnxietyBox();
   renderReflectionAnxietyBox();
 }
 
@@ -2570,65 +2561,46 @@ function setupSettingsPreferences() {
   });
 }
 
-function anxietyBoxItemHtml(item, { reflection = false } = {}) {
-  const action = "Toss";
-  if (reflection) {
-    return `
+function anxietyBoxItemHtml(item) {
+  return `
     <li class="reflection-anxiety-item" data-anxiety-id="${escapeHtml(item.id)}">
       <span class="reflection-anxiety-marker" aria-hidden="true"></span>
       <span class="reflection-anxiety-item-text">${escapeHtml(item.text)}</span>
-      <button type="button" class="reflection-anxiety-toss" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
+      <button
+        type="button"
+        class="reflection-anxiety-toss"
+        aria-label="Toss ${escapeHtml(item.text)}"
+        title="Toss"
+      >
+        <svg class="icon reflection-anxiety-toss-icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+      </button>
     </li>`;
-  }
-  return `
-    <li class="anxiety-panel-item" data-anxiety-id="${escapeHtml(item.id)}">
-      <span class="anxiety-panel-item-text">${escapeHtml(item.text)}</span>
-      <button type="button" class="anxiety-panel-toss" aria-label="${action} ${escapeHtml(item.text)}">${action}</button>
-    </li>`;
-}
-
-function renderAnxietyBox() {
-  const list = document.getElementById("anxiety-box-list");
-  const empty = document.getElementById("anxiety-box-empty");
-  if (!list || !empty) return;
-  const items = loadAnxietyBox();
-  list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
-  empty.classList.toggle("hidden", items.length > 0);
-  renderReflectionAnxietyBox();
 }
 
 function renderReflectionAnxietyBox() {
-  const section = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
+  const empty = document.getElementById("reflection-anxiety-empty");
   const countEl = document.getElementById("reflection-anxiety-count");
   if (!list) return;
   const items = loadAnxietyBox();
-  list.innerHTML = items
-    .map((item) => anxietyBoxItemHtml(item, { reflection: true }))
-    .join("");
+  list.innerHTML = items.map((item) => anxietyBoxItemHtml(item)).join("");
   if (countEl) {
     countEl.textContent = String(items.length);
     countEl.hidden = items.length === 0;
   }
-  section?.classList.toggle("hidden", items.length === 0);
+  empty?.classList.toggle("hidden", items.length > 0);
 }
 
 function setupAnxietyBox() {
-  const form = document.getElementById("anxiety-box-form");
-  const input = document.getElementById("anxiety-box-input");
+  const form = document.getElementById("reflection-anxiety-form");
+  const input = document.getElementById("reflection-anxiety-input");
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!input?.value.trim()) return;
     addAnxietyBoxItem(input.value);
     input.value = "";
-    renderAnxietyBox();
     renderReflectionAnxietyBox();
-  });
-
-  document.getElementById("anxiety-box-list")?.addEventListener("click", (event) => {
-    const button = event.target.closest(".anxiety-panel-toss");
-    const item = button?.closest("[data-anxiety-id]");
-    if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
+    input.focus();
   });
 
   document.getElementById("reflection-anxiety-list")?.addEventListener("click", (event) => {
@@ -2685,6 +2657,8 @@ function getSidebarTab() {
   try {
     const stored = localStorage.getItem(SIDEBAR_TAB_KEY) || "brain";
     if (stored === "forget") return "nextweek";
+    // Anxiety Box moved to Reflection — migrate any saved tab
+    if (stored === "anxiety") return "brain";
     return stored;
   } catch {
     return "brain";
@@ -4295,6 +4269,7 @@ function setupListsManager() {
 function setupNavigation() {
   document.querySelectorAll(".nav-item, .mobile-nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
+      closeReflectionDialog();
       if (btn.dataset.nav === "profile" || btn.dataset.nav === "settings") {
         openAppearancePanel();
         return;
@@ -4310,6 +4285,7 @@ function setupNavigation() {
   document.getElementById("sidebar-extra-lists")?.addEventListener("click", (e) => {
     const btn = e.target.closest(".nav-item");
     if (!btn) return;
+    closeReflectionDialog();
     const nextPage = btn.dataset.page;
     if (!nextPage) return;
     setPage(nextPage, btn.dataset.filter || filter);
@@ -4322,6 +4298,7 @@ function setupNavigation() {
   });
 
   document.getElementById("home-view-tasks").addEventListener("click", () => {
+    closeReflectionDialog();
     setPage("tasks", filter);
   });
 
@@ -4334,7 +4311,10 @@ function setupNavigation() {
 
   const sidebarProfileBtn = document.getElementById("sidebar-profile-btn");
   if (sidebarProfileBtn) {
-    sidebarProfileBtn.addEventListener("click", () => setPage("settings"));
+    sidebarProfileBtn.addEventListener("click", () => {
+      closeReflectionDialog();
+      setPage("settings");
+    });
   }
 
   document.getElementById("capture-clip-fab")?.addEventListener("click", (e) => {
@@ -5896,10 +5876,9 @@ function reflectionDayPagerHtml(selectedDayKey) {
             <polyline points="15 18 9 12 15 6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
-        <div class="reflection-day-pager-current" id="reflection-day-label" aria-live="polite" aria-atomic="true">
+        <div class="reflection-day-pager-current" id="reflection-day-label" aria-live="polite" aria-atomic="true" aria-label="${escapeHtml(parts.aria)}">
           <p class="reflection-day-pager-label">${escapeHtml(parts.label)}</p>
           <p class="reflection-day-pager-num">${escapeHtml(parts.num)}</p>
-          <span class="sr-only">${escapeHtml(parts.aria)}</span>
         </div>
         <button
           type="button"
@@ -6373,9 +6352,9 @@ function updateReflectionHeroOnCream() {
   const label = hero.querySelector(".reflection-hero-label");
   const probe = label || title;
   if (!probe) return;
-  const header = screen.querySelector(".reflection-screen-header");
+  const header = screen.querySelector(".reflection-sticky-chrome");
   const viewportH = scrollRoot?.clientHeight || window.innerHeight;
-  // Switch earlier — cream veil is readable well below the sticky header.
+  // Switch earlier — cream veil is readable well below the sticky chrome.
   const headerBottom = header
     ? header.getBoundingClientRect().bottom
     : Math.min(Math.max(viewportH * 0.18, 120), 180);
@@ -6405,6 +6384,11 @@ function getReflectionScrollRoot() {
   return document.getElementById("reflection-dialog");
 }
 
+function closeReflectionDialog() {
+  const dialog = document.getElementById("reflection-dialog");
+  if (dialog?.open) dialog.close();
+}
+
 function openReflectionDialog() {
   const dialog = document.getElementById("reflection-dialog");
   const textarea = document.getElementById("reflection-text");
@@ -6418,20 +6402,16 @@ function openReflectionDialog() {
   renderReflectionReview();
   renderReflectionAnxietyBox();
   setReflectionTab("review");
+  syncBottomChrome();
   setReflectionOpenState(true);
-  dialog.showModal();
+  // Non-modal so the standard bottom nav stays above Reflection and stays tappable
+  dialog.show();
   // Reset to top so sticky header + hero read correctly on reopen
   dialog.scrollTop = 0;
-  requestAnimationFrame(() => updateReflectionHeroOnCream());
-}
-
-function handleReflectionBack() {
-  const dialog = document.getElementById("reflection-dialog");
-  if (getActiveReflectionTab() === "thoughts") {
-    setReflectionTab("review");
-    return;
-  }
-  dialog?.close();
+  requestAnimationFrame(() => {
+    syncBottomChrome();
+    updateReflectionHeroOnCream();
+  });
 }
 
 function setupReflection() {
@@ -6440,19 +6420,26 @@ function setupReflection() {
   const refreshBtn = document.getElementById("reflection-prompts-refresh");
   const continueBtn = document.getElementById("reflection-continue");
   const reviewContinueBtn = document.getElementById("reflection-review-continue");
-  const backBtn = document.getElementById("reflection-back");
   const promptsList = document.getElementById("reflection-prompts-list");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
 
   setupFocusTimer();
 
-  backBtn?.addEventListener("click", handleReflectionBack);
-
   // Scroll lives on the dialog (not nested .reflection-screen) so touch pans work
   dialog?.addEventListener("scroll", onReflectionScreenScroll, { passive: true });
+  // Escape (below) + Continue CTAs + bottom nav dismiss; no back chevron
   dialog?.addEventListener("close", () => {
     setReflectionOpenState(false);
+    requestAnimationFrame(() => syncBottomChrome());
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!document.documentElement.classList.contains("reflection-open")) return;
+    // Don't steal Escape from a true modal dialog in the top layer
+    if (document.querySelector("dialog[open]:modal")) return;
+    closeReflectionDialog();
   });
 
   document.querySelectorAll(".reflection-tab").forEach((btn) => {
@@ -8798,10 +8785,6 @@ function renderAll() {
     renderForgetItPanel();
     renderArchivePanel();
     syncSidebarTabs();
-    renderAnxietyBox();
-  }
-  if (page === "settings") {
-    renderAnxietyBox();
   }
   if (expandedTier && document.getElementById("tier-expand-dialog")?.open) {
     refreshTierExpand(expandedTier);

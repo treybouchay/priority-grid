@@ -912,150 +912,6 @@ body[data-page="tasks"] .forget-it-drop-zone.drop-target-active {
   border-radius: 1.25rem;
 }
 
-/* Anxiety Box — Presence card language */
-body[data-page="tasks"] .anxiety-panel {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-body[data-page="tasks"] .anxiety-panel-header {
-  margin-bottom: 1rem;
-}
-
-body[data-page="tasks"] .anxiety-panel-eyebrow {
-  margin: 0 0 0.35rem;
-  font-family: var(--font-body);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(14, 48, 48, 0.48);
-}
-
-body[data-page="tasks"] .anxiety-panel-title {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--forest-ink);
-}
-
-body[data-page="tasks"] .anxiety-panel-sub {
-  margin: 0.25rem 0 0;
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: rgba(17, 48, 44, 0.55);
-}
-
-body[data-page="tasks"] .anxiety-panel-form {
-  display: flex;
-  align-items: stretch;
-  gap: 0.5rem;
-  margin-bottom: 0.85rem;
-}
-
-body[data-page="tasks"] .anxiety-panel-form input {
-  flex: 1;
-  min-width: 0;
-  padding: 0.65rem 0.9rem;
-  margin-bottom: 0;
-  border: 1px solid rgba(14, 48, 48, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.65);
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--forest-ink);
-}
-
-body[data-page="tasks"] .anxiety-panel-form input::placeholder {
-  color: rgba(17, 48, 44, 0.4);
-}
-
-body[data-page="tasks"] .anxiety-panel-form input:focus {
-  border-color: rgba(14, 48, 48, 0.28);
-  outline: none;
-}
-
-body[data-page="tasks"] .anxiety-panel-save {
-  flex-shrink: 0;
-  padding: 0.65rem 1rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--forest);
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--peach-soft);
-  cursor: pointer;
-}
-
-body[data-page="tasks"] .anxiety-panel-save:hover {
-  opacity: 0.92;
-}
-
-body[data-page="tasks"] .anxiety-panel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-body[data-page="tasks"] .anxiety-panel-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid rgba(14, 48, 48, 0.08);
-  border-radius: 1rem;
-  background: rgba(253, 249, 244, 0.82);
-}
-
-body[data-page="tasks"] .anxiety-panel-item-text {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 550;
-  line-height: 1.4;
-  color: var(--forest-ink);
-}
-
-body[data-page="tasks"] .anxiety-panel-toss {
-  flex-shrink: 0;
-  padding: 0.4rem 0.75rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--forest);
-  color: var(--peach-soft);
-  font-family: var(--font-body);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-body[data-page="tasks"] .anxiety-panel-toss:hover {
-  opacity: 0.92;
-}
-
-body[data-page="tasks"] .anxiety-panel-empty {
-  margin: 0.85rem 0 0;
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: rgba(17, 48, 44, 0.55);
-}
-
-body[data-page="tasks"] .anxiety-panel-empty.hidden {
-  display: none;
-}
-
 /* Archive — Presence card language */
 body[data-page="tasks"] .archive-panel-header {
   margin-bottom: 1rem;
@@ -1285,7 +1141,6 @@ body[data-page="tasks"] .archive-empty-sub {
   body[data-page="tasks"] .sidebar-tab-panel .daily-repeat-panel,
   body[data-page="tasks"] .sidebar-tab-panel .forget-it-panel,
   body[data-page="tasks"] .sidebar-tab-panel .plan-135,
-  body[data-page="tasks"] .sidebar-tab-panel .anxiety-panel,
   body[data-page="tasks"] .sidebar-tab-panel .archive-panel {
     max-height: none;
     width: 100%;
@@ -1316,7 +1171,6 @@ body[data-page="tasks"] .archive-empty-sub {
   body[data-page="tasks"] .daily-repeat-sub,
   body[data-page="tasks"] .forget-it-sub,
   body[data-page="tasks"] .brain-panel-sub,
-  body[data-page="tasks"] .anxiety-panel-sub,
   body[data-page="tasks"] .archive-panel-sub {
     max-width: none;
   }
@@ -1338,8 +1192,7 @@ body[data-page="tasks"] .archive-empty-sub {
   }
 
   body[data-page="tasks"] .daily-repeat-form,
-  body[data-page="tasks"] .brain-panel-form,
-  body[data-page="tasks"] .anxiety-panel-form {
+  body[data-page="tasks"] .brain-panel-form {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -1348,8 +1201,7 @@ body[data-page="tasks"] .archive-empty-sub {
 
   body[data-page="tasks"] .daily-repeat-form input,
   body[data-page="tasks"] .daily-repeat-form select,
-  body[data-page="tasks"] .brain-panel-form input,
-  body[data-page="tasks"] .anxiety-panel-form input {
+  body[data-page="tasks"] .brain-panel-form input {
     width: 100%;
     min-width: 0;
     max-width: 100%;
@@ -1380,8 +1232,7 @@ body[data-page="tasks"] .archive-empty-sub {
     box-sizing: border-box;
   }
 
-  body[data-page="tasks"] .brain-panel-add,
-  body[data-page="tasks"] .anxiety-panel-save {
+  body[data-page="tasks"] .brain-panel-add {
     width: 100%;
   }
 

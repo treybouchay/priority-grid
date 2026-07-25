@@ -70,10 +70,10 @@
     <link rel="stylesheet" href="styles.css?v=166" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
     <link rel="stylesheet" href="design/home-presence.css?v=105" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=39" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=40" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=53" />
+    <link rel="stylesheet" href="design/reflection.css?v=58" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -645,7 +645,6 @@
                   <button type="button" class="sidebar-tab" role="tab" data-tab="135" aria-selected="false" id="sidebar-tab-135">1-3-5</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="daily" aria-selected="false">Every Day</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="nextweek" aria-selected="false">Next Week</button>
-                  <button type="button" class="sidebar-tab" role="tab" data-tab="anxiety" aria-selected="false">Anxiety</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="archive" aria-selected="false">Archive</button>
                 </div>
                 <div class="sidebar-tab-panels">
@@ -742,31 +741,6 @@
                         <ul class="next-week-deferred-list" id="next-week-deferred-list"></ul>
                         <p class="next-week-deferred-empty" id="next-week-deferred-empty">No tasks pushed yet.</p>
                       </section>
-                    </aside>
-                  </div>
-                  <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-anxiety" role="tabpanel" data-tab="anxiety">
-                    <aside class="anxiety-panel" id="anxiety-panel" aria-label="Anxiety Box">
-                      <header class="anxiety-panel-header">
-                        <div>
-                          <p class="anxiety-panel-eyebrow">A quiet place to set things down</p>
-                          <h3 class="anxiety-panel-title">Anxiety Box</h3>
-                          <p class="anxiety-panel-sub">Park a task or thought here for now. Toss what you no longer need — or decide during Reflection.</p>
-                        </div>
-                      </header>
-                      <form class="anxiety-panel-form" id="anxiety-box-form">
-                        <label class="sr-only" for="anxiety-box-input">Task or thought to set aside</label>
-                        <input
-                          type="text"
-                          id="anxiety-box-input"
-                          placeholder="What can you set down for now?"
-                          maxlength="180"
-                          autocomplete="off"
-                          required
-                        />
-                        <button type="submit" class="anxiety-panel-save">Set it down</button>
-                      </form>
-                      <ul class="anxiety-panel-list" id="anxiety-box-list" aria-live="polite"></ul>
-                      <p class="anxiety-panel-empty" id="anxiety-box-empty">Nothing waiting here. A little more room to breathe.</p>
                     </aside>
                   </div>
                   <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-archive" role="tabpanel" data-tab="archive">
@@ -904,8 +878,8 @@
                 <p class="anxiety-box-eyebrow">A quiet place to set things down</p>
                 <h2 class="settings-card-title" id="anxiety-box-heading">Anxiety Box</h2>
                 <p class="settings-card-desc">
-                  Open the <strong>Anxiety</strong> tab in Brain Dump to park thoughts and toss what no longer needs your energy.
-                  Reflection still offers an end-of-day toss when you’re closing the day.
+                  Park thoughts in Reflection’s Anxiety Box and toss what no longer needs your energy.
+                  Existing thoughts stay synced across devices.
                 </p>
               </header>
             </article>
@@ -1126,31 +1100,39 @@
       <div class="reflection-screen">
         <!-- Sticky wallpaper: stays put while header + cards scroll over it (mirrors Home) -->
         <div class="reflection-screen-wallpaper" aria-hidden="true"></div>
-        <header class="reflection-screen-header">
-          <button type="button" class="reflection-back-btn" id="reflection-back" aria-label="Back">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
+        <!-- Sticky chrome: compact day pager, then Anxiety dock below (no cream header / back) -->
+        <div class="reflection-sticky-chrome">
           <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
-        </header>
-
-        <!-- Dock mirrors Home focus-timer-mini: forest bubble, compact top row, task-style rows -->
-        <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-label="Anxiety Box">
-          <div class="reflection-anxiety-row">
-            <span class="reflection-anxiety-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
-                <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none" />
-                <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
-              </svg>
-            </span>
-            <p class="reflection-anxiety-display" id="reflection-anxiety-display">Anxiety Box</p>
-            <span class="reflection-anxiety-count" id="reflection-anxiety-count" aria-live="polite"></span>
-          </div>
-          <ul class="reflection-anxiety-list" id="reflection-anxiety-list" aria-live="polite"></ul>
-        </aside>
+          <!-- Dock mirrors Home focus-timer-mini: forest bubble under the date strip -->
+          <aside class="reflection-anxiety-card" id="reflection-anxiety" aria-label="Anxiety Box">
+            <div class="reflection-anxiety-row">
+              <span class="reflection-anxiety-badge" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                  <circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                  <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
+              <p class="reflection-anxiety-display" id="reflection-anxiety-display">Anxiety Box</p>
+              <span class="reflection-anxiety-count" id="reflection-anxiety-count" aria-live="polite"></span>
+            </div>
+            <form class="reflection-anxiety-form" id="reflection-anxiety-form">
+              <input
+                type="text"
+                id="reflection-anxiety-input"
+                class="reflection-anxiety-input"
+                placeholder="Set something down…"
+                maxlength="180"
+                autocomplete="off"
+                aria-label="Thought to set aside"
+              />
+              <button type="submit" class="reflection-anxiety-add">Add</button>
+            </form>
+            <ul class="reflection-anxiety-list" id="reflection-anxiety-list" aria-live="polite"></ul>
+            <p class="reflection-anxiety-empty" id="reflection-anxiety-empty">Nothing waiting here.</p>
+          </aside>
+        </div>
 
         <div class="reflection-tab-panels">
           <section class="reflection-tab-panel active" id="reflection-panel-review" role="region" data-tab="review" aria-label="Review of the day">
@@ -1258,6 +1240,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=273"></script>
+    <script src="app.js?v=278"></script>
   </body>
 </html>
