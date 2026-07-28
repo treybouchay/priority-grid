@@ -2717,47 +2717,6 @@ function anxietyHistoryItemHtml(item) {
     </li>`;
 }
 
-let anxietyParkVisible = false;
-let anxietyParkObserver = null;
-
-function syncAnxietyParkVisibility() {
-  const park = document.getElementById("reflection-anxiety-park");
-  const dialog = document.getElementById("reflection-dialog");
-  if (!park || !dialog?.open) {
-    anxietyParkVisible = false;
-    return;
-  }
-  const rect = park.getBoundingClientRect();
-  const rootRect = dialog.getBoundingClientRect();
-  anxietyParkVisible =
-    rect.bottom > rootRect.top + 12 && rect.top < rootRect.bottom - 12;
-}
-
-function setupAnxietyParkObserver() {
-  const park = document.getElementById("reflection-anxiety-park");
-  const dialog = document.getElementById("reflection-dialog");
-  anxietyParkObserver?.disconnect();
-  anxietyParkObserver = null;
-
-  if (!park || !dialog?.open) {
-    anxietyParkVisible = false;
-    return;
-  }
-
-  syncAnxietyParkVisibility();
-
-  anxietyParkObserver = new IntersectionObserver(
-    (entries) => {
-      const nextVisible = entries.some((entry) => entry.isIntersecting);
-      if (nextVisible === anxietyParkVisible) return;
-      anxietyParkVisible = nextVisible;
-      renderReflectionAnxietyBox();
-    },
-    { root: dialog, threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
-  );
-  anxietyParkObserver.observe(park);
-}
-
 function renderReflectionAnxietyBox() {
   const card = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
@@ -2770,9 +2729,8 @@ function renderReflectionAnxietyBox() {
   const history = loadAnxietyHistory();
   const hasItems = items.length > 0;
   const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
-
-  syncAnxietyParkVisibility();
-  const showDock = hasItems && dialogOpen && !anxietyParkVisible;
+  // Always show sticky dock + park card together when there are items (hide only when empty).
+  const showDock = hasItems && dialogOpen;
 
   card?.classList.toggle("hidden", !showDock);
   document.documentElement.classList.toggle("reflection-anxiety-active", showDock);
@@ -6710,9 +6668,6 @@ function setReflectionOpenState(open) {
   document.documentElement.classList.toggle("reflection-open", open);
   document.body.classList.toggle("reflection-open", open);
   if (!open) {
-    anxietyParkObserver?.disconnect();
-    anxietyParkObserver = null;
-    anxietyParkVisible = false;
     document.documentElement.classList.remove("reflection-anxiety-active", "reflection-has-anxiety");
     requestAnimationFrame(() => {
       renderFocusTimerChrome();
@@ -6720,7 +6675,6 @@ function setReflectionOpenState(open) {
     });
   } else {
     requestAnimationFrame(() => {
-      setupAnxietyParkObserver();
       renderReflectionAnxietyBox();
       renderFocusTimerChrome();
     });
@@ -6756,7 +6710,6 @@ function openReflectionDialog() {
   // Reset to top so sticky header + hero read correctly on reopen
   dialog.scrollTop = 0;
   requestAnimationFrame(() => {
-    setupAnxietyParkObserver();
     renderReflectionAnxietyBox();
     renderFocusTimerChrome();
     syncBottomChrome();
