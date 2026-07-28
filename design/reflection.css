@@ -1530,19 +1530,19 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   outline-offset: 2px;
 }
 
-/* Anxiety Box — mirrors Home .focus-timer-mini dock (forest bubble + task rows) */
+/* Anxiety Box — mirrors Home .focus-timer-mini (forest bubble + flush task rows) */
 .reflection-anxiety-card {
   position: relative;
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.3rem;
+  gap: 0.5rem;
   box-sizing: border-box;
   width: auto;
   max-width: none;
   margin: 0;
-  padding: 0.4rem var(--reflection-pad-x) 0.55rem;
+  padding: 0.55rem var(--reflection-pad-x) 0.65rem;
   border: none;
   border-radius: 0 0 1.25rem 1.25rem;
   background-color: #0e3030;
@@ -1611,7 +1611,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.35rem;
   width: 100%;
   max-height: min(28vh, 9rem);
   overflow-y: auto;
@@ -1622,25 +1622,26 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   display: none;
 }
 
+/* Match .focus-timer-mini-task flush rows (no chip bars) */
 .reflection-anxiety-item {
   display: grid;
-  grid-template-columns: 1.75rem minmax(0, 1fr) 1.75rem;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 0.4rem;
+  column-gap: 0.75rem;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: rgba(255, 219, 210, 0.85);
   padding: 0;
-  min-height: 1.75rem;
+  min-height: 1.5rem;
+  background: transparent;
+  border-radius: 0;
 }
 
 .reflection-anxiety-check {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.35rem;
   cursor: pointer;
 }
 
@@ -1663,7 +1664,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 0.7rem;
+  background-size: 0.65rem;
 }
 
 .reflection-anxiety-item-text {
@@ -1673,6 +1674,9 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   text-align: left;
   justify-self: start;
   width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
   color: inherit;
   font: inherit;
 }
@@ -1681,29 +1685,28 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
   flex-shrink: 0;
   border: none;
   border-radius: 0;
   padding: 0;
   background: transparent;
-  color: #ffdbd2;
+  color: rgba(255, 219, 210, 0.65);
   cursor: pointer;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .reflection-anxiety-toss-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 0.9rem;
+  height: 0.9rem;
   display: block;
-  stroke: #ffdbd2;
-  color: #ffdbd2;
+  stroke: currentColor;
+  color: inherit;
 }
 
 .reflection-anxiety-toss:hover {
   background: transparent;
-  opacity: 0.75;
   color: #ffdbd2;
 }
 
@@ -1712,7 +1715,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   outline-offset: 2px;
 }
 
-/* Forest park card — add + Past thoughts only (active list lives in sticky dock) */
+/* Forest park card — Focus Tasks–style head + underline input + Past thoughts */
 .reflection-anxiety-park {
   margin: 0.85rem 0 0;
   padding: 0.75rem 0.85rem 0.8rem;
@@ -1722,14 +1725,6 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   box-shadow: 0 4px 16px rgba(14, 48, 48, 0.12);
   color: #ffdbd2;
   flex-shrink: 0;
-}
-
-.reflection-anxiety-park-heading {
-  margin: 0 0 0.5rem;
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: 1rem;
-  font-weight: 650;
-  color: #ffdbd2;
 }
 
 .reflection-anxiety-history {
@@ -1781,7 +1776,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   gap: 0.4rem;
   align-items: start;
   padding: 0.45rem 0.55rem;
-  border-radius: 0.85rem;
+  border-radius: 0.75rem;
   background: rgba(255, 219, 210, 0.08);
 }
 
@@ -1826,55 +1821,93 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 
 .reflection-anxiety-park-form {
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
-.reflection-anxiety-park-row {
+.reflection-anxiety-park-head {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   width: 100%;
 }
 
-.reflection-anxiety-park-input {
-  flex: 1;
+.reflection-anxiety-park-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   min-width: 0;
+  flex: 1;
+}
+
+.reflection-anxiety-park-heading {
+  margin: 0;
+  font-family: var(--font-heading, "Source Serif 4", Georgia, serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffdbd2;
+}
+
+.reflection-anxiety-park-input {
+  display: block;
+  width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid rgba(255, 219, 210, 0.22);
-  border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.92);
-  color: #0e3030;
+  padding: 0.35rem 0 0.5rem;
+  border: none;
+  border-bottom: 1.5px solid #ffdbd2;
+  border-radius: 0;
+  background: transparent;
+  color: #ffdbd2;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.875rem;
   font-weight: 500;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .reflection-anxiety-park-input::placeholder {
-  color: rgba(14, 48, 48, 0.4);
+  color: rgba(255, 219, 210, 0.45);
 }
 
 .reflection-anxiety-park-input:focus {
   outline: none;
-  border-color: rgba(255, 219, 210, 0.55);
-  background: #fff;
+  border-bottom-color: #ffdbd2;
+  background: transparent;
+  box-shadow: none;
+}
+
+.reflection-anxiety-park-input:-webkit-autofill,
+.reflection-anxiety-park-input:-webkit-autofill:hover,
+.reflection-anxiety-park-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffdbd2;
+  caret-color: #ffdbd2;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px #0e3030 inset;
+  border-bottom: 1.5px solid #ffdbd2;
 }
 
 .reflection-anxiety-park-add {
   flex-shrink: 0;
-  border: none;
-  border-radius: 0.9rem;
-  padding: 0.55rem 0.85rem;
-  background: #ffdbd2;
-  color: #0e3030;
+  border: 1px solid rgba(255, 219, 210, 0.35);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: #ffdbd2;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .reflection-anxiety-park-add:hover {
-  background: #ffe8e0;
+  background: rgba(255, 219, 210, 0.1);
 }
 
 .reflection-anxiety-park-add:focus-visible {
@@ -2240,15 +2273,6 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 
   .reflection-review-item {
     padding: 0.8rem 0.85rem;
-  }
-
-  .reflection-anxiety-park-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .reflection-anxiety-park-add {
-    width: 100%;
   }
 
   #reflection-panel-review .reflection-footer {

@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=40" />
     <link rel="stylesheet" href="design/history-wins.css?v=8" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=70" />
+    <link rel="stylesheet" href="design/reflection.css?v=73" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1118,7 +1118,7 @@
         <!-- Sticky chrome: compact day pager, then Anxiety dock below (no cream header / back) -->
         <div class="reflection-sticky-chrome">
           <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
-          <!-- Dock mirrors Home focus-timer-mini: forest bubble under the date strip -->
+          <!-- Sticky dock: icon + title, flush mini-timer–style thought rows -->
           <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-label="Anxiety Box">
             <div class="reflection-anxiety-row">
               <span class="reflection-anxiety-badge" aria-hidden="true">
@@ -1151,20 +1151,30 @@
             </section>
 
             <section class="reflection-anxiety-park" id="reflection-anxiety-park" aria-labelledby="reflection-anxiety-park-heading">
-              <h2 class="reflection-anxiety-park-heading" id="reflection-anxiety-park-heading">Add a thought</h2>
               <form class="reflection-anxiety-park-form" id="reflection-anxiety-form">
-                <div class="reflection-anxiety-park-row">
-                  <input
-                    type="text"
-                    id="reflection-anxiety-input"
-                    class="reflection-anxiety-park-input"
-                    placeholder="Set something down…"
-                    maxlength="180"
-                    autocomplete="off"
-                    aria-label="Add a thought"
-                  />
+                <div class="reflection-anxiety-park-head">
+                  <div class="reflection-anxiety-park-title">
+                    <span class="reflection-anxiety-badge" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3c4.5 0 8 3.2 8 7.2 0 2.6-1.4 4.9-3.6 6.2L15 21H9l-1.4-4.6C5.4 15.1 4 12.8 4 10.2 4 6.2 7.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="9.2" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                        <circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                        <circle cx="14.8" cy="10" r="0.9" fill="currentColor" stroke="none" />
+                      </svg>
+                    </span>
+                    <h2 class="reflection-anxiety-park-heading" id="reflection-anxiety-park-heading">Anxiety Box</h2>
+                  </div>
                   <button type="submit" class="reflection-anxiety-park-add">Add</button>
                 </div>
+                <input
+                  type="text"
+                  id="reflection-anxiety-input"
+                  class="reflection-anxiety-park-input"
+                  placeholder="Set something down…"
+                  maxlength="180"
+                  autocomplete="off"
+                  aria-label="Add a thought"
+                />
               </form>
               <details class="reflection-anxiety-history" id="reflection-anxiety-history">
                 <summary class="reflection-anxiety-history-summary" id="reflection-anxiety-history-heading">Past thoughts</summary>
