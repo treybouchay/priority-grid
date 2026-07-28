@@ -2679,12 +2679,10 @@ function setupSettingsPreferences() {
   });
 }
 
-function anxietyBoxItemHtml(item, { surface = "dock" } = {}) {
-  const checkClass =
-    surface === "park" ? "reflection-anxiety-park-check" : "reflection-anxiety-check";
+function anxietyBoxItemHtml(item) {
   return `
-    <li class="reflection-anxiety-item reflection-anxiety-item--${escapeHtml(surface)}" data-anxiety-id="${escapeHtml(item.id)}">
-      <label class="${checkClass}">
+    <li class="reflection-anxiety-item" data-anxiety-id="${escapeHtml(item.id)}">
+      <label class="reflection-anxiety-check">
         <input type="checkbox" aria-label="Check off thought" />
       </label>
       <span class="reflection-anxiety-item-text">${escapeHtml(item.text)}</span>
@@ -2722,7 +2720,6 @@ function anxietyHistoryItemHtml(item) {
 function renderReflectionAnxietyBox() {
   const card = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
-  const parkList = document.getElementById("reflection-anxiety-park-list");
   const countEl = document.getElementById("reflection-anxiety-count");
   const historyList = document.getElementById("reflection-anxiety-history-list");
   const historyEmpty = document.getElementById("reflection-anxiety-history-empty");
@@ -2732,7 +2729,7 @@ function renderReflectionAnxietyBox() {
   const history = loadAnxietyHistory();
   const hasItems = items.length > 0;
   const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
-  // Always show sticky dock + park card together when there are items (hide only when empty).
+  // Sticky dock only when items exist; park card stays for add + history.
   const showDock = hasItems && dialogOpen;
 
   card?.classList.toggle("hidden", !showDock);
@@ -2743,12 +2740,7 @@ function renderReflectionAnxietyBox() {
     countEl.hidden = !hasItems;
   }
   if (list) {
-    list.innerHTML = hasItems ? items.map((item) => anxietyBoxItemHtml(item, { surface: "dock" })).join("") : "";
-  }
-  if (parkList) {
-    parkList.innerHTML = hasItems
-      ? items.map((item) => anxietyBoxItemHtml(item, { surface: "park" })).join("")
-      : `<li class="reflection-anxiety-park-empty">Nothing parked yet — add a thought below.</li>`;
+    list.innerHTML = hasItems ? items.map((item) => anxietyBoxItemHtml(item)).join("") : "";
   }
   // Collapsed by default (no `open`); summary shows count so check-offs aren't invisible.
   if (historySummary) {
@@ -2807,7 +2799,6 @@ function setupAnxietyBox() {
   });
 
   bindAnxietyListClicks(document.getElementById("reflection-anxiety-list"));
-  bindAnxietyListClicks(document.getElementById("reflection-anxiety-park-list"));
   bindAnxietyListClicks(document.getElementById("reflection-anxiety-history-list"));
 }
 

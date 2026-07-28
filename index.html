@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=40" />
     <link rel="stylesheet" href="design/history-wins.css?v=8" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=69" />
+    <link rel="stylesheet" href="design/reflection.css?v=70" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1151,12 +1151,8 @@
             </section>
 
             <section class="reflection-anxiety-park" id="reflection-anxiety-park" aria-labelledby="reflection-anxiety-park-heading">
-              <p class="reflection-anxiety-park-eyebrow">Set it down for now</p>
-              <h2 class="reflection-anxiety-park-heading" id="reflection-anxiety-park-heading">Anxiety Box</h2>
-              <p class="reflection-anxiety-park-hint">Park a thought here — it also stays in the dock above while you scroll.</p>
-              <ul class="reflection-anxiety-park-list" id="reflection-anxiety-park-list" aria-live="polite"></ul>
+              <h2 class="reflection-anxiety-park-heading" id="reflection-anxiety-park-heading">Add a thought</h2>
               <form class="reflection-anxiety-park-form" id="reflection-anxiety-form">
-                <label class="reflection-anxiety-park-label" for="reflection-anxiety-input">What’s on your mind?</label>
                 <div class="reflection-anxiety-park-row">
                   <input
                     type="text"
@@ -1165,6 +1161,7 @@
                     placeholder="Set something down…"
                     maxlength="180"
                     autocomplete="off"
+                    aria-label="Add a thought"
                   />
                   <button type="submit" class="reflection-anxiety-park-add">Add</button>
                 </div>
@@ -1271,6 +1268,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=287"></script>
+    <script src="app.js?v=288"></script>
   </body>
 </html>

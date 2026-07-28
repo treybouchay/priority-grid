@@ -1537,12 +1537,12 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.5rem;
+  gap: 0.3rem;
   box-sizing: border-box;
   width: auto;
   max-width: none;
   margin: 0;
-  padding: 0.55rem var(--reflection-pad-x) 0.85rem;
+  padding: 0.4rem var(--reflection-pad-x) 0.55rem;
   border: none;
   border-radius: 0 0 1.25rem 1.25rem;
   background-color: #0e3030;
@@ -1558,7 +1558,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 .reflection-anxiety-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.55rem;
   width: 100%;
 }
 
@@ -1566,8 +1566,8 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 50%;
   background: rgba(255, 219, 210, 0.12);
   color: #ffdbd2;
@@ -1575,14 +1575,14 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 }
 
 .reflection-anxiety-badge svg {
-  width: 1rem;
-  height: 1rem;
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .reflection-anxiety-display {
   margin: 0;
   font-family: var(--font-heading, "Source Serif 4", Georgia, serif);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -1594,7 +1594,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 .reflection-anxiety-count {
   flex-shrink: 0;
   margin: 0;
-  padding: 0.35rem 0.15rem;
+  padding: 0.25rem 0.1rem;
   border: none;
   background: transparent;
   color: #ffdbd2;
@@ -1611,9 +1611,9 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.15rem;
   width: 100%;
-  max-height: min(32vh, 10.5rem);
+  max-height: min(28vh, 9rem);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1624,29 +1624,27 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 
 .reflection-anxiety-item {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 1.75rem;
   align-items: center;
-  column-gap: 0.55rem;
+  column-gap: 0.4rem;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.75rem;
   font-weight: 500;
   color: rgba(255, 219, 210, 0.85);
   padding: 0;
-  min-height: 2rem;
+  min-height: 1.75rem;
 }
 
-.reflection-anxiety-check,
-.reflection-anxiety-park-check {
+.reflection-anxiety-check {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 1.5rem;
+  width: 1.75rem;
+  height: 1.35rem;
   cursor: pointer;
 }
 
-.reflection-anxiety-check input,
-.reflection-anxiety-park-check input {
+.reflection-anxiety-check input {
   appearance: none;
   -webkit-appearance: none;
   width: 1.05rem;
@@ -1659,8 +1657,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   cursor: pointer;
 }
 
-.reflection-anxiety-check input:checked,
-.reflection-anxiety-park-check input:checked {
+.reflection-anxiety-check input:checked {
   background-color: #ffdbd2;
   border-color: #ffdbd2;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -1684,8 +1681,8 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   flex-shrink: 0;
   border: none;
   border-radius: 0;
@@ -1697,8 +1694,8 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 }
 
 .reflection-anxiety-toss-icon {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.05rem;
+  height: 1.05rem;
   display: block;
   stroke: #ffdbd2;
   color: #ffdbd2;
@@ -1715,34 +1712,10 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   outline-offset: 2px;
 }
 
-/* Park rows match Home .focus-timer-mini-task on forest */
-.reflection-anxiety-item--park {
-  color: rgba(255, 219, 210, 0.85);
-  font-size: 0.8125rem;
-}
-
-.reflection-anxiety-item--park .reflection-anxiety-toss {
-  color: #ffdbd2;
-}
-
-.reflection-anxiety-item--park .reflection-anxiety-toss-icon {
-  stroke: #ffdbd2;
-  color: #ffdbd2;
-}
-
-.reflection-anxiety-item--park .reflection-anxiety-toss:hover {
-  color: #ffdbd2;
-  opacity: 0.75;
-}
-
-.reflection-anxiety-item--park .reflection-anxiety-toss:focus-visible {
-  outline-color: #ffdbd2;
-}
-
-/* Forest park card — mirrors Home .focus-timer-mini bubble */
+/* Forest park card — add + Past thoughts only (active list lives in sticky dock) */
 .reflection-anxiety-park {
-  margin: 1.15rem 0 0;
-  padding: 1rem 1.05rem 1.15rem;
+  margin: 0.85rem 0 0;
+  padding: 0.75rem 0.85rem 0.8rem;
   border-radius: 1.25rem;
   background-color: #0e3030;
   border: none;
@@ -1751,52 +1724,17 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   flex-shrink: 0;
 }
 
-.reflection-anxiety-park-list {
-  list-style: none;
-  margin: 0 0 0.85rem;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.reflection-anxiety-park-empty {
-  margin: 0;
-  padding: 0.35rem 0;
-  font-size: 0.8125rem;
-  font-weight: 550;
-  color: rgba(255, 219, 210, 0.55);
-  list-style: none;
-}
-
-.reflection-anxiety-park-eyebrow {
-  margin: 0 0 0.25rem;
-  font-size: 0.625rem;
-  font-weight: 750;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: rgba(255, 219, 210, 0.65);
-}
-
 .reflection-anxiety-park-heading {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.5rem;
   font-family: "Source Serif 4", Georgia, serif;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 650;
   color: #ffdbd2;
 }
 
-.reflection-anxiety-park-hint {
-  margin: 0 0 0.85rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.4;
-  color: rgba(255, 219, 210, 0.72);
-}
-
 .reflection-anxiety-history {
-  margin-top: 0.95rem;
-  padding-top: 0.75rem;
+  margin-top: 0.7rem;
+  padding-top: 0.55rem;
   border-top: 1px solid rgba(255, 219, 210, 0.16);
 }
 
@@ -1815,7 +1753,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 }
 
 .reflection-anxiety-history-empty {
-  margin: 0.65rem 0 0;
+  margin: 0.55rem 0 0;
   font-size: 0.8125rem;
   color: rgba(255, 219, 210, 0.55);
 }
@@ -1826,11 +1764,11 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 
 .reflection-anxiety-history-list {
   list-style: none;
-  margin: 0.65rem 0 0;
+  margin: 0.55rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.4rem;
 }
 
 .reflection-anxiety-history.is-empty .reflection-anxiety-history-list {
@@ -1842,7 +1780,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   grid-template-columns: minmax(0, 1fr) 1.75rem;
   gap: 0.4rem;
   align-items: start;
-  padding: 0.55rem 0.65rem;
+  padding: 0.45rem 0.55rem;
   border-radius: 0.85rem;
   background: rgba(255, 219, 210, 0.08);
 }
@@ -1886,14 +1824,6 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   color: #ffdbd2;
 }
 
-.reflection-anxiety-park-label {
-  display: block;
-  margin: 0 0 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 650;
-  color: rgba(255, 219, 210, 0.78);
-}
-
 .reflection-anxiety-park-form {
   margin: 0;
 }
@@ -1901,7 +1831,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
 .reflection-anxiety-park-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   width: 100%;
 }
 
@@ -1910,7 +1840,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   min-width: 0;
   box-sizing: border-box;
   margin: 0;
-  padding: 0.65rem 0.8rem;
+  padding: 0.55rem 0.7rem;
   border: 1px solid rgba(255, 219, 210, 0.22);
   border-radius: 0.9rem;
   background: rgba(255, 255, 255, 0.92);
@@ -1934,7 +1864,7 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   flex-shrink: 0;
   border: none;
   border-radius: 0.9rem;
-  padding: 0.65rem 0.95rem;
+  padding: 0.55rem 0.85rem;
   background: #ffdbd2;
   color: #0e3030;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
