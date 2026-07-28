@@ -2726,8 +2726,8 @@ function renderReflectionAnxietyBox() {
   const countEl = document.getElementById("reflection-anxiety-count");
   const historyList = document.getElementById("reflection-anxiety-history-list");
   const historyEmpty = document.getElementById("reflection-anxiety-history-empty");
-  const historySection = document.getElementById("reflection-anxiety-history");
-  const historyHeading = document.getElementById("reflection-anxiety-history-heading");
+  const historyDetails = document.getElementById("reflection-anxiety-history");
+  const historySummary = document.getElementById("reflection-anxiety-history-heading");
   const items = loadAnxietyBox();
   const history = loadAnxietyHistory();
   const hasItems = items.length > 0;
@@ -2750,8 +2750,9 @@ function renderReflectionAnxietyBox() {
       ? items.map((item) => anxietyBoxItemHtml(item, { surface: "park" })).join("")
       : `<li class="reflection-anxiety-park-empty">Nothing parked yet — add a thought below.</li>`;
   }
-  if (historyHeading) {
-    historyHeading.textContent = history.length
+  // Collapsed by default (no `open`); summary shows count so check-offs aren't invisible.
+  if (historySummary) {
+    historySummary.textContent = history.length
       ? `Past thoughts · ${history.length}`
       : "Past thoughts";
   }
@@ -2763,8 +2764,8 @@ function renderReflectionAnxietyBox() {
   if (historyEmpty) {
     historyEmpty.classList.toggle("hidden", history.length > 0);
   }
-  if (historySection) {
-    historySection.classList.toggle("is-empty", history.length === 0);
+  if (historyDetails) {
+    historyDetails.classList.toggle("is-empty", history.length === 0);
   }
 }
 
