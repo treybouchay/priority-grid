@@ -73,7 +73,7 @@
     <link rel="stylesheet" href="design/tasks-screen.css?v=40" />
     <link rel="stylesheet" href="design/history-wins.css?v=7" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=64" />
+    <link rel="stylesheet" href="design/reflection.css?v=65" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1150,10 +1150,11 @@
               <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks checked off yet today.</p>
             </section>
 
-            <section class="reflection-anxiety-park" aria-labelledby="reflection-anxiety-park-heading">
+            <section class="reflection-anxiety-park" id="reflection-anxiety-park" aria-labelledby="reflection-anxiety-park-heading">
               <p class="reflection-anxiety-park-eyebrow">Set it down for now</p>
               <h2 class="reflection-anxiety-park-heading" id="reflection-anxiety-park-heading">Anxiety Box</h2>
-              <p class="reflection-anxiety-park-hint">Park a thought here — it’ll wait quietly in the dock above.</p>
+              <p class="reflection-anxiety-park-hint">Park a thought here — it’ll wait quietly in the dock above when you scroll away.</p>
+              <ul class="reflection-anxiety-park-list" id="reflection-anxiety-park-list" aria-live="polite"></ul>
               <form class="reflection-anxiety-park-form" id="reflection-anxiety-form">
                 <label class="reflection-anxiety-park-label" for="reflection-anxiety-input">What’s on your mind?</label>
                 <div class="reflection-anxiety-park-row">
@@ -1168,6 +1169,13 @@
                   <button type="submit" class="reflection-anxiety-park-add">Add</button>
                 </div>
               </form>
+              <details class="reflection-anxiety-history" id="reflection-anxiety-history">
+                <summary class="reflection-anxiety-history-summary">Past thoughts</summary>
+                <p class="reflection-anxiety-history-empty hidden" id="reflection-anxiety-history-empty">
+                  Checked-off thoughts land here.
+                </p>
+                <ul class="reflection-anxiety-history-list" id="reflection-anxiety-history-list" aria-live="polite"></ul>
+              </details>
             </section>
 
             <footer class="reflection-footer">
@@ -1263,6 +1271,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=283"></script>
+    <script src="app.js?v=284"></script>
   </body>
 </html>

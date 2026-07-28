@@ -18,6 +18,7 @@ const DONE_ROLLOVER_KEY = "priority-grid-done-rollover";
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
 const ANXIETY_BOX_KEY = "priority-grid-anxiety-box";
+const ANXIETY_HISTORY_KEY = "priority-grid-anxiety-history";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
@@ -1097,7 +1098,10 @@ function setupFocusTimer() {
     const active = isActiveSession();
     const sessionActive = active || done;
     syncFocusCardVisibility();
-    const showMiniBar = sessionActive && !focusCardVisible;
+    const reflectionOpen = document.documentElement.classList.contains("reflection-open");
+    const hideTimerForAnxiety =
+      reflectionOpen && loadAnxietyBox().length > 0;
+    const showMiniBar = sessionActive && !focusCardVisible && !hideTimerForAnxiety;
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
@@ -1512,12 +1516,87 @@ function normalizeAnxietyBoxItem(item) {
   };
 }
 
+function normalizeAnxietyHistoryItem(item) {
+  if (!item || typeof item.text !== "string" || !item.text.trim()) return null;
+  const reason = item.reason === "tossed" ? "tossed" : "checked";
+  return {
+    id: typeof item.id === "string" && item.id ? item.id : createId(),
+    text: item.text.trim().slice(0, 180),
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+    archivedAt:
+      typeof item.archivedAt === "string"
+        ? item.archivedAt
+        : typeof item.tossedAt === "string"
+          ? item.tossedAt
+          : typeof item.checkedAt === "string"
+            ? item.checkedAt
+            : new Date().toISOString(),
+    reason,
+  };
+}
+
+function loadAnxietyHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ANXIETY_HISTORY_KEY) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeAnxietyHistoryItem).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function saveAnxietyHistory(items, options = {}) {
+  localStorage.setItem(
+    ANXIETY_HISTORY_KEY,
+    JSON.stringify((Array.isArray(items) ? items : []).map(normalizeAnxietyHistoryItem).filter(Boolean))
+  );
+  if (!options.skipSync) markSyncDirty();
+}
+
+/** Migrate legacy tossedAt active items into history once. */
+function migrateAnxietyTossedToHistory(options = {}) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ANXIETY_BOX_KEY) || "[]");
+    if (!Array.isArray(parsed)) return;
+    const normalized = parsed.map(normalizeAnxietyBoxItem).filter(Boolean);
+    const tossed = normalized.filter((item) => item.tossedAt);
+    if (!tossed.length) return;
+    const active = normalized
+      .filter((item) => !item.tossedAt)
+      .map(({ tossedAt: _t, ...rest }) => rest);
+    const history = [
+      ...loadAnxietyHistory(),
+      ...tossed.map((item) => ({
+        id: item.id,
+        text: item.text,
+        createdAt: item.createdAt,
+        archivedAt: item.tossedAt,
+        reason: "tossed",
+      })),
+    ];
+    const byId = new Map();
+    history.forEach((item) => {
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    });
+    saveAnxietyHistory([...byId.values()], { skipSync: true });
+    saveAnxietyBox(active, { skipSync: true });
+    if (!options.skipSync) markSyncDirty();
+  } catch {
+    /* ignore */
+  }
+}
+
 function loadAnxietyBox({ includeTossed = false } = {}) {
+  migrateAnxietyTossedToHistory({ skipSync: true });
   try {
     const parsed = JSON.parse(localStorage.getItem(ANXIETY_BOX_KEY) || "[]");
     if (!Array.isArray(parsed)) return [];
-    const items = parsed.map(normalizeAnxietyBoxItem).filter(Boolean);
-    return includeTossed ? items : items.filter((item) => !item.tossedAt);
+    const items = parsed
+      .map(normalizeAnxietyBoxItem)
+      .filter(Boolean)
+      .map(({ tossedAt: _t, ...rest }) => rest);
+    // includeTossed kept for sync/export callers; tossed now live in history
+    return includeTossed ? items : items;
   } catch {
     return [];
   }
@@ -1526,7 +1605,13 @@ function loadAnxietyBox({ includeTossed = false } = {}) {
 function saveAnxietyBox(items, options = {}) {
   localStorage.setItem(
     ANXIETY_BOX_KEY,
-    JSON.stringify((Array.isArray(items) ? items : []).map(normalizeAnxietyBoxItem).filter(Boolean))
+    JSON.stringify(
+      (Array.isArray(items) ? items : [])
+        .map(normalizeAnxietyBoxItem)
+        .filter(Boolean)
+        .filter((item) => !item.tossedAt)
+        .map(({ tossedAt: _t, ...rest }) => rest)
+    )
   );
   if (!options.skipSync) markSyncDirty();
 }
@@ -1535,18 +1620,41 @@ function addAnxietyBoxItem(text) {
   const trimmed = String(text || "").trim().slice(0, 180);
   if (!trimmed) return;
   saveAnxietyBox([
-    ...loadAnxietyBox({ includeTossed: true }),
+    ...loadAnxietyBox(),
     { id: createId(), text: trimmed, createdAt: new Date().toISOString() },
   ]);
 }
 
+/** Permanent remove from the active Anxiety Box (not archived to history). */
 function tossAnxietyBoxItem(id) {
-  const tossedAt = new Date().toISOString();
-  saveAnxietyBox(
-    loadAnxietyBox({ includeTossed: true }).map((item) =>
-      item.id === id ? { ...item, tossedAt } : item
-    )
-  );
+  saveAnxietyBox(loadAnxietyBox().filter((item) => item.id !== id));
+  renderReflectionAnxietyBox();
+  renderFocusTimerChrome();
+}
+
+/** Check off → move to history. */
+function checkAnxietyBoxItem(id) {
+  const items = loadAnxietyBox();
+  const item = items.find((entry) => entry.id === id);
+  if (!item) return;
+  const archivedAt = new Date().toISOString();
+  saveAnxietyBox(items.filter((entry) => entry.id !== id));
+  saveAnxietyHistory([
+    {
+      id: item.id,
+      text: item.text,
+      createdAt: item.createdAt,
+      archivedAt,
+      reason: "checked",
+    },
+    ...loadAnxietyHistory(),
+  ]);
+  renderReflectionAnxietyBox();
+  renderFocusTimerChrome();
+}
+
+function deleteAnxietyHistoryItem(id) {
+  saveAnxietyHistory(loadAnxietyHistory().filter((item) => item.id !== id));
   renderReflectionAnxietyBox();
 }
 
@@ -1571,7 +1679,8 @@ function exportAllData() {
     customBrainDump: collectCustomBrainDumpPayload(),
     displayName: getDisplayName(),
     profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
-    anxietyBox: loadAnxietyBox({ includeTossed: true }),
+    anxietyBox: loadAnxietyBox(),
+    anxietyHistory: loadAnxietyHistory(),
     theme: getTheme(),
     font: getFont(),
     weekStart: getWeekStartPreference(),
@@ -1613,6 +1722,9 @@ function importAllData(file) {
       }
       if (Array.isArray(data.anxietyBox)) {
         saveAnxietyBox(data.anxietyBox, { skipSync: true });
+      }
+      if (Array.isArray(data.anxietyHistory)) {
+        saveAnxietyHistory(data.anxietyHistory, { skipSync: true });
       }
       rebuildContextUi();
       renderAll();
@@ -1711,7 +1823,8 @@ function buildSyncPayload() {
     forgetIt: collectNextWeekFromStorage(),
     displayName: getDisplayName(),
     profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
-    anxietyBox: loadAnxietyBox({ includeTossed: true }),
+    anxietyBox: loadAnxietyBox(),
+    anxietyHistory: loadAnxietyHistory(),
     weekStart: getWeekStartPreference(),
   };
 }
@@ -1811,13 +1924,16 @@ function applySyncPayload(payload, options = {}) {
     if (preferRemote) setWeekStartPreference(payload.weekStart, { skipSync: true });
   }
 
-  if (Array.isArray(payload.anxietyBox) || loadAnxietyBox({ includeTossed: true }).length > 0) {
+  if (Array.isArray(payload.anxietyBox) || loadAnxietyBox().length > 0) {
     saveAnxietyBox(
-      mergeTaskLists(
-        loadAnxietyBox({ includeTossed: true }),
-        payload.anxietyBox || [],
-        preferRemote
-      ),
+      mergeTaskLists(loadAnxietyBox(), payload.anxietyBox || [], preferRemote),
+      skipSync
+    );
+  }
+
+  if (Array.isArray(payload.anxietyHistory) || loadAnxietyHistory().length > 0) {
+    saveAnxietyHistory(
+      mergeTaskLists(loadAnxietyHistory(), payload.anxietyHistory || [], preferRemote),
       skipSync
     );
   }
@@ -2561,10 +2677,14 @@ function setupSettingsPreferences() {
   });
 }
 
-function anxietyBoxItemHtml(item) {
+function anxietyBoxItemHtml(item, { surface = "dock" } = {}) {
+  const checkClass =
+    surface === "park" ? "reflection-anxiety-park-check" : "reflection-anxiety-check";
   return `
-    <li class="reflection-anxiety-item" data-anxiety-id="${escapeHtml(item.id)}">
-      <span class="reflection-anxiety-marker" aria-hidden="true"></span>
+    <li class="reflection-anxiety-item reflection-anxiety-item--${escapeHtml(surface)}" data-anxiety-id="${escapeHtml(item.id)}">
+      <label class="${checkClass}">
+        <input type="checkbox" aria-label="Check off thought" />
+      </label>
       <span class="reflection-anxiety-item-text">${escapeHtml(item.text)}</span>
       <button
         type="button"
@@ -2577,21 +2697,133 @@ function anxietyBoxItemHtml(item) {
     </li>`;
 }
 
+function anxietyHistoryItemHtml(item) {
+  const when = formatArchiveDayHeading(archiveDayKey(item.archivedAt || item.createdAt));
+  const reasonLabel = item.reason === "tossed" ? "Tossed" : "Checked off";
+  return `
+    <li class="reflection-anxiety-history-item" data-anxiety-history-id="${escapeHtml(item.id)}">
+      <div class="reflection-anxiety-history-copy">
+        <p class="reflection-anxiety-history-meta">${escapeHtml(when)} · ${escapeHtml(reasonLabel)}</p>
+        <p class="reflection-anxiety-history-text">${escapeHtml(item.text)}</p>
+      </div>
+      <button
+        type="button"
+        class="reflection-anxiety-history-delete"
+        aria-label="Delete permanently"
+        title="Delete permanently"
+      >
+        <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+      </button>
+    </li>`;
+}
+
+let anxietyParkVisible = false;
+let anxietyParkObserver = null;
+
+function syncAnxietyParkVisibility() {
+  const park = document.getElementById("reflection-anxiety-park");
+  const dialog = document.getElementById("reflection-dialog");
+  if (!park || !dialog?.open) {
+    anxietyParkVisible = false;
+    return;
+  }
+  const rect = park.getBoundingClientRect();
+  const rootRect = dialog.getBoundingClientRect();
+  anxietyParkVisible =
+    rect.bottom > rootRect.top + 12 && rect.top < rootRect.bottom - 12;
+}
+
+function setupAnxietyParkObserver() {
+  const park = document.getElementById("reflection-anxiety-park");
+  const dialog = document.getElementById("reflection-dialog");
+  anxietyParkObserver?.disconnect();
+  anxietyParkObserver = null;
+
+  if (!park || !dialog?.open) {
+    anxietyParkVisible = false;
+    return;
+  }
+
+  syncAnxietyParkVisibility();
+
+  anxietyParkObserver = new IntersectionObserver(
+    (entries) => {
+      const nextVisible = entries.some((entry) => entry.isIntersecting);
+      if (nextVisible === anxietyParkVisible) return;
+      anxietyParkVisible = nextVisible;
+      renderReflectionAnxietyBox();
+    },
+    { root: dialog, threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
+  );
+  anxietyParkObserver.observe(park);
+}
+
 function renderReflectionAnxietyBox() {
   const card = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
+  const parkList = document.getElementById("reflection-anxiety-park-list");
   const countEl = document.getElementById("reflection-anxiety-count");
+  const historyList = document.getElementById("reflection-anxiety-history-list");
+  const historyEmpty = document.getElementById("reflection-anxiety-history-empty");
+  const historyDetails = document.getElementById("reflection-anxiety-history");
   const items = loadAnxietyBox();
+  const history = loadAnxietyHistory();
   const hasItems = items.length > 0;
+  const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
 
-  card?.classList.toggle("hidden", !hasItems);
-  document.documentElement.classList.toggle("reflection-anxiety-active", hasItems);
+  syncAnxietyParkVisibility();
+  const showDock = hasItems && dialogOpen && !anxietyParkVisible;
+
+  card?.classList.toggle("hidden", !showDock);
+  document.documentElement.classList.toggle("reflection-anxiety-active", showDock);
+  document.documentElement.classList.toggle("reflection-has-anxiety", hasItems);
   if (countEl) {
     countEl.textContent = String(items.length);
     countEl.hidden = !hasItems;
   }
-  if (!list) return;
-  list.innerHTML = hasItems ? items.map((item) => anxietyBoxItemHtml(item)).join("") : "";
+  if (list) {
+    list.innerHTML = hasItems ? items.map((item) => anxietyBoxItemHtml(item, { surface: "dock" })).join("") : "";
+  }
+  if (parkList) {
+    parkList.innerHTML = hasItems
+      ? items.map((item) => anxietyBoxItemHtml(item, { surface: "park" })).join("")
+      : `<li class="reflection-anxiety-park-empty">Nothing parked yet — add a thought below.</li>`;
+  }
+  if (historyList) {
+    historyList.innerHTML = history.length
+      ? history.map((item) => anxietyHistoryItemHtml(item)).join("")
+      : "";
+  }
+  if (historyEmpty) {
+    historyEmpty.classList.toggle("hidden", history.length > 0);
+  }
+  if (historyDetails) {
+    historyDetails.classList.toggle("is-empty", history.length === 0);
+  }
+}
+
+function bindAnxietyListClicks(root) {
+  root?.addEventListener("click", (event) => {
+    const tossBtn = event.target.closest(".reflection-anxiety-toss");
+    if (tossBtn) {
+      const item = tossBtn.closest("[data-anxiety-id]");
+      if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
+      return;
+    }
+    const historyDelete = event.target.closest(".reflection-anxiety-history-delete");
+    if (historyDelete) {
+      const item = historyDelete.closest("[data-anxiety-history-id]");
+      if (item?.dataset.anxietyHistoryId) deleteAnxietyHistoryItem(item.dataset.anxietyHistoryId);
+    }
+  });
+
+  root?.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
+    const item = input.closest("[data-anxiety-id]");
+    if (!item?.dataset.anxietyId) return;
+    if (input.checked) checkAnxietyBoxItem(item.dataset.anxietyId);
+  });
 }
 
 function setupAnxietyBox() {
@@ -2603,14 +2835,13 @@ function setupAnxietyBox() {
     addAnxietyBoxItem(input.value);
     input.value = "";
     renderReflectionAnxietyBox();
+    renderFocusTimerChrome();
     input.focus();
   });
 
-  document.getElementById("reflection-anxiety-list")?.addEventListener("click", (event) => {
-    const button = event.target.closest(".reflection-anxiety-toss");
-    const item = button?.closest("[data-anxiety-id]");
-    if (item?.dataset.anxietyId) tossAnxietyBoxItem(item.dataset.anxietyId);
-  });
+  bindAnxietyListClicks(document.getElementById("reflection-anxiety-list"));
+  bindAnxietyListClicks(document.getElementById("reflection-anxiety-park-list"));
+  bindAnxietyListClicks(document.getElementById("reflection-anxiety-history-list"));
 }
 
 function setupDateHeader() {
@@ -2635,7 +2866,7 @@ function setupDateHeader() {
 }
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDayKey();
 }
 
 function plan135StorageKey(date = todayKey()) {
@@ -2883,33 +3114,57 @@ function clearExpiredDeferredTasks() {
 }
 
 function resetRepeatDailyTasksIfNeeded() {
-  const today = todayKey();
+  const today = localDayKey();
   let lastReset = null;
   try {
     lastReset = localStorage.getItem(REPEAT_RESET_KEY);
   } catch {
     /* ignore */
   }
-  if (lastReset === today) return;
+
+  let didChange = false;
 
   getContexts().forEach((ctx) => {
     const list = loadTasks(ctx);
     let changed = false;
     const next = list.map((t) => {
       if (!t.repeatDaily) return t;
+
+      // Incomplete dailies: stamp the local day and keep them open.
+      if (!t.done) {
+        if (t.repeatLastReset === today) return t;
+        changed = true;
+        return { ...t, repeatLastReset: today };
+      }
+
+      // Done dailies reopen unless they were completed on this local calendar day.
+      const completedDay = t.completedAt ? archiveDayKey(t.completedAt) : null;
+      if (completedDay === today) {
+        if (t.repeatLastReset === today) return t;
+        changed = true;
+        return { ...t, repeatLastReset: today };
+      }
+
       changed = true;
       const updated = { ...t, done: false, repeatLastReset: today };
       delete updated.completedAt;
       return updated;
     });
-    if (changed) saveTasks(ctx, next);
+    if (changed) {
+      didChange = true;
+      saveTasks(ctx, next);
+    }
   });
 
-  try {
-    localStorage.setItem(REPEAT_RESET_KEY, today);
-  } catch {
-    /* ignore */
+  if (lastReset !== today) {
+    try {
+      localStorage.setItem(REPEAT_RESET_KEY, today);
+    } catch {
+      /* ignore */
+    }
   }
+
+  return didChange;
 }
 
 /** Local calendar day key (YYYY-MM-DD) for midnight rollover. */
@@ -2971,9 +3226,9 @@ function archiveCompletedTasksPastMidnight() {
 
 function runDailyMaintenance({ render = false } = {}) {
   clearExpiredDeferredTasks();
-  resetRepeatDailyTasksIfNeeded();
+  const reset = resetRepeatDailyTasksIfNeeded();
   const rolled = archiveCompletedTasksPastMidnight();
-  if (render && rolled) renderAll();
+  if (render && (rolled || reset)) renderAll();
 }
 
 function setupDailyMaintenance() {
@@ -5229,16 +5484,7 @@ function getCompletedTasksForDay(dayKey) {
     return buildDemoReflectionWins(target);
   }
 
-  // Live today: keep real completions only (2+ rule for persona stays intact).
-  if (target === reflectionTodayKey()) {
-    return sorted;
-  }
-
-  // Past days with sparse data: seed distinct week-slot wins so browsing shows variety.
-  if (sorted.length < 2) {
-    return buildDemoReflectionWins(target);
-  }
-
+  // Real data only — never seed demo wins / week personas on empty days.
   return sorted;
 }
 
@@ -5794,11 +6040,8 @@ function setupPersonaMarkPreview() {
   });
 }
 
-/** Day vibe persona for the merged review card — needs 2+ completions (live today). */
+/** Day vibe persona for the merged review card — needs 2+ completions. */
 function buildReflectionInsights(completed, dayKey = reflectionTodayKey()) {
-  const isToday = dayKey === reflectionTodayKey();
-  const forcedDemo = wantsForcedReflectionDemoWins();
-
   if (completed && completed.length >= 2) {
     const sorted = [...completed].sort(
       (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
@@ -5806,12 +6049,7 @@ function buildReflectionInsights(completed, dayKey = reflectionTodayKey()) {
     return { persona: pickReflectionPersona(sorted) };
   }
 
-  // Live today without 2+ wins: keep empty (growing note handles copy).
-  if (isToday && !forcedDemo) {
-    return { persona: null };
-  }
-
-  return { persona: getWeekSlotPersonaFill(dayKey) };
+  return { persona: null };
 }
 
 function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
@@ -5820,18 +6058,19 @@ function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
 
   if (!completed.length) {
     return {
-      title: isToday ? "Your day is still opening" : "A quieter day",
+      title: "Rest Day",
       categories: [],
       priorityBars: [],
       thumbs: [],
       insights: { persona: null },
       quietNote: isToday
-        ? "Complete a couple of tasks and your day’s vibe will start to take shape."
-        : "Nothing checked off — still a day worth noticing.",
+        ? "Nothing checked off yet — a rest day still counts."
+        : "Nothing checked off — a quiet day worth keeping.",
       growingNote: "",
+      restDay: true,
       ariaSummary: isToday
-        ? "No tasks completed today yet."
-        : `Nothing was checked off ${dayPhrase}.`,
+        ? "Rest day. No tasks completed today yet."
+        : `Rest day. Nothing was checked off ${dayPhrase}.`,
     };
   }
 
@@ -6227,9 +6466,20 @@ function renderReflectionReview() {
 
     let visualsHtml = "";
     if (story.quietNote) {
+      const restClass = story.restDay ? " reflection-story-quiet--rest" : "";
       visualsHtml = `
-        <div class="reflection-story-quiet">
-          <span class="reflection-story-quiet-ring" aria-hidden="true"></span>
+        <div class="reflection-story-quiet${restClass}">
+          <span class="reflection-story-quiet-ring${story.restDay ? " reflection-rest-mark" : ""}" aria-hidden="true">
+            ${
+              story.restDay
+                ? `<svg class="reflection-rest-svg" viewBox="0 0 48 48" fill="none">
+                    <circle class="reflection-rest-halo" cx="24" cy="24" r="18" stroke="#ffdbd2" stroke-width="2.5" opacity="0.85"/>
+                    <circle class="reflection-rest-core" cx="24" cy="24" r="8" fill="#0e3030"/>
+                    <path class="reflection-rest-leaf" d="M24 10c4.5 3.2 7 7.2 7 12s-2.5 8.8-7 12c-4.5-3.2-7-7.2-7-12s2.5-8.8 7-12Z" fill="#ffdbd2" opacity="0.9"/>
+                  </svg>`
+                : ""
+            }
+          </span>
           <p class="reflection-story-quiet-text">${escapeHtml(story.quietNote)}</p>
         </div>`;
     } else {
@@ -6357,8 +6607,8 @@ function renderReflectionReview() {
     list.innerHTML = "";
     empty.classList.remove("hidden");
     empty.textContent = isToday
-      ? "No tasks checked off yet today. Keep going — your vibe fills in after two wins."
-      : `No tasks were checked off ${dayPhrase}.`;
+      ? "Rest day — nothing checked off yet. Your vibe shows up after two wins."
+      : `Rest day — nothing was checked off ${dayPhrase}.`;
     observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
     return;
   }
@@ -6434,7 +6684,20 @@ function setReflectionOpenState(open) {
   document.documentElement.classList.toggle("reflection-open", open);
   document.body.classList.toggle("reflection-open", open);
   if (!open) {
-    requestAnimationFrame(() => syncBottomChrome());
+    anxietyParkObserver?.disconnect();
+    anxietyParkObserver = null;
+    anxietyParkVisible = false;
+    document.documentElement.classList.remove("reflection-anxiety-active", "reflection-has-anxiety");
+    requestAnimationFrame(() => {
+      renderFocusTimerChrome();
+      syncBottomChrome();
+    });
+  } else {
+    requestAnimationFrame(() => {
+      setupAnxietyParkObserver();
+      renderReflectionAnxietyBox();
+      renderFocusTimerChrome();
+    });
   }
 }
 
@@ -6467,6 +6730,9 @@ function openReflectionDialog() {
   // Reset to top so sticky header + hero read correctly on reopen
   dialog.scrollTop = 0;
   requestAnimationFrame(() => {
+    setupAnxietyParkObserver();
+    renderReflectionAnxietyBox();
+    renderFocusTimerChrome();
     syncBottomChrome();
     updateReflectionHeroOnCream();
   });
