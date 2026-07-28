@@ -71,9 +71,9 @@
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
     <link rel="stylesheet" href="design/home-presence.css?v=106" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=40" />
-    <link rel="stylesheet" href="design/history-wins.css?v=7" />
+    <link rel="stylesheet" href="design/history-wins.css?v=8" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=66" />
+    <link rel="stylesheet" href="design/reflection.css?v=67" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1169,13 +1169,13 @@
                   <button type="submit" class="reflection-anxiety-park-add">Add</button>
                 </div>
               </form>
-              <details class="reflection-anxiety-history" id="reflection-anxiety-history">
-                <summary class="reflection-anxiety-history-summary">Past thoughts</summary>
-                <p class="reflection-anxiety-history-empty hidden" id="reflection-anxiety-history-empty">
+              <section class="reflection-anxiety-history" id="reflection-anxiety-history" aria-labelledby="reflection-anxiety-history-heading">
+                <h3 class="reflection-anxiety-history-heading" id="reflection-anxiety-history-heading">Past thoughts</h3>
+                <p class="reflection-anxiety-history-empty" id="reflection-anxiety-history-empty">
                   Checked-off thoughts land here.
                 </p>
                 <ul class="reflection-anxiety-history-list" id="reflection-anxiety-history-list" aria-live="polite"></ul>
-              </details>
+              </section>
             </section>
 
             <footer class="reflection-footer">
@@ -1271,6 +1271,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=285"></script>
+    <script src="app.js?v=286"></script>
   </body>
 </html>

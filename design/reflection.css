@@ -1810,24 +1810,23 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   border-top: 1px solid rgba(14, 48, 48, 0.08);
 }
 
-.reflection-anxiety-history-summary {
-  cursor: pointer;
+.reflection-anxiety-history-heading {
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(14, 48, 48, 0.55);
-  list-style: none;
-}
-
-.reflection-anxiety-history-summary::-webkit-details-marker {
-  display: none;
 }
 
 .reflection-anxiety-history-empty {
   margin: 0.65rem 0 0;
   font-size: 0.8125rem;
   color: rgba(14, 48, 48, 0.5);
+}
+
+.reflection-anxiety-history-empty.hidden {
+  display: none;
 }
 
 .reflection-anxiety-history-list {
@@ -1837,6 +1836,10 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.reflection-anxiety-history.is-empty .reflection-anxiety-history-list {
+  display: none;
 }
 
 .reflection-anxiety-history-item {

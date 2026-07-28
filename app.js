@@ -1651,11 +1651,13 @@ function checkAnxietyBoxItem(id) {
   ]);
   renderReflectionAnxietyBox();
   renderFocusTimerChrome();
+  if (page === "history") renderHistory();
 }
 
 function deleteAnxietyHistoryItem(id) {
   saveAnxietyHistory(loadAnxietyHistory().filter((item) => item.id !== id));
   renderReflectionAnxietyBox();
+  if (page === "history") renderHistory();
 }
 
 function updateBoardHint() {
@@ -2724,7 +2726,8 @@ function renderReflectionAnxietyBox() {
   const countEl = document.getElementById("reflection-anxiety-count");
   const historyList = document.getElementById("reflection-anxiety-history-list");
   const historyEmpty = document.getElementById("reflection-anxiety-history-empty");
-  const historyDetails = document.getElementById("reflection-anxiety-history");
+  const historySection = document.getElementById("reflection-anxiety-history");
+  const historyHeading = document.getElementById("reflection-anxiety-history-heading");
   const items = loadAnxietyBox();
   const history = loadAnxietyHistory();
   const hasItems = items.length > 0;
@@ -2747,6 +2750,11 @@ function renderReflectionAnxietyBox() {
       ? items.map((item) => anxietyBoxItemHtml(item, { surface: "park" })).join("")
       : `<li class="reflection-anxiety-park-empty">Nothing parked yet — add a thought below.</li>`;
   }
+  if (historyHeading) {
+    historyHeading.textContent = history.length
+      ? `Past thoughts · ${history.length}`
+      : "Past thoughts";
+  }
   if (historyList) {
     historyList.innerHTML = history.length
       ? history.map((item) => anxietyHistoryItemHtml(item)).join("")
@@ -2755,8 +2763,8 @@ function renderReflectionAnxietyBox() {
   if (historyEmpty) {
     historyEmpty.classList.toggle("hidden", history.length > 0);
   }
-  if (historyDetails) {
-    historyDetails.classList.toggle("is-empty", history.length === 0);
+  if (historySection) {
+    historySection.classList.toggle("is-empty", history.length === 0);
   }
 }
 
@@ -8890,6 +8898,44 @@ function historyDayCardHtml(dayKey, tasks) {
     </article>`;
 }
 
+function historyAnxietyItemHtml(item) {
+  const when = formatArchiveDayHeading(archiveDayKey(item.archivedAt || item.createdAt));
+  const reasonLabel = item.reason === "tossed" ? "Tossed" : "Checked off";
+  return `
+    <li class="history-anxiety-item" data-anxiety-history-id="${escapeHtml(item.id)}">
+      <div class="history-anxiety-copy">
+        <p class="history-anxiety-meta">${escapeHtml(when)} · ${escapeHtml(reasonLabel)}</p>
+        <p class="history-anxiety-text">${escapeHtml(item.text)}</p>
+      </div>
+      <button
+        type="button"
+        class="history-anxiety-delete"
+        aria-label="Delete permanently"
+        title="Delete permanently"
+      >
+        <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+      </button>
+    </li>`;
+}
+
+function historyAnxietyCardHtml(history) {
+  if (!history.length) return "";
+  return `
+    <article class="plan-card history-anxiety-card" aria-labelledby="history-anxiety-heading">
+      <div class="plan-card-inner">
+        <div class="completed-wins-card-header">
+          <div class="completed-wins-card-heading">
+            <h3 class="plan-card-title plan-card-title--featured" id="history-anxiety-heading">Past anxiety thoughts</h3>
+            <p class="plan-card-subtitle">${history.length} checked off or tossed</p>
+          </div>
+        </div>
+        <ul class="history-anxiety-list">
+          ${history.map(historyAnxietyItemHtml).join("")}
+        </ul>
+      </div>
+    </article>`;
+}
+
 function renderHistory() {
   const content = document.getElementById("history-content");
   const empty = document.getElementById("history-empty");
@@ -8900,16 +8946,24 @@ function renderHistory() {
   const tasks = getCompletedTasksForHistory().filter(
     (t) => archiveDayKey(t.completedAt) >= startedDay
   );
+  const anxietyHistory = loadAnxietyHistory();
 
   if (subtitle) {
     const startedLabel = formatArchiveDayHeading(startedDay);
-    subtitle.textContent =
+    const taskPart =
       tasks.length === 0
-        ? `Completed tasks since ${startedLabel} will appear here.`
-        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel} — a quiet record of what you’ve finished.`;
+        ? `Completed tasks since ${startedLabel} will appear here`
+        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}`;
+    const anxietyPart = anxietyHistory.length
+      ? ` · ${anxietyHistory.length} past anxiety thought${anxietyHistory.length === 1 ? "" : "s"}`
+      : "";
+    subtitle.textContent =
+      tasks.length === 0 && !anxietyHistory.length
+        ? `${taskPart}.`
+        : `${taskPart}${anxietyPart} — a quiet record of what you’ve finished.`;
   }
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && anxietyHistory.length === 0) {
     content.innerHTML = "";
     empty.classList.remove("hidden");
     return;
@@ -8930,9 +8984,20 @@ function renderHistory() {
     return b.localeCompare(a);
   });
 
-  content.innerHTML = sortedKeys
+  const anxietyCard = historyAnxietyCardHtml(anxietyHistory);
+  const dayCards = sortedKeys
     .map((dayKey) => historyDayCardHtml(dayKey, groups.get(dayKey)))
     .join("");
+  content.innerHTML = `${anxietyCard}${dayCards}`;
+
+  content.querySelectorAll(".history-anxiety-delete").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const row = btn.closest("[data-anxiety-history-id]");
+      if (row?.dataset.anxietyHistoryId) deleteAnxietyHistoryItem(row.dataset.anxietyHistoryId);
+    });
+  });
 
   content.querySelectorAll(".history-wins-item .plan-card-task-text").forEach((btn) => {
     btn.addEventListener("click", () => {
