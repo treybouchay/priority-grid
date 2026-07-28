@@ -6057,20 +6057,32 @@ function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
   const dayPhrase = reflectionDayPhrase(dayKey);
 
   if (!completed.length) {
+    // Today with 0 wins stays “in motion”; Rest Day is only for past empty days.
+    if (isToday) {
+      return {
+        title: "Your day is still opening",
+        categories: [],
+        priorityBars: [],
+        thumbs: [],
+        insights: { persona: null },
+        quietNote: "Nothing checked off yet — your day is still in motion.",
+        growingNote: "",
+        restDay: false,
+        inMotion: true,
+        ariaSummary: "Your day is still opening. No tasks completed today yet.",
+      };
+    }
     return {
       title: "Rest Day",
       categories: [],
       priorityBars: [],
       thumbs: [],
       insights: { persona: null },
-      quietNote: isToday
-        ? "Nothing checked off yet — a rest day still counts."
-        : "Nothing checked off — a quiet day worth keeping.",
+      quietNote: "Nothing checked off — a quiet day worth keeping.",
       growingNote: "",
       restDay: true,
-      ariaSummary: isToday
-        ? "Rest day. No tasks completed today yet."
-        : `Rest day. Nothing was checked off ${dayPhrase}.`,
+      inMotion: false,
+      ariaSummary: `Rest day. Nothing was checked off ${dayPhrase}.`,
     };
   }
 
@@ -6466,19 +6478,33 @@ function renderReflectionReview() {
 
     let visualsHtml = "";
     if (story.quietNote) {
-      const restClass = story.restDay ? " reflection-story-quiet--rest" : "";
-      visualsHtml = `
-        <div class="reflection-story-quiet${restClass}">
-          <span class="reflection-story-quiet-ring${story.restDay ? " reflection-rest-mark" : ""}" aria-hidden="true">
-            ${
-              story.restDay
-                ? `<svg class="reflection-rest-svg" viewBox="0 0 48 48" fill="none">
+      const quietMod = story.restDay
+        ? " reflection-story-quiet--rest"
+        : story.inMotion
+          ? " reflection-story-quiet--motion"
+          : "";
+      const markClass = story.restDay
+        ? " reflection-rest-mark"
+        : story.inMotion
+          ? " reflection-motion-mark"
+          : "";
+      const markSvg = story.restDay
+        ? `<svg class="reflection-rest-svg" viewBox="0 0 48 48" fill="none">
                     <circle class="reflection-rest-halo" cx="24" cy="24" r="18" stroke="#ffdbd2" stroke-width="2.5" opacity="0.85"/>
                     <circle class="reflection-rest-core" cx="24" cy="24" r="8" fill="#0e3030"/>
                     <path class="reflection-rest-leaf" d="M24 10c4.5 3.2 7 7.2 7 12s-2.5 8.8-7 12c-4.5-3.2-7-7.2-7-12s2.5-8.8 7-12Z" fill="#ffdbd2" opacity="0.9"/>
                   </svg>`
-                : ""
-            }
+        : story.inMotion
+          ? `<svg class="reflection-motion-svg" viewBox="0 0 48 48" fill="none">
+                    <circle class="reflection-motion-orbit" cx="24" cy="24" r="16" stroke="#ffdbd2" stroke-width="2" stroke-dasharray="6 7" opacity="0.9"/>
+                    <circle class="reflection-motion-core" cx="24" cy="24" r="6.5" fill="#0e3030"/>
+                    <circle class="reflection-motion-spark" cx="40" cy="24" r="3.2" fill="#ffdbd2"/>
+                  </svg>`
+          : "";
+      visualsHtml = `
+        <div class="reflection-story-quiet${quietMod}">
+          <span class="reflection-story-quiet-ring${markClass}" aria-hidden="true">
+            ${markSvg}
           </span>
           <p class="reflection-story-quiet-text">${escapeHtml(story.quietNote)}</p>
         </div>`;
@@ -6607,7 +6633,7 @@ function renderReflectionReview() {
     list.innerHTML = "";
     empty.classList.remove("hidden");
     empty.textContent = isToday
-      ? "Rest day — nothing checked off yet. Your vibe shows up after two wins."
+      ? "Your day is still in motion — nothing checked off yet. Your vibe shows up after two wins."
       : `Rest day — nothing was checked off ${dayPhrase}.`;
     observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
     return;

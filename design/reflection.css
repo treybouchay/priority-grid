@@ -1157,10 +1157,30 @@ html.reflection-open body .capture-clip-fab {
   overflow: hidden;
 }
 
+.reflection-story-quiet--motion .reflection-story-quiet-ring,
+.reflection-motion-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: solid;
+  border-color: rgba(14, 48, 48, 0.28);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 219, 210, 0.62) 0%, transparent 62%),
+    rgba(14, 48, 48, 0.05);
+  overflow: visible;
+}
+
 .reflection-rest-svg {
   width: 1.85rem;
   height: 1.85rem;
   display: block;
+}
+
+.reflection-motion-svg {
+  width: 1.85rem;
+  height: 1.85rem;
+  display: block;
+  overflow: visible;
 }
 
 .reflection-rest-halo {
@@ -1176,6 +1196,21 @@ html.reflection-open body .capture-clip-fab {
 .reflection-rest-leaf {
   transform-origin: 24px 24px;
   animation: reflection-rest-sway 4.2s ease-in-out infinite;
+}
+
+.reflection-motion-orbit {
+  transform-origin: 24px 24px;
+  animation: reflection-motion-spin 4.8s linear infinite;
+}
+
+.reflection-motion-core {
+  transform-origin: 24px 24px;
+  animation: reflection-motion-breathe 2.4s ease-in-out infinite;
+}
+
+.reflection-motion-spark {
+  transform-origin: 24px 24px;
+  animation: reflection-motion-orbit-dot 4.8s linear infinite;
 }
 
 @keyframes reflection-rest-breathe {
@@ -1210,10 +1245,43 @@ html.reflection-open body .capture-clip-fab {
   }
 }
 
+@keyframes reflection-motion-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reflection-motion-breathe {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.88;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes reflection-motion-orbit-dot {
+  from {
+    transform: rotate(0deg) translateX(0);
+  }
+  to {
+    transform: rotate(360deg) translateX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reflection-rest-halo,
   .reflection-rest-core,
-  .reflection-rest-leaf {
+  .reflection-rest-leaf,
+  .reflection-motion-orbit,
+  .reflection-motion-core,
+  .reflection-motion-spark {
     animation: none;
   }
 }
