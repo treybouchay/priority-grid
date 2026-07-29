@@ -649,6 +649,48 @@ body[data-page="tasks"] .daily-repeat-sub {
   color: rgba(17, 48, 44, 0.55);
 }
 
+body[data-page="tasks"] .repeat-section {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(14, 48, 48, 0.08);
+}
+
+body[data-page="tasks"] .repeat-section:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+body[data-page="tasks"] .repeat-section-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--forest-ink);
+}
+
+body[data-page="tasks"] .repeat-section-sub {
+  margin: 0.15rem 0 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="tasks"] .daily-repeat-day {
+  flex: 0 0 auto;
+  min-width: 2.1rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(14, 48, 48, 0.08);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--forest-ink);
+  text-align: center;
+}
+
 body[data-page="tasks"] .daily-repeat-form {
   display: flex;
   flex-wrap: wrap;

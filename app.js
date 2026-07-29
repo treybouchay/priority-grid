@@ -15,6 +15,7 @@ const NEXT_WEEK_PREFIX = "priority-grid-next-week-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
 const REPEAT_RESET_KEY = "priority-grid-repeat-last-reset";
 const DONE_ROLLOVER_KEY = "priority-grid-done-rollover";
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
 const ANXIETY_BOX_KEY = "priority-grid-anxiety-box";
@@ -1993,6 +1994,9 @@ function applySyncPayload(payload, options = {}) {
 
   rebuildContextUi();
 
+  // Sync can restore yesterday's done state after startup maintenance — re-run now.
+  runDailyMaintenance({ render: false });
+
   if (!options.skipRender) {
     renderAll();
   }
@@ -2049,6 +2053,7 @@ async function pullRemoteSync(options = {}) {
           preferRemote: remoteHasMore || isRemoteNewer(remote.updatedAt),
         });
       }
+      runDailyMaintenance({ render: false });
       renderAll();
       updateSyncUi();
     }
@@ -3071,15 +3076,69 @@ function clearExpiredDeferredTasks() {
   });
 }
 
-function resetRepeatDailyTasksIfNeeded() {
-  const today = localDayKey();
-  let lastReset = null;
-  try {
-    lastReset = localStorage.getItem(REPEAT_RESET_KEY);
-  } catch {
-    /* ignore */
+function isRepeatTask(task) {
+  return Boolean(task?.repeatDaily || task?.repeatWeekly);
+}
+
+function normalizeRepeatWeekday(value, fallback = new Date().getDay()) {
+  const n = Number(value);
+  if (Number.isInteger(n) && n >= 0 && n <= 6) return n;
+  return fallback;
+}
+
+function stripRepeatFields(task) {
+  const {
+    repeatDaily: _d,
+    repeatWeekly: _w,
+    repeatWeekday: _day,
+    repeatLastReset: _reset,
+    ...rest
+  } = task;
+  return rest;
+}
+
+/** Reopen a repeating task for a new period (keep it active, clear done/archive). */
+function reopenRepeatTask(task, stamp) {
+  const updated = { ...task, done: false, archived: false, repeatLastReset: stamp };
+  delete updated.completedAt;
+  delete updated.archivedAt;
+  return updated;
+}
+
+/**
+ * Decide whether a done/archived repeating task should reopen for `today`.
+ * Incomplete repeats always stay available (and unarchived).
+ */
+function maybeResetRepeatOccurrence(task, today, { dueToday }) {
+  if (!dueToday) {
+    // Off-schedule: still rescue accidentally archived incomplete repeats.
+    if (task.archived && !task.done) {
+      return { changed: true, task: { ...task, archived: false } };
+    }
+    return { changed: false, task };
   }
 
+  if (!task.done && !task.archived) {
+    if (task.repeatLastReset === today) return { changed: false, task };
+    return { changed: true, task: { ...task, repeatLastReset: today } };
+  }
+
+  if (task.archived && !task.done) {
+    return { changed: true, task: reopenRepeatTask(task, today) };
+  }
+
+  // Done (optionally archived) — reopen unless completed on this local day.
+  const completedDay = task.completedAt ? archiveDayKey(task.completedAt) : null;
+  if (completedDay === today && !task.archived) {
+    if (task.repeatLastReset === today) return { changed: false, task };
+    return { changed: true, task: { ...task, repeatLastReset: today } };
+  }
+
+  return { changed: true, task: reopenRepeatTask(task, today) };
+}
+
+function resetRepeatDailyTasksIfNeeded() {
+  const today = localDayKey();
   let didChange = false;
 
   getContexts().forEach((ctx) => {
@@ -3087,26 +3146,9 @@ function resetRepeatDailyTasksIfNeeded() {
     let changed = false;
     const next = list.map((t) => {
       if (!t.repeatDaily) return t;
-
-      // Incomplete dailies: stamp the local day and keep them open.
-      if (!t.done) {
-        if (t.repeatLastReset === today) return t;
-        changed = true;
-        return { ...t, repeatLastReset: today };
-      }
-
-      // Done dailies reopen unless they were completed on this local calendar day.
-      const completedDay = t.completedAt ? archiveDayKey(t.completedAt) : null;
-      if (completedDay === today) {
-        if (t.repeatLastReset === today) return t;
-        changed = true;
-        return { ...t, repeatLastReset: today };
-      }
-
-      changed = true;
-      const updated = { ...t, done: false, repeatLastReset: today };
-      delete updated.completedAt;
-      return updated;
+      const result = maybeResetRepeatOccurrence(t, today, { dueToday: true });
+      if (result.changed) changed = true;
+      return result.task;
     });
     if (changed) {
       didChange = true;
@@ -3114,13 +3156,38 @@ function resetRepeatDailyTasksIfNeeded() {
     }
   });
 
-  if (lastReset !== today) {
-    try {
-      localStorage.setItem(REPEAT_RESET_KEY, today);
-    } catch {
-      /* ignore */
-    }
+  try {
+    localStorage.setItem(REPEAT_RESET_KEY, today);
+  } catch {
+    /* ignore */
   }
+
+  return didChange;
+}
+
+function resetRepeatWeeklyTasksIfNeeded() {
+  const now = new Date();
+  const today = localDayKey(now);
+  const weekday = now.getDay();
+  let didChange = false;
+
+  getContexts().forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let changed = false;
+    const next = list.map((t) => {
+      if (!t.repeatWeekly) return t;
+      const targetDay = normalizeRepeatWeekday(t.repeatWeekday, weekday);
+      const dueToday = targetDay === weekday;
+      const ensured = t.repeatWeekday === targetDay ? t : { ...t, repeatWeekday: targetDay };
+      const result = maybeResetRepeatOccurrence(ensured, today, { dueToday });
+      if (result.changed || ensured !== t) changed = true;
+      return result.task;
+    });
+    if (changed) {
+      didChange = true;
+      saveTasks(ctx, next);
+    }
+  });
 
   return didChange;
 }
@@ -3133,9 +3200,16 @@ function localDayKey(date = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
+function msUntilNextLocalMidnight() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+  return Math.max(1000, next.getTime() - now.getTime());
+}
+
 /**
  * At local midnight (or on open/visibility after midnight), archive completed
  * tasks from previous days so they leave active lists but stay in history.
+ * Repeating tasks are never archived by midnight rollover.
  */
 function archiveCompletedTasksPastMidnight() {
   const today = localDayKey();
@@ -3154,7 +3228,7 @@ function archiveCompletedTasksPastMidnight() {
     const list = loadTasks(ctx);
     let changed = false;
     const next = list.map((t) => {
-      if (t.archived || !t.done || t.repeatDaily) return t;
+      if (t.archived || !t.done || isRepeatTask(t)) return t;
       const completedDay = t.completedAt ? archiveDayKey(t.completedAt) : null;
       if (completedDay === today) return t;
       changed = true;
@@ -3184,16 +3258,28 @@ function archiveCompletedTasksPastMidnight() {
 
 function runDailyMaintenance({ render = false } = {}) {
   clearExpiredDeferredTasks();
-  const reset = resetRepeatDailyTasksIfNeeded();
+  const resetDaily = resetRepeatDailyTasksIfNeeded();
+  const resetWeekly = resetRepeatWeeklyTasksIfNeeded();
   const rolled = archiveCompletedTasksPastMidnight();
-  if (render && (rolled || reset)) renderAll();
+  if (render && (rolled || resetDaily || resetWeekly)) renderAll();
+  return resetDaily || resetWeekly || rolled;
+}
+
+function scheduleMidnightMaintenance() {
+  window.clearTimeout(scheduleMidnightMaintenance._timer);
+  scheduleMidnightMaintenance._timer = window.setTimeout(() => {
+    runDailyMaintenance({ render: true });
+    scheduleMidnightMaintenance();
+  }, msUntilNextLocalMidnight());
 }
 
 function setupDailyMaintenance() {
   runDailyMaintenance();
+  scheduleMidnightMaintenance();
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       runDailyMaintenance({ render: true });
+      scheduleMidnightMaintenance();
     }
   });
   window.addEventListener("focus", () => {
@@ -3211,13 +3297,51 @@ function getRepeatDailyTasks() {
   return loadTasks(filter).filter(include).map((t) => ({ ...t, context: filter }));
 }
 
+function getRepeatWeeklyTasks() {
+  const include = (t) => !t.archived && t.repeatWeekly && !isTaskDeferred(t);
+  if (filter === "all") {
+    return getContexts().flatMap((ctx) =>
+      loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
+    );
+  }
+  return loadTasks(filter).filter(include).map((t) => ({ ...t, context: filter }));
+}
+
 function addRepeatDailyTask(text, tier, ctx) {
   const trimmed = text.trim();
   if (!trimmed) return;
   const targetCtx = ctx || (filter === "all" ? "work" : filter);
+  const today = localDayKey();
   saveTasks(targetCtx, [
     ...loadTasks(targetCtx),
-    { id: createId(), text: trimmed, tier, done: false, repeatDaily: true },
+    {
+      id: createId(),
+      text: trimmed,
+      tier,
+      done: false,
+      repeatDaily: true,
+      repeatLastReset: today,
+    },
+  ]);
+}
+
+function addRepeatWeeklyTask(text, tier, ctx, weekday) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  const targetCtx = ctx || (filter === "all" ? "work" : filter);
+  const today = localDayKey();
+  const day = normalizeRepeatWeekday(weekday);
+  saveTasks(targetCtx, [
+    ...loadTasks(targetCtx),
+    {
+      id: createId(),
+      text: trimmed,
+      tier,
+      done: false,
+      repeatWeekly: true,
+      repeatWeekday: day,
+      repeatLastReset: today,
+    },
   ]);
 }
 
@@ -3225,10 +3349,34 @@ function removeRepeatDailyTask(id, ctx) {
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
-      const { repeatDaily: _removed, repeatLastReset: _reset, ...rest } = t;
-      return rest;
+      return stripRepeatFields(t);
     })
   );
+}
+
+function removeRepeatWeeklyTask(id, ctx) {
+  updateTaskInContext(ctx, (list) =>
+    list.map((t) => {
+      if (t.id !== id) return t;
+      return stripRepeatFields(t);
+    })
+  );
+}
+
+function applyRepeatModeToTask(task, mode, weekday) {
+  const base = stripRepeatFields(task);
+  if (mode === "daily") {
+    return { ...base, repeatDaily: true, repeatLastReset: localDayKey() };
+  }
+  if (mode === "weekly") {
+    return {
+      ...base,
+      repeatWeekly: true,
+      repeatWeekday: normalizeRepeatWeekday(weekday),
+      repeatLastReset: localDayKey(),
+    };
+  }
+  return base;
 }
 
 function removeTaskRefFromPlan135(ref) {
@@ -4081,6 +4229,7 @@ function syncDialogContextIcon(selectEl, iconEl) {
 function contextSelectIconEl(selectEl) {
   if (selectEl?.id === "dialog-context") return document.getElementById("dialog-context-icon");
   if (selectEl?.id === "daily-repeat-context") return document.getElementById("daily-repeat-context-icon");
+  if (selectEl?.id === "weekly-repeat-context") return document.getElementById("weekly-repeat-context-icon");
   return null;
 }
 
@@ -4167,6 +4316,10 @@ function rebuildContextUi() {
   fillContextSelect(
     document.getElementById("daily-repeat-context"),
     document.getElementById("daily-repeat-context")?.value
+  );
+  fillContextSelect(
+    document.getElementById("weekly-repeat-context"),
+    document.getElementById("weekly-repeat-context")?.value
   );
 
   const manager = document.getElementById("lists-manager");
@@ -4424,6 +4577,9 @@ function setupListsManager() {
     handleContextSelectChange(e.target);
   });
   document.getElementById("daily-repeat-context")?.addEventListener("change", (e) => {
+    handleContextSelectChange(e.target);
+  });
+  document.getElementById("weekly-repeat-context")?.addEventListener("change", (e) => {
     handleContextSelectChange(e.target);
   });
 
@@ -8438,6 +8594,31 @@ function syncDialogParsePreview() {
   setTaskDialogSubmitLabel(`Add ${tasks.length} tasks`);
 }
 
+function syncDialogRepeatFields() {
+  const mode = document.getElementById("dialog-repeat")?.value || "none";
+  const weekday = document.getElementById("dialog-repeat-weekday");
+  if (weekday) weekday.classList.toggle("hidden", mode !== "weekly");
+}
+
+function setDialogRepeatFields(task) {
+  const modeEl = document.getElementById("dialog-repeat");
+  const weekdayEl = document.getElementById("dialog-repeat-weekday");
+  if (!modeEl || !weekdayEl) return;
+  if (task?.repeatDaily) modeEl.value = "daily";
+  else if (task?.repeatWeekly) modeEl.value = "weekly";
+  else modeEl.value = "none";
+  weekdayEl.value = String(normalizeRepeatWeekday(task?.repeatWeekday));
+  syncDialogRepeatFields();
+}
+
+function getDialogRepeatMode() {
+  return document.getElementById("dialog-repeat")?.value || "none";
+}
+
+function getDialogRepeatWeekday() {
+  return normalizeRepeatWeekday(document.getElementById("dialog-repeat-weekday")?.value);
+}
+
 async function openTaskDialog(tier = 1) {
   const dialog = document.getElementById("task-dialog");
   const defaultCtx = filter === "all" ? "work" : filter;
@@ -8450,6 +8631,7 @@ async function openTaskDialog(tier = 1) {
   fillContextSelect(document.getElementById("dialog-context"), defaultCtx);
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
+  setDialogRepeatFields(null);
   setTaskDialogSubmitLabel("Save");
   setTaskDialogDeleteVisible(false);
   syncDialogParsePreview();
@@ -8470,6 +8652,7 @@ async function openEditTaskDialog(task, ctx) {
   document.getElementById("dialog-edit-id").value = task.id;
   document.getElementById("dialog-original-context").value = ctx;
   document.getElementById("dialog-notes").value = task.notes || "";
+  setDialogRepeatFields(task);
   setTaskDialogSubmitLabel("Save");
   setTaskDialogDeleteVisible(true);
   syncDialogParsePreview();
@@ -8497,6 +8680,7 @@ function openBrainDumpSendDialog(item, ctx) {
   document.getElementById("dialog-original-context").value = "";
   document.getElementById("dialog-brain-id").value = item.id;
   document.getElementById("dialog-brain-context").value = ctx;
+  setDialogRepeatFields(null);
   setTaskDialogSubmitLabel("Send");
   setTaskDialogDeleteVisible(false);
   syncDialogParsePreview();
@@ -8535,10 +8719,13 @@ function saveTaskFromDialog() {
   if (brainId) {
     const text = raw.trim();
     if (!text) return;
-    saveTasks(newCtx, [
-      ...loadTasks(newCtx),
+    const repeatMode = getDialogRepeatMode();
+    const created = applyRepeatModeToTask(
       { id: createId(), text, tier, done: false, notes, photos },
-    ]);
+      repeatMode,
+      getDialogRepeatWeekday()
+    );
+    saveTasks(newCtx, [...loadTasks(newCtx), created]);
     saveBrainDump(brainCtx, loadBrainDump(brainCtx).filter((i) => i.id !== brainId));
     clearDialogBrainFields();
     return;
@@ -8551,7 +8738,11 @@ function saveTaskFromDialog() {
     const task = oldList.find((t) => t.id === editId);
     if (!task) return;
 
-    const updated = { ...task, text, tier, notes, photos };
+    const updated = applyRepeatModeToTask(
+      { ...task, text, tier, notes, photos },
+      getDialogRepeatMode(),
+      getDialogRepeatWeekday()
+    );
 
     if (oldCtx === newCtx) {
       saveTasks(
@@ -8570,14 +8761,22 @@ function saveTaskFromDialog() {
 
   const parsed = parseTasksFromText(raw);
   if (!parsed.length) return;
-  const created = parsed.map((text, index) => ({
-    id: createId(),
-    text,
-    tier,
-    done: false,
-    notes: index === 0 ? notes : "",
-    photos: index === 0 ? photos : [],
-  }));
+  const repeatMode = getDialogRepeatMode();
+  const weekday = getDialogRepeatWeekday();
+  const created = parsed.map((text, index) =>
+    applyRepeatModeToTask(
+      {
+        id: createId(),
+        text,
+        tier,
+        done: false,
+        notes: index === 0 ? notes : "",
+        photos: index === 0 ? photos : [],
+      },
+      repeatMode,
+      weekday
+    )
+  );
   saveTasks(newCtx, [...loadTasks(newCtx), ...created]);
 }
 
@@ -8624,6 +8823,8 @@ function setupTaskDialog() {
 
   input?.addEventListener("input", syncDialogParsePreview);
 
+  document.getElementById("dialog-repeat")?.addEventListener("change", syncDialogRepeatFields);
+
   photoInput?.addEventListener("change", async () => {
     const file = photoInput.files?.[0];
     photoInput.value = "";
@@ -8654,8 +8855,67 @@ function renderDailyRepeatPanel() {
     ctxSelect.classList.toggle("hidden", filter !== "all");
     if (filter !== "all") ctxSelect.value = filter;
   }
+  const ctxField = ctxSelect?.closest(".dialog-list-field");
+  if (ctxField) ctxField.classList.toggle("hidden", filter !== "all");
 
   const tasks = getRepeatDailyTasks();
+
+  if (tasks.length === 0) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+  } else {
+    empty.classList.add("hidden");
+    list.innerHTML = tasks
+      .map(
+        (task) => `
+    <li class="daily-repeat-item" data-id="${task.id}" data-context="${task.context}">
+      <span class="daily-repeat-tier">${TIER_LABELS[task.tier - 1]}</span>
+      <span class="daily-repeat-text">${escapeHtml(task.text)}</span>
+      <div class="daily-repeat-actions">
+        ${filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : ""}
+        <button type="button" class="daily-repeat-remove" aria-label="Remove from daily repeat">×</button>
+      </div>
+    </li>`
+      )
+      .join("");
+
+    list.querySelectorAll(".daily-repeat-remove").forEach((btn) => {
+      const item = btn.closest(".daily-repeat-item");
+      btn.addEventListener("click", () => {
+        removeRepeatDailyTask(item.dataset.id, item.dataset.context);
+        renderAll();
+      });
+    });
+  }
+
+  renderWeeklyRepeatPanel();
+}
+
+function renderWeeklyRepeatPanel() {
+  const list = document.getElementById("weekly-repeat-list");
+  const empty = document.getElementById("weekly-repeat-empty");
+  if (!list || !empty) return;
+
+  const ctxSelect = document.getElementById("weekly-repeat-context");
+  if (ctxSelect) {
+    ctxSelect.classList.toggle("hidden", filter !== "all");
+    if (filter !== "all") ctxSelect.value = filter;
+  }
+  const ctxField = ctxSelect?.closest(".dialog-list-field");
+  if (ctxField) ctxField.classList.toggle("hidden", filter !== "all");
+
+  const weekdaySelect = document.getElementById("weekly-repeat-weekday");
+  if (weekdaySelect && !weekdaySelect.dataset.initialized) {
+    weekdaySelect.value = String(new Date().getDay());
+    weekdaySelect.dataset.initialized = "1";
+  }
+
+  const tasks = getRepeatWeeklyTasks().sort(
+    (a, b) =>
+      normalizeRepeatWeekday(a.repeatWeekday) - normalizeRepeatWeekday(b.repeatWeekday) ||
+      a.tier - b.tier ||
+      a.text.localeCompare(b.text)
+  );
 
   if (tasks.length === 0) {
     list.innerHTML = "";
@@ -8665,23 +8925,25 @@ function renderDailyRepeatPanel() {
 
   empty.classList.add("hidden");
   list.innerHTML = tasks
-    .map(
-      (task) => `
+    .map((task) => {
+      const day = normalizeRepeatWeekday(task.repeatWeekday);
+      return `
     <li class="daily-repeat-item" data-id="${task.id}" data-context="${task.context}">
       <span class="daily-repeat-tier">${TIER_LABELS[task.tier - 1]}</span>
+      <span class="daily-repeat-day">${WEEKDAY_SHORT[day]}</span>
       <span class="daily-repeat-text">${escapeHtml(task.text)}</span>
       <div class="daily-repeat-actions">
         ${filter === "all" ? contextIconHtml(task.context, "brain-ctx-tag") : ""}
-        <button type="button" class="daily-repeat-remove" aria-label="Remove from daily repeat">×</button>
+        <button type="button" class="daily-repeat-remove" aria-label="Remove from weekly repeat">×</button>
       </div>
-    </li>`
-    )
+    </li>`;
+    })
     .join("");
 
   list.querySelectorAll(".daily-repeat-remove").forEach((btn) => {
     const item = btn.closest(".daily-repeat-item");
     btn.addEventListener("click", () => {
-      removeRepeatDailyTask(item.dataset.id, item.dataset.context);
+      removeRepeatWeeklyTask(item.dataset.id, item.dataset.context);
       renderAll();
     });
   });
@@ -8689,20 +8951,42 @@ function renderDailyRepeatPanel() {
 
 function setupDailyRepeatForm() {
   const form = document.getElementById("daily-repeat-form");
-  if (!form || form.dataset.bound) return;
-  form.dataset.bound = "1";
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = "1";
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("daily-repeat-input");
+      const tier = Number(document.getElementById("daily-repeat-tier").value);
+      const ctxSelect = document.getElementById("daily-repeat-context");
+      const ctx = ctxSelect ? ctxSelect.value : filter === "all" ? "work" : filter;
+      addRepeatDailyTask(input.value, tier, ctx);
+      input.value = "";
+      input.focus();
+      renderAll();
+    });
+  }
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const input = document.getElementById("daily-repeat-input");
-    const tier = Number(document.getElementById("daily-repeat-tier").value);
-    const ctxSelect = document.getElementById("daily-repeat-context");
-    const ctx = ctxSelect ? ctxSelect.value : filter === "all" ? "work" : filter;
-    addRepeatDailyTask(input.value, tier, ctx);
-    input.value = "";
-    input.focus();
-    renderAll();
-  });
+  const weeklyForm = document.getElementById("weekly-repeat-form");
+  if (weeklyForm && !weeklyForm.dataset.bound) {
+    weeklyForm.dataset.bound = "1";
+    const weekdaySelect = document.getElementById("weekly-repeat-weekday");
+    if (weekdaySelect && !weekdaySelect.dataset.initialized) {
+      weekdaySelect.value = String(new Date().getDay());
+      weekdaySelect.dataset.initialized = "1";
+    }
+    weeklyForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("weekly-repeat-input");
+      const tier = Number(document.getElementById("weekly-repeat-tier").value);
+      const weekday = Number(document.getElementById("weekly-repeat-weekday").value);
+      const ctxSelect = document.getElementById("weekly-repeat-context");
+      const ctx = ctxSelect ? ctxSelect.value : filter === "all" ? "work" : filter;
+      addRepeatWeeklyTask(input.value, tier, ctx, weekday);
+      input.value = "";
+      input.focus();
+      renderAll();
+    });
+  }
 }
 
 function renderBrainPanel() {

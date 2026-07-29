@@ -67,10 +67,10 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=166" />
+    <link rel="stylesheet" href="styles.css?v=167" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
     <link rel="stylesheet" href="design/home-presence.css?v=106" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=40" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=41" />
     <link rel="stylesheet" href="design/history-wins.css?v=8" />
     <link rel="stylesheet" href="design/settings-page.css?v=7" />
     <link rel="stylesheet" href="design/reflection.css?v=73" />
@@ -658,7 +658,7 @@
                 <div class="sidebar-tabs" role="tablist" aria-label="Sidebar panels">
                   <button type="button" class="sidebar-tab active" role="tab" data-tab="brain" aria-selected="true">Brain Dump</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="135" aria-selected="false" id="sidebar-tab-135">1-3-5</button>
-                  <button type="button" class="sidebar-tab" role="tab" data-tab="daily" aria-selected="false">Every Day</button>
+                  <button type="button" class="sidebar-tab" role="tab" data-tab="daily" aria-selected="false">Repeat</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="nextweek" aria-selected="false">Next Week</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="archive" aria-selected="false">Archive</button>
                 </div>
@@ -707,36 +707,76 @@
                     </section>
                   </div>
                   <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-daily" role="tabpanel" data-tab="daily">
-                    <aside class="daily-repeat-panel" id="daily-repeat-panel" aria-label="Daily repeat tasks">
+                    <aside class="daily-repeat-panel" id="daily-repeat-panel" aria-label="Repeating tasks">
                       <header class="daily-repeat-header">
                         <div>
-                          <h3 class="daily-repeat-title">Every Day</h3>
-                          <p class="daily-repeat-sub">Tasks that repeat each day. Done state resets at midnight.</p>
+                          <h3 class="daily-repeat-title">Repeat</h3>
+                          <p class="daily-repeat-sub">Come back on a schedule. Done states reset on the next cycle.</p>
                         </div>
                       </header>
-                      <form class="daily-repeat-form" id="daily-repeat-form">
-                        <input type="text" id="daily-repeat-input" placeholder="Daily task…" autocomplete="off" required />
-                        <select id="daily-repeat-tier" aria-label="Priority">
-                          <option value="1">1st</option>
-                          <option value="2">2nd</option>
-                          <option value="3">3rd</option>
-                          <option value="4">4th</option>
-                        </select>
-                        <div class="dialog-list-field dialog-list-field--compact">
-                          <span class="dialog-list-icon" id="daily-repeat-context-icon" aria-hidden="true"></span>
-                          <select id="daily-repeat-context" aria-label="List">
-                            <option value="work">Work</option>
-                            <option value="home">Home</option>
+
+                      <section class="repeat-section" aria-labelledby="repeat-daily-heading">
+                        <h4 class="repeat-section-title" id="repeat-daily-heading">Every Day</h4>
+                        <p class="repeat-section-sub">Resets each local midnight.</p>
+                        <form class="daily-repeat-form" id="daily-repeat-form">
+                          <input type="text" id="daily-repeat-input" placeholder="Daily task…" autocomplete="off" required />
+                          <select id="daily-repeat-tier" aria-label="Priority">
+                            <option value="1">1st</option>
+                            <option value="2">2nd</option>
+                            <option value="3">3rd</option>
+                            <option value="4">4th</option>
                           </select>
+                          <div class="dialog-list-field dialog-list-field--compact">
+                            <span class="dialog-list-icon" id="daily-repeat-context-icon" aria-hidden="true"></span>
+                            <select id="daily-repeat-context" aria-label="List">
+                              <option value="work">Work</option>
+                              <option value="home">Home</option>
+                            </select>
+                          </div>
+                          <button type="submit" class="daily-repeat-save">Add</button>
+                        </form>
+                        <ul class="daily-repeat-list" id="daily-repeat-list"></ul>
+                        <div class="daily-repeat-empty hidden" id="daily-repeat-empty">
+                          <p class="daily-repeat-empty-title">No daily tasks yet.</p>
+                          <p class="daily-repeat-empty-sub">Add a task above to repeat it every day.</p>
                         </div>
-                        <button type="submit" class="daily-repeat-save">Add</button>
-                      </form>
-                      <ul class="daily-repeat-list" id="daily-repeat-list"></ul>
-                      <div class="daily-repeat-empty hidden" id="daily-repeat-empty">
-                        <p class="daily-repeat-empty-title">No daily tasks yet.</p>
-                        <p class="daily-repeat-empty-sub">Add a task above to repeat it every day.</p>
-                      </div>
-                      <button type="submit" form="daily-repeat-form" class="daily-repeat-add">+ Add daily task</button>
+                      </section>
+
+                      <section class="repeat-section" aria-labelledby="repeat-weekly-heading">
+                        <h4 class="repeat-section-title" id="repeat-weekly-heading">Every Week</h4>
+                        <p class="repeat-section-sub">Resets on a chosen weekday.</p>
+                        <form class="daily-repeat-form weekly-repeat-form" id="weekly-repeat-form">
+                          <input type="text" id="weekly-repeat-input" placeholder="Weekly task…" autocomplete="off" required />
+                          <select id="weekly-repeat-tier" aria-label="Priority">
+                            <option value="1">1st</option>
+                            <option value="2">2nd</option>
+                            <option value="3">3rd</option>
+                            <option value="4">4th</option>
+                          </select>
+                          <select id="weekly-repeat-weekday" aria-label="Weekday">
+                            <option value="0">Sun</option>
+                            <option value="1">Mon</option>
+                            <option value="2">Tue</option>
+                            <option value="3">Wed</option>
+                            <option value="4">Thu</option>
+                            <option value="5">Fri</option>
+                            <option value="6">Sat</option>
+                          </select>
+                          <div class="dialog-list-field dialog-list-field--compact">
+                            <span class="dialog-list-icon" id="weekly-repeat-context-icon" aria-hidden="true"></span>
+                            <select id="weekly-repeat-context" aria-label="List">
+                              <option value="work">Work</option>
+                              <option value="home">Home</option>
+                            </select>
+                          </div>
+                          <button type="submit" class="daily-repeat-save">Add</button>
+                        </form>
+                        <ul class="daily-repeat-list" id="weekly-repeat-list"></ul>
+                        <div class="daily-repeat-empty hidden" id="weekly-repeat-empty">
+                          <p class="daily-repeat-empty-title">No weekly tasks yet.</p>
+                          <p class="daily-repeat-empty-sub">Pick a day and add a task that returns each week.</p>
+                        </div>
+                      </section>
                     </aside>
                   </div>
                   <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-nextweek" role="tabpanel" data-tab="nextweek">
@@ -1042,6 +1082,23 @@
           <option value="3">3rd Priority</option>
           <option value="4">4th Priority</option>
         </select>
+        <label class="dialog-label" for="dialog-repeat">Repeat</label>
+        <div class="dialog-repeat-row">
+          <select id="dialog-repeat" aria-label="Repeat schedule">
+            <option value="none">Does not repeat</option>
+            <option value="daily">Every day</option>
+            <option value="weekly">Every week</option>
+          </select>
+          <select id="dialog-repeat-weekday" class="hidden" aria-label="Weekday">
+            <option value="0">Sunday</option>
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+          </select>
+        </div>
         <label class="dialog-label" for="dialog-notes">Notes</label>
         <textarea id="dialog-notes" class="dialog-notes" rows="3" placeholder="Optional notes…" maxlength="1000"></textarea>
         <div class="dialog-photos" id="dialog-photos">
@@ -1278,6 +1335,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=288"></script>
+    <script src="app.js?v=289"></script>
   </body>
 </html>

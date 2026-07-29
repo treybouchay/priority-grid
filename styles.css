@@ -4180,6 +4180,40 @@ body.task-dragging-lock .app-main {
   margin-top: 0.15rem;
 }
 
+.repeat-section {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.repeat-section:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.repeat-section-title {
+  margin: 0;
+  font-size: var(--type-accent-size);
+  font-weight: var(--font-weight-heading);
+  line-height: var(--type-accent-lh);
+}
+
+.repeat-section-sub {
+  margin: 0.15rem 0 0.65rem;
+  font-size: var(--type-secondary-size);
+  line-height: var(--type-secondary-lh);
+  color: var(--ink-muted);
+}
+
+.daily-repeat-day {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
+}
+
 .daily-repeat-form {
   display: flex;
   flex-wrap: wrap;
@@ -5023,6 +5057,18 @@ dialog {
   color: #ffdbd2;
   font-size: 0.625rem;
   font-weight: 700;
+}
+
+.dialog-repeat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dialog-repeat-row select {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 .dialog-notes {
