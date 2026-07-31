@@ -67,13 +67,13 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=167" />
+    <link rel="stylesheet" href="styles.css?v=170" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
-    <link rel="stylesheet" href="design/home-presence.css?v=106" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=41" />
-    <link rel="stylesheet" href="design/history-wins.css?v=8" />
-    <link rel="stylesheet" href="design/settings-page.css?v=7" />
-    <link rel="stylesheet" href="design/reflection.css?v=73" />
+    <link rel="stylesheet" href="design/home-presence.css?v=109" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=45" />
+    <link rel="stylesheet" href="design/history-wins.css?v=13" />
+    <link rel="stylesheet" href="design/settings-page.css?v=8" />
+    <link rel="stylesheet" href="design/reflection.css?v=79" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -409,7 +409,7 @@
                 <p class="presence-focus-label">FOCUS</p>
                 <h2 class="presence-focus-title">Take care of what sparks joy.</h2>
                 <button type="button" class="presence-focus-btn" id="focus-reflection-btn">
-                  <span>View Reflection</span>
+                  <span>View Thoughts</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
                     <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
@@ -426,14 +426,25 @@
                   <h3 class="section-title section-title--plan" id="home-priority-title">Today's Plan</h3>
                   <div class="presence-plan-accent" aria-hidden="true"></div>
                 </div>
-                <button type="button" class="section-link section-link--plan" id="home-view-tasks">
-                  <span class="section-link-text section-link-text--mobile">View all</span>
-                  <span class="section-link-text section-link-text--desktop">View Schedule</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
-                    <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
+                <div class="presence-plan-header-actions">
+                  <button
+                    type="button"
+                    class="weekly-view-toggle"
+                    id="home-weekly-toggle"
+                    aria-pressed="false"
+                    title="Weekly view"
+                  >
+                    Week
+                  </button>
+                  <button type="button" class="section-link section-link--plan" id="home-view-tasks">
+                    <span class="section-link-text section-link-text--mobile">View all</span>
+                    <span class="section-link-text section-link-text--desktop">View Schedule</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                      <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </div>
               </header>
               <div
                 class="priority-visibility-tags priority-visibility-tags--home"
@@ -558,7 +569,17 @@
                   <button type="button" class="priority-visibility-tag active" data-tier="3" aria-pressed="true">3rd</button>
                   <button type="button" class="priority-visibility-tag active" data-tier="4" aria-pressed="true">4th</button>
                 </div>
+                <button
+                  type="button"
+                  class="weekly-view-toggle"
+                  id="tasks-weekly-toggle"
+                  aria-pressed="false"
+                  title="Weekly view"
+                >
+                  Week
+                </button>
               </div>
+              <div id="tasks-weekly-view" class="tasks-weekly-view hidden" aria-label="Weekly tasks"></div>
               <div class="board" id="board">
                 <section class="column" data-tier="1">
                   <header class="column-header">
@@ -657,6 +678,7 @@
               <div class="sidebar-tabs-panel" id="sidebar-tabs-panel">
                 <div class="sidebar-tabs" role="tablist" aria-label="Sidebar panels">
                   <button type="button" class="sidebar-tab active" role="tab" data-tab="brain" aria-selected="true">Brain Dump</button>
+                  <button type="button" class="sidebar-tab" role="tab" data-tab="notes" aria-selected="false">Task notes</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="135" aria-selected="false" id="sidebar-tab-135">1-3-5</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="daily" aria-selected="false">Repeat</button>
                   <button type="button" class="sidebar-tab" role="tab" data-tab="nextweek" aria-selected="false">Next Week</button>
@@ -683,6 +705,36 @@
                         <p class="brain-empty-sub">Add a note to get started.</p>
                       </div>
                       <button type="submit" form="brain-panel-form" class="brain-panel-add">+ New Note</button>
+                    </aside>
+                  </div>
+                  <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-notes" role="tabpanel" data-tab="notes">
+                    <aside class="notes-panel" id="notes-panel" aria-label="Task notes">
+                      <header class="notes-panel-header">
+                        <div>
+                          <h3 class="notes-panel-title">Task notes</h3>
+                          <p class="notes-panel-sub">Store notes here and keep them linked to a task. They also show on the task’s paperclip.</p>
+                        </div>
+                      </header>
+                      <form class="notes-panel-form" id="notes-panel-form">
+                        <select id="notes-panel-task" aria-label="Link to task" required>
+                          <option value="">Choose a task…</option>
+                        </select>
+                        <textarea
+                          id="notes-panel-input"
+                          class="notes-panel-input"
+                          rows="3"
+                          placeholder="Write a note for that task…"
+                          maxlength="1000"
+                          aria-label="New note"
+                          required
+                        ></textarea>
+                        <button type="submit" class="notes-panel-save">Add note</button>
+                      </form>
+                      <div class="notes-panel-list" id="notes-panel-list"></div>
+                      <div class="notes-panel-empty hidden" id="notes-panel-empty">
+                        <p class="notes-empty-title">No task notes yet.</p>
+                        <p class="notes-empty-sub">Pick a task above to start a linked note.</p>
+                      </div>
                     </aside>
                   </div>
                   <div class="sidebar-tab-panel hidden" id="sidebar-tab-panel-135" role="tabpanel" data-tab="135">
@@ -829,6 +881,7 @@
               </div>
               <p class="history-page-subtitle" id="history-subtitle"></p>
             </header>
+
             <div id="history-content"></div>
             <p class="history-empty hidden" id="history-empty">No completed tasks yet. Check something off to start building your history.</p>
           </section>
@@ -926,6 +979,15 @@
                   </span>
                 </label>
               </div>
+              <div class="settings-field">
+                <label class="settings-toggle">
+                  <input type="checkbox" id="settings-weekly-view-toggle" />
+                  <span class="settings-toggle-copy">
+                    <span class="settings-toggle-title">Weekly view on Home &amp; Tasks</span>
+                    <span class="settings-toggle-desc">Organize open and completed work by day of the week.</span>
+                  </span>
+                </label>
+              </div>
             </article>
 
             <article class="settings-card anxiety-box-card" aria-labelledby="anxiety-box-heading">
@@ -933,7 +995,7 @@
                 <p class="anxiety-box-eyebrow">A quiet place to set things down</p>
                 <h2 class="settings-card-title" id="anxiety-box-heading">Anxiety Box</h2>
                 <p class="settings-card-desc">
-                  Park thoughts in Reflection’s Anxiety Box and toss what no longer needs your energy.
+                  Park thoughts in Thoughts’ Anxiety Box and toss what no longer needs your energy.
                   Existing thoughts stay synced across devices.
                 </p>
               </header>
@@ -1082,6 +1144,10 @@
           <option value="3">3rd Priority</option>
           <option value="4">4th Priority</option>
         </select>
+        <label class="dialog-label" for="dialog-schedule">Scheduled for</label>
+        <select id="dialog-schedule" aria-label="Scheduled day">
+          <option value="">Anytime</option>
+        </select>
         <label class="dialog-label" for="dialog-repeat">Repeat</label>
         <div class="dialog-repeat-row">
           <select id="dialog-repeat" aria-label="Repeat schedule">
@@ -1099,8 +1165,27 @@
             <option value="6">Saturday</option>
           </select>
         </div>
-        <label class="dialog-label" for="dialog-notes">Notes</label>
-        <textarea id="dialog-notes" class="dialog-notes" rows="3" placeholder="Optional notes…" maxlength="1000"></textarea>
+        <p class="dialog-schedule-hint" id="dialog-schedule-hint">Repeating tasks show on every matching day in Week view.</p>
+        <div class="dialog-notes-section" id="dialog-notes-section">
+          <div class="dialog-notes-header">
+            <span class="dialog-label" id="dialog-notes-label">Notes</span>
+            <span class="dialog-notes-count" id="dialog-notes-count" aria-live="polite"></span>
+          </div>
+          <ul class="dialog-notes-list" id="dialog-notes-list" aria-labelledby="dialog-notes-label"></ul>
+          <p class="dialog-notes-empty" id="dialog-notes-empty">No notes yet for this task.</p>
+          <div class="dialog-notes-add-row">
+            <textarea
+              id="dialog-notes-input"
+              class="dialog-notes"
+              rows="2"
+              placeholder="Add a note linked to this task…"
+              maxlength="1000"
+              aria-label="New note"
+            ></textarea>
+            <button type="button" class="dialog-notes-add-btn" id="dialog-notes-add">Add note</button>
+          </div>
+          <input type="hidden" id="dialog-notes" value="" />
+        </div>
         <div class="dialog-photos" id="dialog-photos">
           <div class="dialog-photos-header">
             <span class="dialog-label">Photos</span>
@@ -1168,14 +1253,13 @@
       </div>
     </dialog>
 
-    <dialog class="reflection-dialog" id="reflection-dialog">
+    <dialog class="reflection-dialog" id="reflection-dialog" aria-label="Thoughts">
       <div class="reflection-screen">
         <!-- Sticky wallpaper: stays put while header + cards scroll over it (mirrors Home) -->
         <div class="reflection-screen-wallpaper" aria-hidden="true"></div>
-        <!-- Sticky chrome: compact day pager, then Anxiety dock below (no cream header / back) -->
+        <!-- Sticky chrome: day calendar, then Anxiety dock when items exist -->
         <div class="reflection-sticky-chrome">
           <div id="reflection-day-pager-slot" class="reflection-day-pager-slot"></div>
-          <!-- Sticky dock: icon + title, flush mini-timer–style thought rows -->
           <aside class="reflection-anxiety-card hidden" id="reflection-anxiety" aria-label="Anxiety Box">
             <div class="reflection-anxiety-row">
               <span class="reflection-anxiety-badge" aria-hidden="true">
@@ -1194,17 +1278,11 @@
         </div>
 
         <div class="reflection-tab-panels">
-          <section class="reflection-tab-panel active" id="reflection-panel-review" role="region" data-tab="review" aria-label="Review of the day">
-            <section class="reflection-hero reflection-hero--review">
-              <p class="reflection-hero-label">REFLECTION</p>
-              <h1 class="reflection-hero-title">Look what you’re<br>pulling off.</h1>
-              <div class="reflection-summary" id="reflection-summary" aria-label="Today's accomplishments"></div>
-            </section>
-            <section class="reflection-review">
-              <h2 class="reflection-review-heading" id="reflection-review-heading">Wins from today</h2>
-              <div id="reflection-favourite-slot"></div>
-              <ul class="reflection-review-list" id="reflection-review-list"></ul>
-              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks checked off yet today.</p>
+          <section class="reflection-tab-panel active" id="reflection-panel-review" role="region" data-tab="review" aria-label="Anxiety Box">
+            <section class="reflection-hero reflection-hero--thoughts">
+              <p class="reflection-hero-label">THOUGHTS</p>
+              <h1 class="reflection-hero-title">Set it down.<br>Breathe.</h1>
+              <p class="reflection-hero-subtitle">Park what’s buzzing — check it off or toss it when you’re ready.</p>
             </section>
 
             <section class="reflection-anxiety-park" id="reflection-anxiety-park" aria-labelledby="reflection-anxiety-park-heading">
@@ -1233,69 +1311,33 @@
                   aria-label="Add a thought"
                 />
               </form>
-              <details class="reflection-anxiety-history" id="reflection-anxiety-history">
-                <summary class="reflection-anxiety-history-summary" id="reflection-anxiety-history-heading">Past thoughts</summary>
-                <p class="reflection-anxiety-history-empty" id="reflection-anxiety-history-empty">
-                  Checked-off thoughts land here.
-                </p>
-                <ul class="reflection-anxiety-history-list" id="reflection-anxiety-history-list" aria-live="polite"></ul>
-              </details>
             </section>
 
-            <footer class="reflection-footer">
-              <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
-                <span>Continue to thoughts</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                  <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-            </footer>
-          </section>
-
-          <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="region" data-tab="thoughts" aria-label="Thoughts about the day">
-            <section class="reflection-hero">
-              <h1 class="reflection-hero-title">How did that<br>land with you?</h1>
-              <p class="reflection-hero-subtitle">Celebrate what moved — and name what still wants care.</p>
+            <section class="reflection-tossed-thoughts" id="reflection-tossed-thoughts" aria-labelledby="reflection-tossed-heading">
+              <header class="reflection-tossed-header">
+                <h2 class="reflection-tossed-title" id="reflection-tossed-heading">Tossed</h2>
+                <p class="reflection-tossed-sub" id="reflection-tossed-count">Nothing tossed this day.</p>
+              </header>
+              <p class="reflection-tossed-empty" id="reflection-tossed-empty">
+                Tossed thoughts for this day land here.
+              </p>
+              <ul class="reflection-tossed-list" id="reflection-tossed-list" aria-live="polite"></ul>
             </section>
 
-            <section class="reflection-input">
-              <div class="reflection-input-card">
-                <div class="reflection-input-main">
-                  <textarea
-                    id="reflection-text"
-                    class="reflection-textarea"
-                    maxlength="500"
-                    placeholder="Spill the tea… or the gratitude. Your call."
-                    rows="4"
-                  ></textarea>
-                  <svg class="reflection-input-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 2l2.4 7.2h7.6l-6.1 4.4 2.3 7.2-6.2-4.5-6.2 4.5 2.3-7.2-6.1-4.4h7.6z" />
-                  </svg>
-                </div>
-                <div class="reflection-input-footer">
-                  <svg class="reflection-input-star reflection-input-star--small" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 2l2.4 7.2h7.6l-6.1 4.4 2.3 7.2-6.2-4.5-6.2 4.5 2.3-7.2-6.1-4.4h7.6z" />
-                  </svg>
-                  <span class="reflection-char-count" id="reflection-char-count">0 / 500</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="reflection-prompts">
-              <div class="reflection-prompts-header">
-                <h2 class="reflection-prompts-title">Spark a thought</h2>
-                <button type="button" class="reflection-prompts-refresh" id="reflection-prompts-refresh" aria-label="Refresh prompts">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-              </div>
-              <div class="reflection-prompts-list" id="reflection-prompts-list"></div>
+            <section class="reflection-past-thoughts" id="reflection-past-thoughts" aria-labelledby="reflection-anxiety-history-heading">
+              <header class="reflection-past-thoughts-header">
+                <h2 class="reflection-past-thoughts-title" id="reflection-anxiety-history-heading">Past thoughts</h2>
+                <p class="reflection-past-thoughts-sub" id="reflection-anxiety-history-count">Checked-off thoughts land here.</p>
+              </header>
+              <p class="reflection-anxiety-history-empty" id="reflection-anxiety-history-empty">
+                Checked-off thoughts for this day land here.
+              </p>
+              <div class="reflection-anxiety-history-list" id="reflection-anxiety-history-list" aria-live="polite"></div>
             </section>
 
             <footer class="reflection-footer">
               <button type="button" class="reflection-continue-btn" id="reflection-continue">
-                <span>Save &amp; close</span>
+                <span>Done</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -1315,7 +1357,26 @@
           </div>
           <button type="button" class="media-viewer-close" id="media-viewer-close" aria-label="Close">×</button>
         </header>
-        <p class="media-viewer-notes hidden" id="media-viewer-notes"></p>
+        <section class="media-viewer-notes-section" aria-labelledby="media-viewer-notes-heading">
+          <div class="media-viewer-notes-header">
+            <h4 class="media-viewer-notes-heading" id="media-viewer-notes-heading">Notes</h4>
+            <span class="media-viewer-notes-count" id="media-viewer-notes-count" aria-live="polite"></span>
+          </div>
+          <ul class="media-viewer-notes-list" id="media-viewer-notes-list"></ul>
+          <p class="media-viewer-notes hidden" id="media-viewer-notes"></p>
+          <p class="media-viewer-notes-empty" id="media-viewer-notes-empty">No notes linked to this task yet.</p>
+          <form class="media-viewer-notes-form" id="media-viewer-notes-form">
+            <textarea
+              id="media-viewer-notes-input"
+              class="dialog-notes"
+              rows="2"
+              placeholder="Add a note…"
+              maxlength="1000"
+              aria-label="New note for this task"
+            ></textarea>
+            <button type="submit" class="media-viewer-notes-add">Add note</button>
+          </form>
+        </section>
         <div class="media-viewer-photos" id="media-viewer-photos"></div>
         <p class="media-viewer-empty hidden" id="media-viewer-empty">No photos attached.</p>
       </div>
@@ -1335,6 +1396,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=289"></script>
+    <script src="app.js?v=299"></script>
   </body>
 </html>

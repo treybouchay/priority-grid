@@ -5071,6 +5071,25 @@ dialog {
   min-width: 0;
 }
 
+#dialog-schedule {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+#dialog-schedule.hidden,
+label[for="dialog-schedule"].hidden,
+.dialog-schedule-hint.hidden {
+  display: none;
+}
+
+.dialog-schedule-hint {
+  margin: -0.35rem 0 0.85rem;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(17, 48, 44, 0.5);
+}
+
 .dialog-notes {
   width: 100%;
   min-height: 4.5rem;
@@ -5088,6 +5107,116 @@ dialog {
 .dialog-notes:focus {
   outline: 2px solid rgba(14, 48, 48, 0.25);
   outline-offset: 1px;
+}
+
+.dialog-notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.dialog-notes-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.dialog-notes-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+.dialog-notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dialog-notes-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 1rem;
+  background: rgba(14, 48, 48, 0.05);
+  border: 1px solid rgba(14, 48, 48, 0.06);
+}
+
+.dialog-notes-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-notes-item-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #11302c;
+  white-space: pre-wrap;
+}
+
+.dialog-notes-item-meta {
+  margin: 0.3rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.45);
+}
+
+.dialog-notes-item-delete {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.25rem;
+}
+
+.dialog-notes-item-delete:hover {
+  color: #11302c;
+}
+
+.dialog-notes-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+.dialog-notes-empty.hidden {
+  display: none;
+}
+
+.dialog-notes-add-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dialog-notes-add-row .dialog-notes {
+  min-height: 3.25rem;
+}
+
+.dialog-notes-add-btn {
+  align-self: flex-end;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  background: #0e3030;
+  color: #ffdbd2;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dialog-notes-add-btn:hover {
+  background: #11302c;
 }
 
 .dialog-capture-task {
@@ -5693,6 +5822,199 @@ dialog {
   font-size: 0.9375rem;
   line-height: 1.45;
   white-space: pre-wrap;
+}
+
+.media-viewer-notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.media-viewer-notes-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.media-viewer-notes-heading {
+  margin: 0;
+  font-family: var(--font-heading, Georgia, serif);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #11302c;
+}
+
+.media-viewer-notes-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+.media-viewer-notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.media-viewer-note-item {
+  position: relative;
+  padding: 0.75rem 2rem 0.75rem 0.9rem;
+  border-radius: 1rem;
+  background: rgba(14, 48, 48, 0.05);
+}
+
+.media-viewer-note-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #11302c;
+  white-space: pre-wrap;
+}
+
+.media-viewer-note-meta {
+  margin: 0.3rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(17, 48, 44, 0.45);
+}
+
+.media-viewer-note-delete {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  border: none;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.media-viewer-notes-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+.media-viewer-notes-empty.hidden {
+  display: none;
+}
+
+.media-viewer-notes-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.media-viewer-notes-form .dialog-notes {
+  min-height: 3rem;
+}
+
+.media-viewer-notes-add {
+  align-self: flex-end;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  background: #0e3030;
+  color: #ffdbd2;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekly-view-toggle {
+  border: 1px solid #0e3030;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  background: #ffffff;
+  color: #0e3030;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.weekly-view-toggle.is-active {
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+.weekly-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.weekly-day-strip {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.15rem 0.1rem 0.35rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.weekly-day-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.weekly-day-chip {
+  flex: 1 0 auto;
+  min-width: 3.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.45rem;
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.65);
+  color: #11302c;
+  cursor: pointer;
+}
+
+.weekly-day-chip.is-today {
+  border-color: rgba(255, 219, 210, 0.9);
+  background: rgba(255, 219, 210, 0.35);
+}
+
+.weekly-day-chip.is-active {
+  background: #0e3030;
+  border-color: #0e3030;
+  color: #ffdbd2;
+}
+
+.weekly-day-chip-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.weekly-day-chip-num {
+  font-family: var(--font-heading, Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.weekly-view .plan-card-grid--priorities {
+  width: 100%;
+}
+
+.weekly-day-empty {
+  margin: 0;
+  padding: 0.75rem 0.15rem;
+  font-size: 0.875rem;
+  color: rgba(17, 48, 44, 0.55);
 }
 
 .media-viewer-photos {

@@ -70,6 +70,7 @@ body[data-page="history"] #history-content {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  margin-top: 1.25rem;
 }
 
 body[data-page="history"] .plan-card {
@@ -176,13 +177,73 @@ body[data-page="history"] .completed-wins-items {
 
 body[data-page="history"] .completed-wins-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.75rem;
 }
 
 body[data-page="history"] .completed-wins-item.is-archived {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+body[data-page="history"] .history-wins-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+body[data-page="history"] .history-wins-meta .task-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #ffdbd2;
+  color: #0e3030;
+  cursor: pointer;
+}
+
+body[data-page="history"] .history-wins-meta .task-attach-chip .icon,
+body[data-page="history"] .history-wins-meta .task-attach-chip svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+body[data-page="history"] .history-wins-meta .plan-card-task-ctx,
+body[data-page="history"] .history-wins-meta .context-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+body[data-page="history"] .history-wins-meta .plan-card-task-ctx .icon,
+body[data-page="history"] .history-wins-meta .plan-card-task-ctx svg,
+body[data-page="history"] .history-wins-meta .context-icon .icon,
+body[data-page="history"] .history-wins-meta .context-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+body[data-page="history"] .history-wins-meta .context-icon-img {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.25rem;
+  object-fit: cover;
+}
+
+body[data-page="history"] .completed-wins-time {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.4);
+  white-space: nowrap;
 }
 
 body[data-page="history"] .history-wins-restore {

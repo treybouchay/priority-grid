@@ -20,6 +20,7 @@ const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
 const ANXIETY_BOX_KEY = "priority-grid-anxiety-box";
 const ANXIETY_HISTORY_KEY = "priority-grid-anxiety-history";
+const STANDALONE_NOTES_KEY = "priority-grid-standalone-notes";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
@@ -28,6 +29,7 @@ const TIME_PREVIEW_KEY = "priority-grid-time-preview";
 const DISPLAY_NAME_KEY = "priority-grid-display-name";
 const PROFILE_AVATAR_KEY = "priority-grid-profile-avatar";
 const WEEK_START_KEY = "priority-grid-week-start";
+const WEEKLY_VIEW_KEY = "priority-grid-weekly-view";
 const DEFAULT_DISPLAY_NAME = "Friend";
 const DEFAULT_PROFILE_AVATAR = "assets/sidebar-avatar.png?v=39";
 const AVATAR_EDGE = 192;
@@ -617,7 +619,10 @@ let page = getPage();
 let filter = getFilter();
 let expandedTier = null;
 let mode135 = getMode135();
+let weeklyView = getWeeklyView();
 let sidebarTab = getSidebarTab();
+let weeklySelectedDayKey = null;
+let mediaViewerTaskRef = null;
 let plan135Picker = null;
 let syncAvailable = false;
 let syncPushTimer = null;
@@ -630,6 +635,7 @@ let listDragState = null;
 let visibleTiers = getVisibleTiers();
 let dialogPhotoDraft = [];
 let dialogPhotoUrls = [];
+let dialogNoteEntries = [];
 let mediaViewerUrls = [];
 
 const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priority"];
@@ -1468,7 +1474,7 @@ function undeferTask(id, ctx) {
 }
 
 function getVisibleTasks() {
-  const include = (t) => !t.archived && !isTaskDeferred(t);
+  const include = (t) => !t.archived && !isTaskDeferred(t) && isTaskActiveOnToday(t);
   if (filter === "all") {
     return getContexts().flatMap((ctx) =>
       loadTasks(ctx).filter(include).map((t) => ({ ...t, context: ctx }))
@@ -1626,9 +1632,23 @@ function addAnxietyBoxItem(text) {
   ]);
 }
 
-/** Permanent remove from the active Anxiety Box (not archived to history). */
+/** Toss → move to history as tossed (not permanent delete). */
 function tossAnxietyBoxItem(id) {
-  saveAnxietyBox(loadAnxietyBox().filter((item) => item.id !== id));
+  const items = loadAnxietyBox();
+  const item = items.find((entry) => entry.id === id);
+  if (!item) return;
+  const archivedAt = new Date().toISOString();
+  saveAnxietyBox(items.filter((entry) => entry.id !== id));
+  saveAnxietyHistory([
+    {
+      id: item.id,
+      text: item.text,
+      createdAt: item.createdAt,
+      archivedAt,
+      reason: "tossed",
+    },
+    ...loadAnxietyHistory(),
+  ]);
   renderReflectionAnxietyBox();
   renderFocusTimerChrome();
 }
@@ -1684,6 +1704,7 @@ function exportAllData() {
     profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
     anxietyBox: loadAnxietyBox(),
     anxietyHistory: loadAnxietyHistory(),
+    standaloneNotes: loadStandaloneNotes(),
     theme: getTheme(),
     font: getFont(),
     weekStart: getWeekStartPreference(),
@@ -1728,6 +1749,9 @@ function importAllData(file) {
       }
       if (Array.isArray(data.anxietyHistory)) {
         saveAnxietyHistory(data.anxietyHistory, { skipSync: true });
+      }
+      if (Array.isArray(data.standaloneNotes)) {
+        saveStandaloneNotes(data.standaloneNotes, { skipSync: true });
       }
       rebuildContextUi();
       renderAll();
@@ -1828,6 +1852,7 @@ function buildSyncPayload() {
     profileAvatar: getProfileAvatar() === DEFAULT_PROFILE_AVATAR ? null : getProfileAvatar(),
     anxietyBox: loadAnxietyBox(),
     anxietyHistory: loadAnxietyHistory(),
+    standaloneNotes: loadStandaloneNotes(),
     weekStart: getWeekStartPreference(),
   };
 }
@@ -1937,6 +1962,13 @@ function applySyncPayload(payload, options = {}) {
   if (Array.isArray(payload.anxietyHistory) || loadAnxietyHistory().length > 0) {
     saveAnxietyHistory(
       mergeTaskLists(loadAnxietyHistory(), payload.anxietyHistory || [], preferRemote),
+      skipSync
+    );
+  }
+
+  if (Array.isArray(payload.standaloneNotes) || loadStandaloneNotes().length > 0) {
+    saveStandaloneNotes(
+      mergeTaskLists(loadStandaloneNotes(), payload.standaloneNotes || [], preferRemote),
       skipSync
     );
   }
@@ -2391,7 +2423,353 @@ function deleteButtonHtml() {
 }
 
 function taskHasNotes(task) {
-  return Boolean(task?.notes?.trim());
+  return getTaskNoteEntries(task).length > 0;
+}
+
+function normalizeNoteEntry(item) {
+  if (!item) return null;
+  if (typeof item === "string") {
+    const text = item.trim();
+    if (!text) return null;
+    return { id: createId(), text, createdAt: new Date().toISOString() };
+  }
+  const text = typeof item.text === "string" ? item.text.trim() : "";
+  if (!text) return null;
+  return {
+    id: typeof item.id === "string" && item.id ? item.id : createId(),
+    text,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+  };
+}
+
+/** Notes linked to one task — array of {id, text, createdAt}; migrates legacy string `notes`. */
+function getTaskNoteEntries(task) {
+  if (!task) return [];
+  if (Array.isArray(task.noteEntries)) {
+    return task.noteEntries.map(normalizeNoteEntry).filter(Boolean);
+  }
+  const legacy = typeof task.notes === "string" ? task.notes.trim() : "";
+  if (!legacy) return [];
+  return [
+    {
+      id: `legacy-${task.id || "note"}`,
+      text: legacy,
+      createdAt: task.completedAt || task.createdAt || new Date().toISOString(),
+    },
+  ];
+}
+
+function taskNotesJoinedText(entries) {
+  return (Array.isArray(entries) ? entries : [])
+    .map((n) => (typeof n?.text === "string" ? n.text.trim() : ""))
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function withTaskNotes(task, entries) {
+  const noteEntries = (Array.isArray(entries) ? entries : []).map(normalizeNoteEntry).filter(Boolean);
+  return {
+    ...task,
+    noteEntries,
+    notes: taskNotesJoinedText(noteEntries),
+  };
+}
+
+function formatNoteTimestamp(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function dialogNoteItemHtml(note) {
+  const when = formatNoteTimestamp(note.createdAt);
+  return `
+    <li class="dialog-notes-item" data-note-id="${escapeHtml(note.id)}">
+      <div class="dialog-notes-item-body">
+        <p class="dialog-notes-item-text">${escapeHtml(note.text)}</p>
+        ${when ? `<p class="dialog-notes-item-meta">${escapeHtml(when)}</p>` : ""}
+      </div>
+      <button type="button" class="dialog-notes-item-delete" aria-label="Delete note" title="Delete note">×</button>
+    </li>`;
+}
+
+function renderDialogNotesList() {
+  const list = document.getElementById("dialog-notes-list");
+  const empty = document.getElementById("dialog-notes-empty");
+  const countEl = document.getElementById("dialog-notes-count");
+  const hidden = document.getElementById("dialog-notes");
+  if (!list) return;
+  list.innerHTML = dialogNoteEntries.map(dialogNoteItemHtml).join("");
+  empty?.classList.toggle("hidden", dialogNoteEntries.length > 0);
+  if (countEl) {
+    countEl.textContent = dialogNoteEntries.length
+      ? `${dialogNoteEntries.length} note${dialogNoteEntries.length === 1 ? "" : "s"}`
+      : "";
+  }
+  if (hidden) hidden.value = taskNotesJoinedText(dialogNoteEntries);
+  list.querySelectorAll(".dialog-notes-item-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest("[data-note-id]");
+      const id = row?.dataset.noteId;
+      if (!id) return;
+      dialogNoteEntries = dialogNoteEntries.filter((n) => n.id !== id);
+      renderDialogNotesList();
+    });
+  });
+}
+
+function addDialogNoteFromInput() {
+  const input = document.getElementById("dialog-notes-input");
+  const text = input?.value.trim() || "";
+  if (!text) return;
+  dialogNoteEntries = [
+    ...dialogNoteEntries,
+    { id: createId(), text, createdAt: new Date().toISOString() },
+  ];
+  if (input) input.value = "";
+  renderDialogNotesList();
+}
+
+function setupDialogNotes() {
+  const addBtn = document.getElementById("dialog-notes-add");
+  const input = document.getElementById("dialog-notes-input");
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.dataset.bound = "1";
+    addBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      addDialogNoteFromInput();
+    });
+  }
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = "1";
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        addDialogNoteFromInput();
+      }
+    });
+  }
+}
+
+function normalizeStandaloneNote(item) {
+  if (!item) return null;
+  const text = typeof item.text === "string" ? item.text.trim() : "";
+  if (!text) return null;
+  return {
+    id: typeof item.id === "string" && item.id ? item.id : createId(),
+    text,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+  };
+}
+
+function loadStandaloneNotes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STANDALONE_NOTES_KEY) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeStandaloneNote).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function saveStandaloneNotes(items, options = {}) {
+  localStorage.setItem(
+    STANDALONE_NOTES_KEY,
+    JSON.stringify((Array.isArray(items) ? items : []).map(normalizeStandaloneNote).filter(Boolean))
+  );
+  if (!options.skipSync) markSyncDirty();
+}
+
+function addStandaloneNote(text) {
+  const trimmed = String(text || "").trim().slice(0, 1000);
+  if (!trimmed) return null;
+  const note = { id: createId(), text: trimmed, createdAt: new Date().toISOString() };
+  saveStandaloneNotes([note, ...loadStandaloneNotes()]);
+  return note;
+}
+
+function deleteStandaloneNote(id) {
+  saveStandaloneNotes(loadStandaloneNotes().filter((n) => n.id !== id));
+}
+
+function linkStandaloneNoteToTask(noteId, taskId, context) {
+  const notes = loadStandaloneNotes();
+  const note = notes.find((n) => n.id === noteId);
+  if (!note) return;
+  const task = loadTasks(context).find((t) => t.id === taskId);
+  if (!task) return;
+  const entries = [
+    ...getTaskNoteEntries(task),
+    { id: note.id, text: note.text, createdAt: note.createdAt },
+  ];
+  persistTaskNotes(taskId, context, entries);
+  deleteStandaloneNote(noteId);
+}
+
+function getOpenTasksForNoteLink() {
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || t.done || isTaskDeferred(t)) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  tasks.sort((a, b) => a.tier - b.tier || a.text.localeCompare(b.text));
+  return tasks.slice(0, 80);
+}
+
+function collectAllNotesForPanel() {
+  const items = [];
+  loadStandaloneNotes().forEach((note) => {
+    items.push({
+      id: note.id,
+      text: note.text,
+      createdAt: note.createdAt,
+      source: "standalone",
+    });
+  });
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived) return;
+      getTaskNoteEntries(t).forEach((note) => {
+        items.push({
+          id: note.id,
+          text: note.text,
+          createdAt: note.createdAt,
+          source: "task",
+          taskId: t.id,
+          context: ctx,
+          taskText: t.text,
+        });
+      });
+    });
+  });
+  items.sort((a, b) => {
+    const aTime = new Date(a.createdAt || 0).getTime();
+    const bTime = new Date(b.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
+  return items;
+}
+
+function notesPanelTaskOptionsHtml(selectedValue = "") {
+  const options = [`<option value="">Choose a task…</option>`];
+  getOpenTasksForNoteLink().forEach((task) => {
+    const value = `${task.context}:${task.id}`;
+    const label = truncateReflectionLabel(task.text, 42);
+    options.push(
+      `<option value="${escapeHtml(value)}"${value === selectedValue ? " selected" : ""}>${escapeHtml(label)}</option>`
+    );
+  });
+  return options.join("");
+}
+
+function notesPanelItemHtml(note) {
+  const when = formatNoteTimestamp(note.createdAt);
+  return `
+    <article class="notes-panel-item" data-note-id="${escapeHtml(note.id)}" data-note-source="task" data-task-id="${escapeHtml(note.taskId)}" data-context="${escapeHtml(note.context)}">
+      <div class="notes-panel-item-body">
+        <p class="notes-panel-item-text">${escapeHtml(note.text)}</p>
+        ${when ? `<p class="notes-panel-item-meta">${escapeHtml(when)}</p>` : ""}
+      </div>
+      <button type="button" class="notes-panel-item-delete" aria-label="Delete note" title="Delete note">×</button>
+    </article>`;
+}
+
+function notesPanelGroupHtml(taskText, context, taskId, notes) {
+  return `
+    <section class="notes-panel-group">
+      <button type="button" class="notes-panel-group-task" data-task-id="${escapeHtml(taskId)}" data-context="${escapeHtml(context)}">
+        ${escapeHtml(taskText || "Task")}
+      </button>
+      <div class="notes-panel-group-list">
+        ${notes.map(notesPanelItemHtml).join("")}
+      </div>
+    </section>`;
+}
+
+function fillNotesPanelTaskSelect() {
+  const select = document.getElementById("notes-panel-task");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = notesPanelTaskOptionsHtml(current);
+}
+
+function renderNotesPanel() {
+  const list = document.getElementById("notes-panel-list");
+  const empty = document.getElementById("notes-panel-empty");
+  if (!list || !empty) return;
+
+  fillNotesPanelTaskSelect();
+  const notes = collectAllNotesForPanel().filter((n) => n.source === "task");
+  if (!notes.length) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  const groups = new Map();
+  notes.forEach((note) => {
+    const key = `${note.context}:${note.taskId}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        taskText: note.taskText,
+        context: note.context,
+        taskId: note.taskId,
+        notes: [],
+      });
+    }
+    groups.get(key).notes.push(note);
+  });
+
+  list.innerHTML = [...groups.values()]
+    .map((group) => notesPanelGroupHtml(group.taskText, group.context, group.taskId, group.notes))
+    .join("");
+
+  list.querySelectorAll(".notes-panel-group-task").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const task = findTaskByRef({ id: btn.dataset.taskId, context: btn.dataset.context });
+      if (task) openEditTaskDialog(task, btn.dataset.context);
+    });
+  });
+
+  list.querySelectorAll(".notes-panel-item").forEach((row) => {
+    const noteId = row.dataset.noteId;
+    row.querySelector(".notes-panel-item-delete")?.addEventListener("click", () => {
+      deleteTaskNote(row.dataset.taskId, row.dataset.context, noteId);
+    });
+  });
+}
+
+function saveNotesPanelNote() {
+  const input = document.getElementById("notes-panel-input");
+  const select = document.getElementById("notes-panel-task");
+  const text = input?.value.trim() || "";
+  const linkValue = select?.value || "";
+  if (!text || !linkValue) return;
+  const [context, taskId] = linkValue.split(":");
+  if (!context || !taskId) return;
+  addTaskNote(taskId, context, text);
+  if (input) input.value = "";
+  renderNotesPanel();
+  renderAll();
+}
+
+function setupNotesPanel() {
+  const form = document.getElementById("notes-panel-form");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "1";
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    saveNotesPanelNote();
+  });
 }
 
 function taskHasPhotos(task) {
@@ -2404,8 +2782,9 @@ function taskAttachmentIndicatorHtml(task, options = {}) {
   if (!hasNotes && !hasPhotos) return "";
   const bits = [];
   if (hasNotes) {
+    const noteCount = getTaskNoteEntries(task).length;
     bits.push(
-      `<span class="task-attach-chip" title="Has notes" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#icon-note"></use></svg></span>`
+      `<span class="task-attach-chip" title="${noteCount} note${noteCount === 1 ? "" : "s"}" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#icon-note"></use></svg>${noteCount > 1 ? `<span class="task-attach-count">${noteCount}</span>` : ""}</span>`
     );
   }
   if (hasPhotos) {
@@ -2676,12 +3055,22 @@ function syncSettingsMode135Toggle() {
 function setupSettingsPreferences() {
   setupWeekStartPicker();
   const input = document.getElementById("settings-mode-135-toggle");
-  if (!input || input.dataset.bound) return;
-  input.dataset.bound = "1";
-  syncSettingsMode135Toggle();
-  input.addEventListener("change", () => {
-    setMode135(input.checked);
-  });
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = "1";
+    syncSettingsMode135Toggle();
+    input.addEventListener("change", () => {
+      setMode135(input.checked);
+    });
+  }
+  const weeklyInput = document.getElementById("settings-weekly-view-toggle");
+  if (weeklyInput && !weeklyInput.dataset.bound) {
+    weeklyInput.dataset.bound = "1";
+    weeklyInput.checked = weeklyView;
+    weeklyInput.addEventListener("change", () => {
+      setWeeklyView(weeklyInput.checked);
+    });
+  }
+  setupWeeklyViewControls();
 }
 
 function anxietyBoxItemHtml(item) {
@@ -2702,13 +3091,24 @@ function anxietyBoxItemHtml(item) {
     </li>`;
 }
 
-function anxietyHistoryItemHtml(item) {
-  const when = formatArchiveDayHeading(archiveDayKey(item.archivedAt || item.createdAt));
+function anxietyHistoryItemHtml(item, { showDate = false, showReason = true } = {}) {
   const reasonLabel = item.reason === "tossed" ? "Tossed" : "Checked off";
+  const whenIso = item.archivedAt || item.createdAt;
+  const timeLabel = formatNoteTimestamp(whenIso);
+  let meta = "";
+  if (showDate) {
+    meta = showReason
+      ? `${formatArchiveDayHeading(archiveDayKey(whenIso))} · ${reasonLabel}`
+      : formatArchiveDayHeading(archiveDayKey(whenIso));
+  } else if (timeLabel) {
+    meta = showReason ? `${timeLabel} · ${reasonLabel}` : timeLabel;
+  } else if (showReason) {
+    meta = reasonLabel;
+  }
   return `
     <li class="reflection-anxiety-history-item" data-anxiety-history-id="${escapeHtml(item.id)}">
       <div class="reflection-anxiety-history-copy">
-        <p class="reflection-anxiety-history-meta">${escapeHtml(when)} · ${escapeHtml(reasonLabel)}</p>
+        ${meta ? `<p class="reflection-anxiety-history-meta">${escapeHtml(meta)}</p>` : ""}
         <p class="reflection-anxiety-history-text">${escapeHtml(item.text)}</p>
       </div>
       <button
@@ -2722,20 +3122,85 @@ function anxietyHistoryItemHtml(item) {
     </li>`;
 }
 
+function groupAnxietyHistoryByDate(history) {
+  const groups = new Map();
+  (Array.isArray(history) ? history : []).forEach((item) => {
+    const key = archiveDayKey(item.archivedAt || item.createdAt);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  return [...groups.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([dayKey, items]) => ({
+      dayKey,
+      items: items.slice().sort((a, b) => {
+        const aTime = new Date(a.archivedAt || a.createdAt || 0).getTime();
+        const bTime = new Date(b.archivedAt || b.createdAt || 0).getTime();
+        return bTime - aTime;
+      }),
+    }));
+}
+
+function anxietyHistoryGroupedHtml(history) {
+  return groupAnxietyHistoryByDate(history)
+    .map(
+      ({ dayKey, items }) => `
+    <section class="reflection-anxiety-history-day" aria-label="${escapeHtml(formatArchiveDayHeading(dayKey))}">
+      <h4 class="reflection-anxiety-history-day-title">${escapeHtml(formatArchiveDayHeading(dayKey))}</h4>
+      <ul class="reflection-anxiety-history-day-list">
+        ${items.map((item) => anxietyHistoryItemHtml(item, { showReason: true })).join("")}
+      </ul>
+    </section>`
+    )
+    .join("");
+}
+
+function getAnxietyHistoryForDay(dayKey, reason) {
+  return loadAnxietyHistory()
+    .filter((item) => {
+      const onDay = archiveDayKey(item.archivedAt || item.createdAt) === dayKey;
+      if (!onDay) return false;
+      if (reason === "tossed") return item.reason === "tossed";
+      if (reason === "checked") return item.reason !== "tossed";
+      return true;
+    })
+    .sort((a, b) => {
+      const aTime = new Date(a.archivedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.archivedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+}
+
 function renderReflectionAnxietyBox() {
   const card = document.getElementById("reflection-anxiety");
   const list = document.getElementById("reflection-anxiety-list");
   const countEl = document.getElementById("reflection-anxiety-count");
   const historyList = document.getElementById("reflection-anxiety-history-list");
   const historyEmpty = document.getElementById("reflection-anxiety-history-empty");
-  const historyDetails = document.getElementById("reflection-anxiety-history");
-  const historySummary = document.getElementById("reflection-anxiety-history-heading");
+  const pastSection = document.getElementById("reflection-past-thoughts");
+  const historyHeading = document.getElementById("reflection-anxiety-history-heading");
+  const historyCount = document.getElementById("reflection-anxiety-history-count");
+  const tossedSection = document.getElementById("reflection-tossed-thoughts");
+  const tossedList = document.getElementById("reflection-tossed-list");
+  const tossedEmpty = document.getElementById("reflection-tossed-empty");
+  const tossedHeading = document.getElementById("reflection-tossed-heading");
+  const tossedCount = document.getElementById("reflection-tossed-count");
+  const dayPagerSlot = document.getElementById("reflection-day-pager-slot");
   const items = loadAnxietyBox();
-  const history = loadAnxietyHistory();
+  const dayKey = ensureReflectionSelectedDayKey();
+  const tossedToday = getAnxietyHistoryForDay(dayKey, "tossed");
+  const checkedDay = getAnxietyHistoryForDay(dayKey, "checked");
   const hasItems = items.length > 0;
   const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
-  // Sticky dock only when items exist; park card stays for add + history.
+  // Sticky dock only when items exist; park card stays for add.
   const showDock = hasItems && dialogOpen;
+  const dayLabel =
+    dayKey === reflectionTodayKey() ? "today" : formatArchiveDayHeading(dayKey);
+
+  if (dayPagerSlot) {
+    dayPagerSlot.innerHTML = reflectionDayPagerHtml(dayKey);
+    bindReflectionDayPager(dayKey);
+  }
 
   card?.classList.toggle("hidden", !showDock);
   document.documentElement.classList.toggle("reflection-anxiety-active", showDock);
@@ -2747,23 +3212,44 @@ function renderReflectionAnxietyBox() {
   if (list) {
     list.innerHTML = hasItems ? items.map((item) => anxietyBoxItemHtml(item)).join("") : "";
   }
-  // Collapsed by default (no `open`); summary shows count so check-offs aren't invisible.
-  if (historySummary) {
-    historySummary.textContent = history.length
-      ? `Past thoughts · ${history.length}`
-      : "Past thoughts";
+
+  if (tossedHeading) tossedHeading.textContent = "Tossed";
+  if (tossedCount) {
+    tossedCount.textContent = tossedToday.length
+      ? `${tossedToday.length} tossed ${dayLabel}`
+      : `Nothing tossed ${dayLabel}.`;
+  }
+  if (tossedList) {
+    tossedList.innerHTML = tossedToday.length
+      ? tossedToday.map((item) => anxietyHistoryItemHtml(item, { showReason: false })).join("")
+      : "";
+  }
+  if (tossedEmpty) {
+    tossedEmpty.classList.toggle("hidden", tossedToday.length > 0);
+  }
+  tossedSection?.classList.toggle("is-empty", tossedToday.length === 0);
+
+  if (historyHeading) {
+    historyHeading.textContent = "Past thoughts";
+  }
+  if (historyCount) {
+    historyCount.textContent = checkedDay.length
+      ? `${checkedDay.length} checked off ${dayLabel}`
+      : `No checked-off thoughts ${dayLabel}.`;
   }
   if (historyList) {
-    historyList.innerHTML = history.length
-      ? history.map((item) => anxietyHistoryItemHtml(item)).join("")
+    historyList.innerHTML = checkedDay.length
+      ? `<ul class="reflection-anxiety-history-day-list">${checkedDay
+          .map((item) => anxietyHistoryItemHtml(item, { showReason: false }))
+          .join("")}</ul>`
       : "";
   }
   if (historyEmpty) {
-    historyEmpty.classList.toggle("hidden", history.length > 0);
+    historyEmpty.classList.toggle("hidden", checkedDay.length > 0);
   }
-  if (historyDetails) {
-    historyDetails.classList.toggle("is-empty", history.length === 0);
-  }
+  pastSection?.classList.toggle("is-empty", checkedDay.length === 0);
+
+  requestAnimationFrame(() => updateReflectionHeroOnCream());
 }
 
 function bindAnxietyListClicks(root) {
@@ -2804,6 +3290,7 @@ function setupAnxietyBox() {
   });
 
   bindAnxietyListClicks(document.getElementById("reflection-anxiety-list"));
+  bindAnxietyListClicks(document.getElementById("reflection-tossed-list"));
   bindAnxietyListClicks(document.getElementById("reflection-anxiety-history-list"));
 }
 
@@ -2848,6 +3335,52 @@ function getMode135() {
   } catch {
     return true;
   }
+}
+
+function getWeeklyView() {
+  try {
+    return localStorage.getItem(WEEKLY_VIEW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setWeeklyView(enabled, options = {}) {
+  weeklyView = Boolean(enabled);
+  try {
+    localStorage.setItem(WEEKLY_VIEW_KEY, weeklyView ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+  syncWeeklyViewUi();
+  if (!options.skipRender) {
+    if (page === "home") renderHome();
+    if (page === "tasks") renderAll();
+  }
+  return weeklyView;
+}
+
+function syncWeeklyViewUi() {
+  document.querySelectorAll(".weekly-view-toggle").forEach((btn) => {
+    btn.classList.toggle("is-active", weeklyView);
+    btn.setAttribute("aria-pressed", weeklyView ? "true" : "false");
+    btn.textContent = weeklyView ? "Week on" : "Week";
+  });
+  const input = document.getElementById("settings-weekly-view-toggle");
+  if (input && document.activeElement !== input) input.checked = weeklyView;
+  document.body.classList.toggle("weekly-view-on", weeklyView);
+  document.getElementById("board")?.classList.remove("hidden");
+  document.getElementById("tasks-weekly-view")?.classList.toggle("hidden", !(weeklyView && page === "tasks"));
+  document.querySelector(".priority-visibility-tags--home")?.classList.remove("hidden");
+}
+
+function setupWeeklyViewControls() {
+  syncWeeklyViewUi();
+  document.querySelectorAll(".weekly-view-toggle").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => setWeeklyView(!weeklyView));
+  });
 }
 
 function getSidebarTab() {
@@ -3256,13 +3789,36 @@ function archiveCompletedTasksPastMidnight() {
   return toClear.length > 0;
 }
 
+/** Move incomplete one-off tasks from past scheduled days onto today. */
+function carryOverIncompleteScheduledTasks() {
+  const today = localDayKey();
+  let didChange = false;
+  getContexts().forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let changed = false;
+    const next = list.map((t) => {
+      if (t.archived || t.done || isRepeatTask(t) || isTaskDeferred(t)) return t;
+      const scheduled = normalizeScheduledFor(t.scheduledFor);
+      if (!scheduled || scheduled >= today) return t;
+      changed = true;
+      return { ...t, scheduledFor: today };
+    });
+    if (changed) {
+      didChange = true;
+      saveTasks(ctx, next);
+    }
+  });
+  return didChange;
+}
+
 function runDailyMaintenance({ render = false } = {}) {
   clearExpiredDeferredTasks();
+  const carried = carryOverIncompleteScheduledTasks();
   const resetDaily = resetRepeatDailyTasksIfNeeded();
   const resetWeekly = resetRepeatWeeklyTasksIfNeeded();
   const rolled = archiveCompletedTasksPastMidnight();
-  if (render && (rolled || resetDaily || resetWeekly)) renderAll();
-  return resetDaily || resetWeekly || rolled;
+  if (render && (carried || rolled || resetDaily || resetWeekly)) renderAll();
+  return carried || resetDaily || resetWeekly || rolled;
 }
 
 function scheduleMidnightMaintenance() {
@@ -3366,17 +3922,45 @@ function removeRepeatWeeklyTask(id, ctx) {
 function applyRepeatModeToTask(task, mode, weekday) {
   const base = stripRepeatFields(task);
   if (mode === "daily") {
-    return { ...base, repeatDaily: true, repeatLastReset: localDayKey() };
+    const next = { ...base, repeatDaily: true, repeatLastReset: localDayKey() };
+    delete next.scheduledFor;
+    return next;
   }
   if (mode === "weekly") {
-    return {
+    const next = {
       ...base,
       repeatWeekly: true,
       repeatWeekday: normalizeRepeatWeekday(weekday),
       repeatLastReset: localDayKey(),
     };
+    delete next.scheduledFor;
+    return next;
   }
   return base;
+}
+
+function normalizeScheduledFor(value) {
+  const key = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return "";
+  return key;
+}
+
+function applyScheduledForToTask(task, dayKey) {
+  const next = { ...task };
+  const scheduledFor = normalizeScheduledFor(dayKey);
+  if (!scheduledFor || isRepeatTask(next)) {
+    delete next.scheduledFor;
+  } else {
+    next.scheduledFor = scheduledFor;
+  }
+  return next;
+}
+
+/** Future-dated one-offs stay out of today's lists until their day (or overdue). */
+function isTaskActiveOnToday(task) {
+  const scheduledFor = normalizeScheduledFor(task?.scheduledFor);
+  if (!scheduledFor) return true;
+  return scheduledFor <= todayKey();
 }
 
 function removeTaskRefFromPlan135(ref) {
@@ -3644,7 +4228,7 @@ function getTierTasksAllContexts(tier) {
   const tasks = [];
   getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (!t.archived && !isTaskDeferred(t) && t.tier === tier) {
+      if (!t.archived && !isTaskDeferred(t) && isTaskActiveOnToday(t) && t.tier === tier) {
         tasks.push({ ...t, context: ctx });
       }
     });
@@ -4861,6 +5445,11 @@ function setupHomeDesignPicker() {
 }
 
 function getTasksForTier(tier) {
+  if (weeklyView && (page === "tasks" || page === "home")) {
+    const dayKey = ensureWeeklySelectedDayKey();
+    const tasks = getTasksForWeeklyDay(dayKey).filter((t) => Number(t.tier) === tier);
+    return sortTierTasksForDisplay(tasks, tier);
+  }
   const tasks = getVisibleTasks().filter((t) => t.tier === tier);
   return sortTierTasksForDisplay(tasks, tier);
 }
@@ -5287,9 +5876,9 @@ function loadReflectionJournal() {
   }
 }
 
-function saveReflectionJournal(text) {
+function saveReflectionJournal(text, dayKey = reflectionTodayKey()) {
   const journal = loadReflectionJournal();
-  journal[reflectionTodayKey()] = text;
+  journal[dayKey] = text;
   localStorage.setItem(REFLECTION_JOURNAL_KEY, JSON.stringify(journal));
 }
 
@@ -5338,8 +5927,8 @@ function renderReflectionPrompts(prompts) {
     </button>`
     )
     .join("");
-  if (getActiveReflectionTab() === "thoughts") {
-    observeReflectionScrollCards(document.getElementById("reflection-panel-thoughts"));
+  if (page === "history") {
+    observeReflectionScrollCards(document.querySelector(".history-day-review"));
   }
 }
 
@@ -5348,6 +5937,9 @@ function updateReflectionCharCount() {
   const countEl = document.getElementById("reflection-char-count");
   if (!textarea || !countEl) return;
   countEl.textContent = `${textarea.value.length} / 500`;
+  if (page === "history") {
+    saveReflectionJournal(textarea.value, ensureReflectionSelectedDayKey());
+  }
 }
 
 function getOpenTasksSnapshot() {
@@ -6253,7 +6845,7 @@ function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
         ? "Today’s first win"
         : "One win that day"
       : isToday
-        ? "What you’re pulling off"
+        ? "What you accomplished today"
         : "What you accomplished";
 
   return {
@@ -6325,7 +6917,12 @@ function shiftReflectionSelectedDay(delta) {
   const next = index + delta;
   if (next < 0 || next >= week.length) return false;
   setReflectionSelectedDayKey(week[next]);
-  renderReflectionReview();
+  if (document.getElementById("reflection-dialog")?.open) {
+    renderReflectionAnxietyBox();
+  } else {
+    renderReflectionReview();
+    syncHistoryJournalForSelectedDay();
+  }
   return true;
 }
 
@@ -6414,8 +7011,9 @@ function bindReflectionDayPager(selectedDayKey) {
 
 function reflectionReviewItemHtml(task, index = 0, favouriteId = "") {
   const time = formatCompletionTime(task.completedAt);
-  const note = task.notes?.trim()
-    ? `<p class="reflection-review-note">${escapeHtml(task.notes.trim())}</p>`
+  const noteText = taskNotesJoinedText(getTaskNoteEntries(task));
+  const note = noteText
+    ? `<p class="reflection-review-note">${escapeHtml(noteText)}</p>`
     : "";
   const isFavourite = favouriteId && task.id === favouriteId;
   return `
@@ -6486,7 +7084,10 @@ function prefersReflectionReducedMotion() {
 }
 
 function observeReflectionScrollCards(container) {
-  const root = container || document.querySelector(".reflection-screen");
+  const root =
+    container ||
+    document.querySelector(".history-day-review") ||
+    document.querySelector(".reflection-screen");
   if (!root) return;
 
   const cards = [
@@ -6749,7 +7350,7 @@ function renderReflectionReview() {
     empty.textContent = isToday
       ? "Your day is still in motion — nothing checked off yet. Your vibe shows up after two wins."
       : `Rest day — nothing was checked off ${dayPhrase}.`;
-    observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
+    observeReflectionScrollCards(document.querySelector(".history-day-review"));
     return;
   }
 
@@ -6757,7 +7358,16 @@ function renderReflectionReview() {
   list.innerHTML = completed
     .map((task, index) => reflectionReviewItemHtml(task, index, favouriteId))
     .join("");
-  observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
+  observeReflectionScrollCards(document.querySelector(".history-day-review"));
+}
+
+function syncHistoryJournalForSelectedDay() {
+  const textarea = document.getElementById("reflection-text");
+  if (!textarea) return;
+  const dayKey = ensureReflectionSelectedDayKey();
+  const journal = loadReflectionJournal();
+  textarea.value = journal[dayKey] || "";
+  updateReflectionCharCount();
 }
 
 function setReflectionTab(tab) {
@@ -6768,38 +7378,24 @@ function setReflectionTab(tab) {
     btn.setAttribute("aria-selected", active ? "true" : "false");
   });
   document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
-    panel.classList.toggle("hidden", panel.dataset.tab !== nextTab);
-    panel.classList.toggle("active", panel.dataset.tab === nextTab);
+    // Thoughts dialog is anxiety-only — keep the single review panel active.
+    const isOnlyPanel = !document.getElementById("reflection-panel-thoughts");
+    const show = isOnlyPanel || panel.dataset.tab === nextTab;
+    panel.classList.toggle("hidden", !show);
+    panel.classList.toggle("active", show);
   });
-  document.getElementById("reflection-day-pager-slot")?.classList.toggle("hidden", nextTab !== "review");
   const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
-  applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
-  if (nextTab === "thoughts") {
-    document.getElementById("reflection-text")?.focus();
-    requestAnimationFrame(() => {
-      observeReflectionScrollCards(document.getElementById("reflection-panel-thoughts"));
-    });
-  } else {
-    requestAnimationFrame(() => {
-      observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
-    });
-  }
+  applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, "review");
   updateReflectionHeroOnCream();
 }
 
 function updateReflectionHeroOnCream() {
   const screen = document.querySelector(".reflection-screen");
   const scrollRoot = getReflectionScrollRoot();
-  const hero = document.querySelector("#reflection-panel-review .reflection-hero--review");
-  if (!screen || !hero) return;
-  if (getActiveReflectionTab() !== "review") {
-    hero.classList.remove("reflection-hero--on-cream");
+  if (!screen || !document.documentElement.classList.contains("reflection-open")) {
     return;
   }
-  const title = hero.querySelector(".reflection-hero-title");
-  const label = hero.querySelector(".reflection-hero-label");
-  const probe = label || title;
-  if (!probe) return;
+
   const header = screen.querySelector(".reflection-sticky-chrome");
   const viewportH = scrollRoot?.clientHeight || window.innerHeight;
   // Switch earlier — cream veil is readable well below the sticky chrome.
@@ -6807,8 +7403,23 @@ function updateReflectionHeroOnCream() {
     ? header.getBoundingClientRect().bottom
     : Math.min(Math.max(viewportH * 0.18, 120), 180);
   const creamLead = Math.min(Math.max(viewportH * 0.14, 88), 140);
-  const onCream = probe.getBoundingClientRect().top <= headerBottom + creamLead;
-  hero.classList.toggle("reflection-hero--on-cream", onCream);
+  const creamLine = headerBottom + creamLead;
+
+  const isOnCream = (el) => {
+    if (!el) return false;
+    return el.getBoundingClientRect().top <= creamLine;
+  };
+
+  const hero =
+    document.querySelector("#reflection-panel-review .reflection-hero--thoughts") ||
+    document.querySelector("#reflection-panel-review .reflection-hero--review") ||
+    document.querySelector(".history-day-hero");
+  if (hero) {
+    const title = hero.querySelector(".reflection-hero-title");
+    const label = hero.querySelector(".reflection-hero-label");
+    const probe = label || title || hero;
+    hero.classList.toggle("reflection-hero--on-cream", isOnCream(probe));
+  }
 }
 
 let reflectionHeroScrollRaf = 0;
@@ -6848,22 +7459,14 @@ function closeReflectionDialog() {
 
 function openReflectionDialog() {
   const dialog = document.getElementById("reflection-dialog");
-  const textarea = document.getElementById("reflection-text");
-  if (!dialog || !textarea) return;
+  if (!dialog) return;
 
-  setReflectionSelectedDayKey(reflectionTodayKey());
-  const journal = loadReflectionJournal();
-  textarea.value = journal[reflectionTodayKey()] || "";
-  updateReflectionCharCount();
-  renderReflectionPrompts(shuffleReflectionPrompts());
-  renderReflectionReview();
   renderReflectionAnxietyBox();
   setReflectionTab("review");
   syncBottomChrome();
   setReflectionOpenState(true);
-  // Non-modal so the standard bottom nav stays above Reflection and stays tappable
+  // Non-modal so the standard bottom nav stays above Thoughts and stays tappable
   dialog.show();
-  // Reset to top so sticky header + hero read correctly on reopen
   dialog.scrollTop = 0;
   requestAnimationFrame(() => {
     renderReflectionAnxietyBox();
@@ -6878,7 +7481,6 @@ function setupReflection() {
   const textarea = document.getElementById("reflection-text");
   const refreshBtn = document.getElementById("reflection-prompts-refresh");
   const continueBtn = document.getElementById("reflection-continue");
-  const reviewContinueBtn = document.getElementById("reflection-review-continue");
   const promptsList = document.getElementById("reflection-prompts-list");
 
   document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
@@ -6887,7 +7489,6 @@ function setupReflection() {
 
   // Scroll lives on the dialog (not nested .reflection-screen) so touch pans work
   dialog?.addEventListener("scroll", onReflectionScreenScroll, { passive: true });
-  // Escape (below) + Continue CTAs + bottom nav dismiss; no back chevron
   dialog?.addEventListener("close", () => {
     setReflectionOpenState(false);
     requestAnimationFrame(() => syncBottomChrome());
@@ -6896,15 +7497,8 @@ function setupReflection() {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!document.documentElement.classList.contains("reflection-open")) return;
-    // Don't steal Escape from a true modal dialog in the top layer
     if (document.querySelector("dialog[open]:modal")) return;
     closeReflectionDialog();
-  });
-
-  document.querySelectorAll(".reflection-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setReflectionTab(btn.dataset.tab);
-    });
   });
 
   textarea?.addEventListener("input", updateReflectionCharCount);
@@ -6924,13 +7518,7 @@ function setupReflection() {
     textarea.focus();
   });
 
-  reviewContinueBtn?.addEventListener("click", () => {
-    setReflectionTab("thoughts");
-    getReflectionScrollRoot()?.scrollTo({ top: 0, behavior: "smooth" });
-  });
-
   continueBtn?.addEventListener("click", () => {
-    if (textarea) saveReflectionJournal(textarea.value.trim());
     dialog?.close();
   });
 
@@ -7342,8 +7930,13 @@ function renderTasksFlat() {
 }
 
 function renderGrid() {
+  syncWeeklyViewUi();
   const flatList = document.getElementById("tasks-flat-list");
   if (flatList) flatList.innerHTML = "";
+
+  if (weeklyView) {
+    renderTasksWeekly();
+  }
 
   const board = document.getElementById("board");
   if (board) {
@@ -7548,6 +8141,273 @@ function countPlan135Filled(plan) {
   return filled;
 }
 
+function getCurrentWeekDayKeys() {
+  const startPref = getWeekStartPreference();
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  const day = now.getDay();
+  const target = startPref === "sunday" ? 0 : 1;
+  let diff = day - target;
+  if (diff < 0) diff += 7;
+  const start = new Date(now);
+  start.setDate(now.getDate() - diff);
+  const keys = [];
+  for (let i = 0; i < 7; i += 1) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    keys.push(archiveDayKey(d.toISOString()));
+  }
+  return keys;
+}
+
+function ensureWeeklySelectedDayKey() {
+  const week = getCurrentWeekDayKeys();
+  if (!weeklySelectedDayKey || !week.includes(weeklySelectedDayKey)) {
+    weeklySelectedDayKey = reflectionTodayKey();
+    if (!week.includes(weeklySelectedDayKey)) weeklySelectedDayKey = week[0];
+  }
+  return weeklySelectedDayKey;
+}
+
+function setWeeklySelectedDayKey(dayKey) {
+  const week = getCurrentWeekDayKeys();
+  if (!week.includes(dayKey)) return ensureWeeklySelectedDayKey();
+  weeklySelectedDayKey = dayKey;
+  return weeklySelectedDayKey;
+}
+
+function dayKeyToWeekdayIndex(dayKey) {
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  if (!y || !m || !d) return -1;
+  return new Date(y, m - 1, d).getDay();
+}
+
+function getWeeklyOpenTasksForToday() {
+  const today = reflectionTodayKey();
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || t.done || isTaskDeferred(t)) return;
+      if (isRepeatTask(t)) return;
+      if (!isTierVisible(t.tier)) return;
+      const scheduledFor = normalizeScheduledFor(t.scheduledFor);
+      if (scheduledFor && scheduledFor > today) return;
+      if (scheduledFor === today) return; // added via getScheduledTasksForDay
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  tasks.sort((a, b) => a.tier - b.tier || a.text.localeCompare(b.text));
+  return tasks;
+}
+
+function getDailyRepeatTasksForDay() {
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || isTaskDeferred(t)) return;
+      if (!t.repeatDaily) return;
+      if (!isTierVisible(t.tier)) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks;
+}
+
+function getWeeklyRepeatTasksForDay(dayKey) {
+  const weekday = dayKeyToWeekdayIndex(dayKey);
+  if (weekday < 0) return [];
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || isTaskDeferred(t)) return;
+      if (!t.repeatWeekly) return;
+      if (normalizeRepeatWeekday(t.repeatWeekday) !== weekday) return;
+      if (!isTierVisible(t.tier)) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks;
+}
+
+function getScheduledTasksForDay(dayKey) {
+  const today = reflectionTodayKey();
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || isTaskDeferred(t)) return;
+      if (isRepeatTask(t)) return;
+      if (!isTierVisible(t.tier)) return;
+      const scheduled = normalizeScheduledFor(t.scheduledFor);
+      if (!scheduled) return;
+      const onExactDay = scheduled === dayKey;
+      const carriedForward =
+        !t.done && scheduled < dayKey && dayKey <= today;
+      if (!onExactDay && !carriedForward) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  return tasks;
+}
+
+/** For week-day cards, show each day's occurrence (done only if completed that day). */
+function withTaskDayAppearance(task, dayKey) {
+  const today = reflectionTodayKey();
+  if (dayKey === today) return task;
+  if (!isRepeatTask(task)) return task;
+  const completedThatDay =
+    task.completedAt && archiveDayKey(task.completedAt) === dayKey;
+  if (completedThatDay) {
+    return { ...task, done: true, archived: false };
+  }
+  return { ...task, done: false, archived: false };
+}
+
+function getTasksForWeeklyDay(dayKey) {
+  const today = reflectionTodayKey();
+  const seen = new Set();
+  const tasks = [];
+  const push = (t) => {
+    const key = `${t.context}:${t.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    tasks.push(withTaskDayAppearance(t, dayKey));
+  };
+
+  getCompletedTasksForDay(dayKey).forEach((t) => {
+    if (!isTierVisible(t.tier)) return;
+    push(t);
+  });
+
+  getScheduledTasksForDay(dayKey)
+    .filter((t) => !t.done)
+    .forEach(push);
+
+  getDailyRepeatTasksForDay().forEach(push);
+  getWeeklyRepeatTasksForDay(dayKey).forEach(push);
+
+  if (dayKey === today) {
+    getWeeklyOpenTasksForToday().forEach(push);
+  }
+
+  tasks.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return a.tier - b.tier || a.text.localeCompare(b.text);
+  });
+  return tasks;
+}
+
+function weeklyDayChipLabel(dayKey) {
+  const today = reflectionTodayKey();
+  if (dayKey === today) return "Today";
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString(undefined, { weekday: "short" });
+}
+
+function weeklyDayNumLabel(dayKey) {
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  return String(d);
+}
+
+function weeklyDayStripHtml(selectedDayKey) {
+  return getCurrentWeekDayKeys()
+    .map((key) => {
+      const active = key === selectedDayKey;
+      const isToday = key === reflectionTodayKey();
+      return `
+      <button
+        type="button"
+        class="weekly-day-chip${active ? " is-active" : ""}${isToday ? " is-today" : ""}"
+        data-week-day="${escapeHtml(key)}"
+        aria-pressed="${active ? "true" : "false"}"
+      >
+        <span class="weekly-day-chip-label">${escapeHtml(weeklyDayChipLabel(key))}</span>
+        <span class="weekly-day-chip-num">${escapeHtml(weeklyDayNumLabel(key))}</span>
+      </button>`;
+    })
+    .join("");
+}
+
+function weeklyPriorityGridHtml(tasks) {
+  const cardsHtml = getVisibleTierList()
+    .map((tier) => {
+      const allTasks = sortTierTasksForDisplay(
+        tasks.filter((t) => Number(t.tier) === tier),
+        tier
+      );
+      const preview = allTasks.slice(0, 5);
+      const done = allTasks.filter((t) => t.done).length;
+      const total = allTasks.length;
+      return figmaPlanCardHtml({
+        number: String(tier).padStart(2, "0"),
+        variant: PRIORITY_CARD_VARIANTS[tier - 1],
+        title: TIER_NAMES[tier - 1],
+        subtitle: `${total} task${total === 1 ? "" : "s"}`,
+        tasks: preview,
+        done,
+        total,
+        tier,
+      });
+    })
+    .join("");
+
+  return `<div class="plan-card-grid plan-card-grid--priorities">${cardsHtml}</div>`;
+}
+
+function weeklyViewHtml(selectedDayKey, tasks) {
+  return `
+    <div class="weekly-view">
+      <div class="weekly-day-strip" role="group" aria-label="Days this week">${weeklyDayStripHtml(selectedDayKey)}</div>
+      ${weeklyPriorityGridHtml(tasks)}
+    </div>`;
+}
+
+function bindWeeklyView(container) {
+  if (!container) return;
+  container.querySelectorAll(".weekly-day-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setWeeklySelectedDayKey(btn.dataset.weekDay);
+      if (page === "home") renderHome();
+      else if (page === "tasks") renderGrid();
+    });
+  });
+  bindHomeCardTasks(container);
+  container.querySelectorAll(".plan-card-more").forEach((btn) => {
+    btn.addEventListener("click", () => openTierExpand(Number(btn.dataset.tier)));
+  });
+}
+
+function renderHomeWeekly() {
+  const title = document.getElementById("home-priority-title");
+  const progress = document.getElementById("home-priority-progress");
+  const content = document.getElementById("home-priority-content");
+  const empty = document.getElementById("home-priority-empty");
+  if (!content || !empty) return;
+
+  const dayKey = ensureWeeklySelectedDayKey();
+  if (title) {
+    title.textContent =
+      dayKey === reflectionTodayKey() ? "Today's Plan" : formatArchiveDayHeading(dayKey);
+  }
+  if (progress) progress.classList.add("hidden");
+  empty.classList.add("hidden");
+
+  const tasks = getTasksForWeeklyDay(dayKey);
+  content.innerHTML = weeklyViewHtml(dayKey, tasks);
+  bindWeeklyView(content);
+}
+
+function renderTasksWeekly() {
+  const host = document.getElementById("tasks-weekly-view");
+  if (!host) return;
+  const dayKey = ensureWeeklySelectedDayKey();
+  host.innerHTML = `
+    <div class="weekly-view">
+      <div class="weekly-day-strip" role="group" aria-label="Days this week">${weeklyDayStripHtml(dayKey)}</div>
+    </div>`;
+  bindWeeklyView(host);
+}
+
 function getTasksByTierForHome(tier, limit) {
   if (!isTierVisible(tier)) return [];
   const sorted = sortTierTasksForDisplay(getTierTasksAllContexts(tier), tier);
@@ -7694,32 +8554,58 @@ async function openTaskMediaViewer(task) {
   const dialog = document.getElementById("media-viewer-dialog");
   const title = document.getElementById("media-viewer-title");
   const sub = document.getElementById("media-viewer-sub");
-  const notesEl = document.getElementById("media-viewer-notes");
+  const notesList = document.getElementById("media-viewer-notes-list");
+  const notesEmpty = document.getElementById("media-viewer-notes-empty");
+  const notesCount = document.getElementById("media-viewer-notes-count");
+  const notesLegacy = document.getElementById("media-viewer-notes");
   const photosEl = document.getElementById("media-viewer-photos");
   const emptyEl = document.getElementById("media-viewer-empty");
   if (!dialog || !task) return;
 
+  mediaViewerTaskRef = { id: task.id, context: task.context };
   revokePhotoUrls(mediaViewerUrls);
   if (title) title.textContent = task.text || "Attachments";
+
+  const entries = getTaskNoteEntries(task);
   if (sub) {
     const parts = [];
-    if (taskHasNotes(task)) parts.push("Notes");
+    if (entries.length) parts.push(`${entries.length} note${entries.length === 1 ? "" : "s"}`);
     if (taskHasPhotos(task)) {
       parts.push(`${task.photos.length} photo${task.photos.length === 1 ? "" : "s"}`);
     }
-    sub.textContent = parts.join(" · ");
+    sub.textContent = parts.join(" · ") || "Notes & photos";
   }
 
-  const note = task.notes?.trim() || "";
-  if (notesEl) {
-    if (note) {
-      notesEl.textContent = note;
-      notesEl.classList.remove("hidden");
-    } else {
-      notesEl.textContent = "";
-      notesEl.classList.add("hidden");
-    }
+  if (notesList) {
+    notesList.innerHTML = entries
+      .map(
+        (note) => `
+      <li class="media-viewer-note-item" data-note-id="${escapeHtml(note.id)}">
+        <p class="media-viewer-note-text">${escapeHtml(note.text)}</p>
+        ${
+          formatNoteTimestamp(note.createdAt)
+            ? `<p class="media-viewer-note-meta">${escapeHtml(formatNoteTimestamp(note.createdAt))}</p>`
+            : ""
+        }
+        <button type="button" class="media-viewer-note-delete" aria-label="Delete note">×</button>
+      </li>`
+      )
+      .join("");
+    notesList.querySelectorAll(".media-viewer-note-delete").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const noteId = btn.closest("[data-note-id]")?.dataset.noteId;
+        if (!noteId || !mediaViewerTaskRef) return;
+        deleteTaskNote(mediaViewerTaskRef.id, mediaViewerTaskRef.context, noteId);
+      });
+    });
   }
+  notesEmpty?.classList.toggle("hidden", entries.length > 0);
+  if (notesCount) {
+    notesCount.textContent = entries.length
+      ? `${entries.length} note${entries.length === 1 ? "" : "s"}`
+      : "";
+  }
+  notesLegacy?.classList.add("hidden");
 
   const photos = Array.isArray(task.photos) ? task.photos : [];
   if (photosEl) {
@@ -7748,13 +8634,46 @@ async function openTaskMediaViewer(task) {
     }
   }
 
-  emptyEl?.classList.toggle("hidden", photos.length > 0 || Boolean(note));
+  emptyEl?.classList.toggle("hidden", photos.length > 0 || entries.length > 0);
   dialog.showModal();
+}
+
+function persistTaskNotes(id, ctx, entries) {
+  updateTaskInContext(ctx, (list) =>
+    list.map((t) => (t.id === id ? withTaskNotes(t, entries) : t))
+  );
+  const task = loadTasks(ctx).find((t) => t.id === id);
+  renderAll();
+  if (task && document.getElementById("media-viewer-dialog")?.open) {
+    openTaskMediaViewer({ ...task, context: ctx });
+  }
+}
+
+function addTaskNote(id, ctx, text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return;
+  const task = loadTasks(ctx).find((t) => t.id === id);
+  if (!task) return;
+  const entries = [
+    ...getTaskNoteEntries(task),
+    { id: createId(), text: trimmed, createdAt: new Date().toISOString() },
+  ];
+  persistTaskNotes(id, ctx, entries);
+}
+
+function deleteTaskNote(id, ctx, noteId) {
+  const task = loadTasks(ctx).find((t) => t.id === id);
+  if (!task) return;
+  const entries = getTaskNoteEntries(task).filter((n) => n.id !== noteId);
+  persistTaskNotes(id, ctx, entries);
 }
 
 function closeTaskMediaViewer() {
   const dialog = document.getElementById("media-viewer-dialog");
   revokePhotoUrls(mediaViewerUrls);
+  mediaViewerTaskRef = null;
+  const input = document.getElementById("media-viewer-notes-input");
+  if (input) input.value = "";
   dialog?.close();
 }
 
@@ -7763,6 +8682,18 @@ function setupMediaViewer() {
   document.getElementById("media-viewer-dialog")?.addEventListener("click", (e) => {
     if (e.target?.id === "media-viewer-dialog") closeTaskMediaViewer();
   });
+  const form = document.getElementById("media-viewer-notes-form");
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = "1";
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!mediaViewerTaskRef) return;
+      const input = document.getElementById("media-viewer-notes-input");
+      const text = input?.value || "";
+      if (input) input.value = "";
+      addTaskNote(mediaViewerTaskRef.id, mediaViewerTaskRef.context, text);
+    });
+  }
 }
 
 function formatCompletionTime(iso) {
@@ -7835,9 +8766,13 @@ function completedWinsItemHtml(task) {
         <input type="checkbox" checked aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
-      <button type="button" class="completed-wins-archive" aria-label="Archive task" title="Archive">
-        <svg class="icon" aria-hidden="true"><use href="#icon-archive"></use></svg>
-      </button>
+      <span class="plan-card-task-meta completed-wins-meta">
+        ${taskAttachmentIndicatorHtml(task)}
+        ${contextIconHtml(task.context, "plan-card-task-ctx")}
+        <button type="button" class="completed-wins-archive" aria-label="Archive task" title="Archive">
+          <svg class="icon" aria-hidden="true"><use href="#icon-archive"></use></svg>
+        </button>
+      </span>
       ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : `<span class="completed-wins-time" aria-hidden="true"></span>`}
     </li>`;
 }
@@ -7985,8 +8920,13 @@ function renderHomeCompletedToday() {
 }
 
 function renderHome() {
-  // Always show all four priority columns with their tasks — not the 1-3-5 slot plan.
-  renderHomePriorities();
+  syncWeeklyViewUi();
+  if (weeklyView) {
+    renderHomeWeekly();
+  } else {
+    // Always show all four priority columns with their tasks — not the 1-3-5 slot plan.
+    renderHomePriorities();
+  }
   renderHomeCompletedToday();
   refreshFocusTimerUI();
 }
@@ -8477,9 +9417,13 @@ function clearDialogBrainFields() {
 
 function resetDialogMediaFields() {
   dialogPhotoDraft = [];
+  dialogNoteEntries = [];
   revokePhotoUrls(dialogPhotoUrls);
-  const notes = document.getElementById("dialog-notes");
-  if (notes) notes.value = "";
+  const notesInput = document.getElementById("dialog-notes-input");
+  if (notesInput) notesInput.value = "";
+  const notesHidden = document.getElementById("dialog-notes");
+  if (notesHidden) notesHidden.value = "";
+  renderDialogNotesList();
   const grid = document.getElementById("dialog-photo-grid");
   if (grid) grid.innerHTML = `<p class="dialog-photo-empty">No photos yet.</p>`;
 }
@@ -8597,7 +9541,63 @@ function syncDialogParsePreview() {
 function syncDialogRepeatFields() {
   const mode = document.getElementById("dialog-repeat")?.value || "none";
   const weekday = document.getElementById("dialog-repeat-weekday");
+  const schedule = document.getElementById("dialog-schedule");
+  const scheduleLabel = document.querySelector('label[for="dialog-schedule"]');
+  const hint = document.getElementById("dialog-schedule-hint");
   if (weekday) weekday.classList.toggle("hidden", mode !== "weekly");
+  const repeating = mode === "daily" || mode === "weekly";
+  if (schedule) {
+    schedule.classList.toggle("hidden", repeating);
+    if (repeating) schedule.value = "";
+  }
+  scheduleLabel?.classList.toggle("hidden", repeating);
+  if (hint) {
+    hint.classList.toggle("hidden", !repeating);
+    if (mode === "daily") {
+      hint.textContent = "Shows on every day in Week view.";
+    } else if (mode === "weekly") {
+      hint.textContent = "Shows on that weekday in Week view.";
+    }
+  }
+}
+
+function fillDialogScheduleOptions(selectedValue = "") {
+  const select = document.getElementById("dialog-schedule");
+  if (!select) return;
+  const selected = normalizeScheduledFor(selectedValue);
+  const week = getCurrentWeekDayKeys();
+  const options = [`<option value="">Anytime</option>`];
+  const seen = new Set();
+  week.forEach((key) => {
+    seen.add(key);
+    const label =
+      key === reflectionTodayKey()
+        ? `Today · ${formatArchiveDayHeading(key)}`
+        : formatArchiveDayHeading(key);
+    options.push(
+      `<option value="${escapeHtml(key)}"${key === selected ? " selected" : ""}>${escapeHtml(label)}</option>`
+    );
+  });
+  if (selected && !seen.has(selected)) {
+    options.push(
+      `<option value="${escapeHtml(selected)}" selected>${escapeHtml(formatArchiveDayHeading(selected))}</option>`
+    );
+  }
+  select.innerHTML = options.join("");
+}
+
+function setDialogScheduleField(task) {
+  const defaultDay =
+    weeklyView && weeklySelectedDayKey && weeklySelectedDayKey !== reflectionTodayKey()
+      ? weeklySelectedDayKey
+      : "";
+  const value = task ? normalizeScheduledFor(task.scheduledFor) : defaultDay;
+  fillDialogScheduleOptions(value);
+  syncDialogRepeatFields();
+}
+
+function getDialogScheduledFor() {
+  return normalizeScheduledFor(document.getElementById("dialog-schedule")?.value);
 }
 
 function setDialogRepeatFields(task) {
@@ -8608,7 +9608,7 @@ function setDialogRepeatFields(task) {
   else if (task?.repeatWeekly) modeEl.value = "weekly";
   else modeEl.value = "none";
   weekdayEl.value = String(normalizeRepeatWeekday(task?.repeatWeekday));
-  syncDialogRepeatFields();
+  setDialogScheduleField(task);
 }
 
 function getDialogRepeatMode() {
@@ -8617,6 +9617,13 @@ function getDialogRepeatMode() {
 
 function getDialogRepeatWeekday() {
   return normalizeRepeatWeekday(document.getElementById("dialog-repeat-weekday")?.value);
+}
+
+function buildTaskFromDialogFields(baseTask) {
+  return applyScheduledForToTask(
+    applyRepeatModeToTask(baseTask, getDialogRepeatMode(), getDialogRepeatWeekday()),
+    getDialogScheduledFor()
+  );
 }
 
 async function openTaskDialog(tier = 1) {
@@ -8645,13 +9652,14 @@ async function openEditTaskDialog(task, ctx) {
 
   clearDialogBrainFields();
   dialogPhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
+  dialogNoteEntries = getTaskNoteEntries(task).map((n) => ({ ...n }));
   document.getElementById("dialog-title").textContent = "Edit Task";
   document.getElementById("dialog-input").value = task.text;
   document.getElementById("dialog-tier-select").value = String(task.tier);
   fillContextSelect(document.getElementById("dialog-context"), ctx);
   document.getElementById("dialog-edit-id").value = task.id;
   document.getElementById("dialog-original-context").value = ctx;
-  document.getElementById("dialog-notes").value = task.notes || "";
+  renderDialogNotesList();
   setDialogRepeatFields(task);
   setTaskDialogSubmitLabel("Save");
   setTaskDialogDeleteVisible(true);
@@ -8713,17 +9721,14 @@ function saveTaskFromDialog() {
   const oldCtx = document.getElementById("dialog-original-context").value;
   const brainId = document.getElementById("dialog-brain-id").value;
   const brainCtx = document.getElementById("dialog-brain-context").value;
-  const notes = document.getElementById("dialog-notes")?.value.trim() || "";
+  const noteEntries = dialogNoteEntries.map((n) => ({ ...n }));
   const photos = dialogPhotoDraft.map((p) => ({ ...p }));
 
   if (brainId) {
     const text = raw.trim();
     if (!text) return;
-    const repeatMode = getDialogRepeatMode();
-    const created = applyRepeatModeToTask(
-      { id: createId(), text, tier, done: false, notes, photos },
-      repeatMode,
-      getDialogRepeatWeekday()
+    const created = buildTaskFromDialogFields(
+      withTaskNotes({ id: createId(), text, tier, done: false, photos }, noteEntries)
     );
     saveTasks(newCtx, [...loadTasks(newCtx), created]);
     saveBrainDump(brainCtx, loadBrainDump(brainCtx).filter((i) => i.id !== brainId));
@@ -8738,10 +9743,8 @@ function saveTaskFromDialog() {
     const task = oldList.find((t) => t.id === editId);
     if (!task) return;
 
-    const updated = applyRepeatModeToTask(
-      { ...task, text, tier, notes, photos },
-      getDialogRepeatMode(),
-      getDialogRepeatWeekday()
+    const updated = buildTaskFromDialogFields(
+      withTaskNotes({ ...task, text, tier, photos }, noteEntries)
     );
 
     if (oldCtx === newCtx) {
@@ -8761,20 +9764,18 @@ function saveTaskFromDialog() {
 
   const parsed = parseTasksFromText(raw);
   if (!parsed.length) return;
-  const repeatMode = getDialogRepeatMode();
-  const weekday = getDialogRepeatWeekday();
   const created = parsed.map((text, index) =>
-    applyRepeatModeToTask(
-      {
-        id: createId(),
-        text,
-        tier,
-        done: false,
-        notes: index === 0 ? notes : "",
-        photos: index === 0 ? photos : [],
-      },
-      repeatMode,
-      weekday
+    buildTaskFromDialogFields(
+      withTaskNotes(
+        {
+          id: createId(),
+          text,
+          tier,
+          done: false,
+          photos: index === 0 ? photos : [],
+        },
+        index === 0 ? noteEntries : []
+      )
     )
   );
   saveTasks(newCtx, [...loadTasks(newCtx), ...created]);
@@ -8784,6 +9785,8 @@ function setupTaskDialog() {
   const dialog = document.getElementById("task-dialog");
   const photoInput = document.getElementById("dialog-photo-input");
   const input = document.getElementById("dialog-input");
+
+  setupDialogNotes();
 
   document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(1));
 
@@ -9127,7 +10130,11 @@ function historyWinsItemHtml(task) {
         <input type="checkbox" checked disabled aria-label="Completed" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
-      ${restoreBtn}
+      <span class="plan-card-task-meta history-wins-meta">
+        ${taskAttachmentIndicatorHtml(task)}
+        ${contextIconHtml(task.context, "plan-card-task-ctx")}
+        ${restoreBtn}
+      </span>
       ${time ? `<span class="completed-wins-time">${escapeHtml(time)}</span>` : `<span class="completed-wins-time" aria-hidden="true"></span>`}
     </li>`;
 }
@@ -9222,24 +10229,16 @@ function renderHistory() {
   const tasks = getCompletedTasksForHistory().filter(
     (t) => archiveDayKey(t.completedAt) >= startedDay
   );
-  const anxietyHistory = loadAnxietyHistory();
 
   if (subtitle) {
     const startedLabel = formatArchiveDayHeading(startedDay);
-    const taskPart =
-      tasks.length === 0
-        ? `Completed tasks since ${startedLabel} will appear here`
-        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}`;
-    const anxietyPart = anxietyHistory.length
-      ? ` · ${anxietyHistory.length} past anxiety thought${anxietyHistory.length === 1 ? "" : "s"}`
-      : "";
     subtitle.textContent =
-      tasks.length === 0 && !anxietyHistory.length
-        ? `${taskPart}.`
-        : `${taskPart}${anxietyPart} — a quiet record of what you’ve finished.`;
+      tasks.length === 0
+        ? `Completed tasks since ${startedLabel} will appear here.`
+        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}.`;
   }
 
-  if (tasks.length === 0 && anxietyHistory.length === 0) {
+  if (tasks.length === 0) {
     content.innerHTML = "";
     empty.classList.remove("hidden");
     return;
@@ -9260,19 +10259,12 @@ function renderHistory() {
     return b.localeCompare(a);
   });
 
-  const anxietyCard = historyAnxietyCardHtml(anxietyHistory);
-  const dayCards = sortedKeys
+  content.innerHTML = sortedKeys
     .map((dayKey) => historyDayCardHtml(dayKey, groups.get(dayKey)))
     .join("");
-  content.innerHTML = `${anxietyCard}${dayCards}`;
 
-  content.querySelectorAll(".history-anxiety-delete").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const row = btn.closest("[data-anxiety-history-id]");
-      if (row?.dataset.anxietyHistoryId) deleteAnxietyHistoryItem(row.dataset.anxietyHistoryId);
-    });
+  content.querySelectorAll(".history-wins-item").forEach((row) => {
+    bindAttachmentIndicator(row, row.dataset.id, row.dataset.context);
   });
 
   content.querySelectorAll(".history-wins-item .plan-card-task-text").forEach((btn) => {
@@ -9425,6 +10417,7 @@ function renderAll() {
     renderGrid();
     renderPlan135();
     renderBrainPanel();
+    renderNotesPanel();
     renderDailyRepeatPanel();
     renderForgetItPanel();
     renderArchivePanel();
@@ -9435,7 +10428,6 @@ function renderAll() {
   }
   const reflectionDialog = document.getElementById("reflection-dialog");
   if (reflectionDialog?.open) {
-    renderReflectionReview();
     renderReflectionAnxietyBox();
   }
   renderFocusTimerChrome();
@@ -9495,6 +10487,7 @@ setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
 setupMediaViewer();
 setupBrainDumpForms();
+setupNotesPanel();
 setupDailyRepeatForm();
 setupDataSync();
 setupTierExpand();
