@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=173" />
+    <link rel="stylesheet" href="styles.css?v=174" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
     <link rel="stylesheet" href="design/home-presence.css?v=109" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=45" />
@@ -1140,13 +1140,19 @@
             <option value="home">Home</option>
           </select>
         </div>
-        <label class="dialog-label" for="dialog-tier-select">Priority</label>
-        <select id="dialog-tier-select">
-          <option value="1">1st Priority</option>
-          <option value="2">2nd Priority</option>
-          <option value="3">3rd Priority</option>
-          <option value="4">4th Priority</option>
-        </select>
+        <span class="dialog-label" id="dialog-tier-label">Priority</span>
+        <input type="hidden" id="dialog-tier-select" value="1" />
+        <div
+          class="dialog-tier-picker"
+          id="dialog-tier-picker"
+          role="radiogroup"
+          aria-labelledby="dialog-tier-label"
+        >
+          <button type="button" class="dialog-tier-tag active" data-tier="1" aria-pressed="true">1st</button>
+          <button type="button" class="dialog-tier-tag" data-tier="2" aria-pressed="false">2nd</button>
+          <button type="button" class="dialog-tier-tag" data-tier="3" aria-pressed="false">3rd</button>
+          <button type="button" class="dialog-tier-tag" data-tier="4" aria-pressed="false">4th</button>
+        </div>
         <div class="dialog-schedule-field" id="dialog-schedule-field">
           <div class="dialog-schedule-head">
             <span class="dialog-label" id="dialog-schedule-label">Scheduled for</span>
@@ -1427,6 +1433,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=302"></script>
+    <script src="app.js?v=303"></script>
   </body>
 </html>

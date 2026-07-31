@@ -9961,6 +9961,25 @@ function getDialogScheduledFor() {
   return normalizeScheduledFor(document.getElementById("dialog-schedule")?.value);
 }
 
+function setDialogTier(tier) {
+  const value = String(Math.min(4, Math.max(1, Number(tier) || 1)));
+  const input = document.getElementById("dialog-tier-select");
+  if (input) input.value = value;
+  document.querySelectorAll(".dialog-tier-tag").forEach((btn) => {
+    const active = btn.dataset.tier === value;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function setupDialogTierPicker() {
+  document.querySelectorAll(".dialog-tier-tag").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => setDialogTier(btn.dataset.tier));
+  });
+}
+
 function setupDialogSchedulePicker() {
   const anytime = document.getElementById("dialog-schedule-anytime");
   const calBtn = document.getElementById("dialog-schedule-cal-btn");
@@ -10023,7 +10042,7 @@ async function openTaskDialog(tier = 1) {
   resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Add Task";
   document.getElementById("dialog-input").value = "";
-  document.getElementById("dialog-tier-select").value = String(tier);
+  setDialogTier(tier);
   fillContextSelect(document.getElementById("dialog-context"), defaultCtx);
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
@@ -10044,7 +10063,7 @@ async function openEditTaskDialog(task, ctx) {
   dialogNoteEntries = getTaskNoteEntries(task).map((n) => ({ ...n }));
   document.getElementById("dialog-title").textContent = "Edit Task";
   document.getElementById("dialog-input").value = task.text;
-  document.getElementById("dialog-tier-select").value = String(task.tier);
+  setDialogTier(task.tier);
   fillContextSelect(document.getElementById("dialog-context"), ctx);
   document.getElementById("dialog-edit-id").value = task.id;
   document.getElementById("dialog-original-context").value = ctx;
@@ -10071,7 +10090,7 @@ function openBrainDumpSendDialog(item, ctx) {
   resetDialogMediaFields();
   document.getElementById("dialog-title").textContent = "Send to Priority";
   document.getElementById("dialog-input").value = item.text;
-  document.getElementById("dialog-tier-select").value = "1";
+  setDialogTier(1);
   fillContextSelect(document.getElementById("dialog-context"), ctx);
   document.getElementById("dialog-edit-id").value = "";
   document.getElementById("dialog-original-context").value = "";
@@ -10176,6 +10195,7 @@ function setupTaskDialog() {
   const input = document.getElementById("dialog-input");
 
   setupDialogNotes();
+  setupDialogTierPicker();
   setupDialogSchedulePicker();
 
   document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(1));
