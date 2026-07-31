@@ -30,6 +30,8 @@ const DISPLAY_NAME_KEY = "priority-grid-display-name";
 const PROFILE_AVATAR_KEY = "priority-grid-profile-avatar";
 const WEEK_START_KEY = "priority-grid-week-start";
 const WEEKLY_VIEW_KEY = "priority-grid-weekly-view";
+const WEEKLY_WINDOW_START_KEY = "priority-grid-weekly-window-start";
+const WEEKLY_WINDOW_LEN = 14;
 const DEFAULT_DISPLAY_NAME = "Friend";
 const DEFAULT_PROFILE_AVATAR = "assets/sidebar-avatar.png?v=39";
 const AVATAR_EDGE = 192;
@@ -622,6 +624,12 @@ let mode135 = getMode135();
 let weeklyView = getWeeklyView();
 let sidebarTab = getSidebarTab();
 let weeklySelectedDayKey = null;
+let weeklyWindowStartKey = null;
+let weeklyCalendarOpen = false;
+let weeklyCalendarMonthKey = null;
+let dialogScheduleCalendarOpen = false;
+let dialogScheduleCalendarMonthKey = null;
+let dialogScheduleWindowStartKey = null;
 let mediaViewerTaskRef = null;
 let plan135Picker = null;
 let syncAvailable = false;
@@ -3025,6 +3033,14 @@ function setWeekStartPreference(value, options = {}) {
   }
   if (!options.skipSync) markSyncDirty();
   syncWeekStartUi();
+  // Realign the fortnight window to the new week-start preference.
+  if (weeklyWindowStartKey) {
+    setWeeklyWindowStartKey(weeklyWindowStartKey, { skipRender: true });
+  }
+  if (weeklyView) {
+    if (page === "home") renderHome();
+    else if (page === "tasks") renderGrid();
+  }
   return next;
 }
 
@@ -8141,23 +8157,202 @@ function countPlan135Filled(plan) {
   return filled;
 }
 
-function getCurrentWeekDayKeys() {
-  const startPref = getWeekStartPreference();
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
-  const day = now.getDay();
-  const target = startPref === "sunday" ? 0 : 1;
+function parseDayKeyLocal(dayKey) {
+  const [y, m, d] = String(dayKey || "").split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dayKeyFromLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysToDayKey(dayKey, days) {
+  const date = parseDayKeyLocal(dayKey);
+  if (!date) return null;
+  date.setDate(date.getDate() + days);
+  return dayKeyFromLocalDate(date);
+}
+
+function startOfWeekForDayKey(dayKey) {
+  const date = parseDayKeyLocal(dayKey) || new Date();
+  date.setHours(12, 0, 0, 0);
+  const day = date.getDay();
+  const target = getWeekStartPreference() === "sunday" ? 0 : 1;
   let diff = day - target;
   if (diff < 0) diff += 7;
-  const start = new Date(now);
-  start.setDate(now.getDate() - diff);
+  date.setDate(date.getDate() - diff);
+  return dayKeyFromLocalDate(date);
+}
+
+function getDayKeysRange(startKey, count) {
   const keys = [];
-  for (let i = 0; i < 7; i += 1) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    keys.push(archiveDayKey(d.toISOString()));
+  let key = startKey;
+  for (let i = 0; i < count; i += 1) {
+    if (!key) break;
+    keys.push(key);
+    key = addDaysToDayKey(key, 1);
   }
   return keys;
+}
+
+function getDefaultWeeklyWindowStartKey() {
+  return startOfWeekForDayKey(reflectionTodayKey());
+}
+
+function ensureWeeklyWindowStartKey() {
+  if (!weeklyWindowStartKey) {
+    try {
+      const stored = normalizeScheduledFor(localStorage.getItem(WEEKLY_WINDOW_START_KEY));
+      if (stored) weeklyWindowStartKey = startOfWeekForDayKey(stored);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!weeklyWindowStartKey) weeklyWindowStartKey = getDefaultWeeklyWindowStartKey();
+  return weeklyWindowStartKey;
+}
+
+function setWeeklyWindowStartKey(dayKey, options = {}) {
+  const start = startOfWeekForDayKey(dayKey || reflectionTodayKey());
+  weeklyWindowStartKey = start;
+  try {
+    localStorage.setItem(WEEKLY_WINDOW_START_KEY, start);
+  } catch {
+    /* ignore */
+  }
+  const keys = getCurrentWeekDayKeys();
+  if (!weeklySelectedDayKey || !keys.includes(weeklySelectedDayKey)) {
+    weeklySelectedDayKey = keys.includes(reflectionTodayKey())
+      ? reflectionTodayKey()
+      : keys[0];
+  }
+  if (!options.skipRender) {
+    if (page === "home" && weeklyView) renderHome();
+    else if (page === "tasks" && weeklyView) renderGrid();
+  }
+  return start;
+}
+
+/** Visible fortnight (14 days) for Home/Tasks week strip. */
+function getCurrentWeekDayKeys() {
+  return getDayKeysRange(ensureWeeklyWindowStartKey(), WEEKLY_WINDOW_LEN);
+}
+
+function weeklyRangeLabel(keys = getCurrentWeekDayKeys()) {
+  if (!keys.length) return "";
+  const start = parseDayKeyLocal(keys[0]);
+  const end = parseDayKeyLocal(keys[keys.length - 1]);
+  if (!start || !end) return "";
+  const opts = { month: "short", day: "numeric" };
+  const startLabel = start.toLocaleDateString(undefined, opts);
+  const endLabel = end.toLocaleDateString(undefined, {
+    ...opts,
+    year: start.getFullYear() !== end.getFullYear() ? "numeric" : undefined,
+  });
+  return `${startLabel} – ${endLabel}`;
+}
+
+function monthKeyFromDayKey(dayKey) {
+  const date = parseDayKeyLocal(dayKey) || new Date();
+  return dayKeyFromLocalDate(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+function shiftMonthKey(monthKey, delta) {
+  const date = parseDayKeyLocal(monthKey) || new Date();
+  date.setMonth(date.getMonth() + delta, 1);
+  return dayKeyFromLocalDate(date);
+}
+
+function monthCalendarHtml({
+  monthKey,
+  selectedDayKey = "",
+  rangeStartKey = "",
+  rangeEndKey = "",
+  todayKey = reflectionTodayKey(),
+  hint = "Tap a day to jump to that two-week stretch.",
+} = {}) {
+  const monthDate = parseDayKeyLocal(monthKey) || new Date();
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const title = monthDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const weekStart = getWeekStartPreference() === "sunday" ? 0 : 1;
+  const weekdayLabels = [];
+  const sunday = new Date(2024, 0, 7, 12, 0, 0, 0);
+  for (let i = 0; i < 7; i += 1) {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + ((weekStart + i) % 7));
+    weekdayLabels.push(d.toLocaleDateString(undefined, { weekday: "narrow" }));
+  }
+
+  const first = new Date(year, month, 1, 12, 0, 0, 0);
+  let startOffset = first.getDay() - weekStart;
+  if (startOffset < 0) startOffset += 7;
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - startOffset);
+
+  const cells = [];
+  for (let i = 0; i < 42; i += 1) {
+    const cell = new Date(gridStart);
+    cell.setDate(gridStart.getDate() + i);
+    const key = dayKeyFromLocalDate(cell);
+    const inMonth = cell.getMonth() === month;
+    const isSelected = key === selectedDayKey;
+    const isToday = key === todayKey;
+    const inRange =
+      rangeStartKey &&
+      rangeEndKey &&
+      key >= rangeStartKey &&
+      key <= rangeEndKey;
+    cells.push(`
+      <button
+        type="button"
+        class="month-calendar-day${!inMonth ? " is-outside" : ""}${isSelected ? " is-selected" : ""}${isToday ? " is-today" : ""}${inRange ? " is-in-range" : ""}"
+        data-calendar-day="${escapeHtml(key)}"
+        aria-pressed="${isSelected ? "true" : "false"}"
+        ${!inMonth ? 'tabindex="-1"' : ""}
+      >${cell.getDate()}</button>`);
+  }
+
+  return `
+    <div class="month-calendar-inner" data-month-key="${escapeHtml(dayKeyFromLocalDate(new Date(year, month, 1)))}">
+      <div class="month-calendar-head">
+        <button type="button" class="month-calendar-nav" data-calendar-nav="-1" aria-label="Previous month">
+          <svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+        </button>
+        <p class="month-calendar-title">${escapeHtml(title)}</p>
+        <button type="button" class="month-calendar-nav month-calendar-nav--next" data-calendar-nav="1" aria-label="Next month">
+          <svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+        </button>
+      </div>
+      <div class="month-calendar-weekdays" aria-hidden="true">
+        ${weekdayLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+      </div>
+      <div class="month-calendar-grid">${cells.join("")}</div>
+      <p class="month-calendar-hint">${escapeHtml(hint)}</p>
+    </div>`;
+}
+
+function bindMonthCalendar(root, { onSelectDay, onChangeMonth } = {}) {
+  if (!root) return;
+  root.querySelectorAll("[data-calendar-nav]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const delta = Number(btn.dataset.calendarNav) || 0;
+      onChangeMonth?.(delta);
+    });
+  });
+  root.querySelectorAll("[data-calendar-day]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const dayKey = normalizeScheduledFor(btn.dataset.calendarDay);
+      if (dayKey) onSelectDay?.(dayKey);
+    });
+  });
 }
 
 function ensureWeeklySelectedDayKey() {
@@ -8174,6 +8369,17 @@ function setWeeklySelectedDayKey(dayKey) {
   if (!week.includes(dayKey)) return ensureWeeklySelectedDayKey();
   weeklySelectedDayKey = dayKey;
   return weeklySelectedDayKey;
+}
+
+function scrollWeeklyStripToActive(container) {
+  const strip = container?.querySelector(".weekly-day-strip");
+  const active = strip?.querySelector(".weekly-day-chip.is-active");
+  if (!strip || !active) return;
+  const stripRect = strip.getBoundingClientRect();
+  const chipRect = active.getBoundingClientRect();
+  const offset =
+    chipRect.left - stripRect.left - (stripRect.width - chipRect.width) / 2;
+  strip.scrollLeft += offset;
 }
 
 function dayKeyToWeekdayIndex(dayKey) {
@@ -8309,8 +8515,8 @@ function weeklyDayNumLabel(dayKey) {
   return String(d);
 }
 
-function weeklyDayStripHtml(selectedDayKey) {
-  return getCurrentWeekDayKeys()
+function weeklyDayStripHtml(selectedDayKey, dayKeys = getCurrentWeekDayKeys()) {
+  return dayKeys
     .map((key) => {
       const active = key === selectedDayKey;
       const isToday = key === reflectionTodayKey();
@@ -8354,10 +8560,41 @@ function weeklyPriorityGridHtml(tasks) {
   return `<div class="plan-card-grid plan-card-grid--priorities">${cardsHtml}</div>`;
 }
 
+function weeklyCalendarPanelHtml(selectedDayKey) {
+  if (!weeklyCalendarOpen) return "";
+  const keys = getCurrentWeekDayKeys();
+  const monthKey =
+    weeklyCalendarMonthKey || monthKeyFromDayKey(selectedDayKey || keys[0]);
+  return `
+    <div class="month-calendar weekly-month-calendar" id="weekly-month-calendar">
+      ${monthCalendarHtml({
+        monthKey,
+        selectedDayKey,
+        rangeStartKey: keys[0],
+        rangeEndKey: keys[keys.length - 1],
+      })}
+    </div>`;
+}
+
 function weeklyViewHtml(selectedDayKey, tasks) {
+  const keys = getCurrentWeekDayKeys();
   return `
     <div class="weekly-view">
-      <div class="weekly-day-strip" role="group" aria-label="Days this week">${weeklyDayStripHtml(selectedDayKey)}</div>
+      <div class="weekly-day-toolbar">
+        <p class="weekly-range-label">${escapeHtml(weeklyRangeLabel(keys))}</p>
+        <button
+          type="button"
+          class="date-cal-btn weekly-cal-btn"
+          data-weekly-cal
+          aria-label="Choose two-week range"
+          aria-expanded="${weeklyCalendarOpen ? "true" : "false"}"
+          title="Choose two-week range"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+        </button>
+      </div>
+      <div class="weekly-day-strip" role="group" aria-label="Days in this two-week range">${weeklyDayStripHtml(selectedDayKey, keys)}</div>
+      ${weeklyCalendarPanelHtml(selectedDayKey)}
       ${weeklyPriorityGridHtml(tasks)}
     </div>`;
 }
@@ -8367,14 +8604,44 @@ function bindWeeklyView(container) {
   container.querySelectorAll(".weekly-day-chip").forEach((btn) => {
     btn.addEventListener("click", () => {
       setWeeklySelectedDayKey(btn.dataset.weekDay);
+      weeklyCalendarOpen = false;
       if (page === "home") renderHome();
       else if (page === "tasks") renderGrid();
     });
+  });
+  container.querySelector("[data-weekly-cal]")?.addEventListener("click", () => {
+    weeklyCalendarOpen = !weeklyCalendarOpen;
+    if (weeklyCalendarOpen) {
+      weeklyCalendarMonthKey = monthKeyFromDayKey(
+        ensureWeeklySelectedDayKey() || ensureWeeklyWindowStartKey()
+      );
+    }
+    if (page === "home") renderHome();
+    else if (page === "tasks") renderGrid();
+  });
+  bindMonthCalendar(container.querySelector("#weekly-month-calendar"), {
+    onChangeMonth: (delta) => {
+      weeklyCalendarMonthKey = shiftMonthKey(
+        weeklyCalendarMonthKey || monthKeyFromDayKey(ensureWeeklySelectedDayKey()),
+        delta
+      );
+      if (page === "home") renderHome();
+      else if (page === "tasks") renderGrid();
+    },
+    onSelectDay: (dayKey) => {
+      setWeeklyWindowStartKey(dayKey, { skipRender: true });
+      weeklySelectedDayKey = dayKey;
+      weeklyCalendarOpen = false;
+      weeklyCalendarMonthKey = monthKeyFromDayKey(dayKey);
+      if (page === "home") renderHome();
+      else if (page === "tasks") renderGrid();
+    },
   });
   bindHomeCardTasks(container);
   container.querySelectorAll(".plan-card-more").forEach((btn) => {
     btn.addEventListener("click", () => openTierExpand(Number(btn.dataset.tier)));
   });
+  requestAnimationFrame(() => scrollWeeklyStripToActive(container));
 }
 
 function renderHomeWeekly() {
@@ -8401,9 +8668,24 @@ function renderTasksWeekly() {
   const host = document.getElementById("tasks-weekly-view");
   if (!host) return;
   const dayKey = ensureWeeklySelectedDayKey();
+  const keys = getCurrentWeekDayKeys();
   host.innerHTML = `
     <div class="weekly-view">
-      <div class="weekly-day-strip" role="group" aria-label="Days this week">${weeklyDayStripHtml(dayKey)}</div>
+      <div class="weekly-day-toolbar">
+        <p class="weekly-range-label">${escapeHtml(weeklyRangeLabel(keys))}</p>
+        <button
+          type="button"
+          class="date-cal-btn weekly-cal-btn"
+          data-weekly-cal
+          aria-label="Choose two-week range"
+          aria-expanded="${weeklyCalendarOpen ? "true" : "false"}"
+          title="Choose two-week range"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+        </button>
+      </div>
+      <div class="weekly-day-strip" role="group" aria-label="Days in this two-week range">${weeklyDayStripHtml(dayKey, keys)}</div>
+      ${weeklyCalendarPanelHtml(dayKey)}
     </div>`;
   bindWeeklyView(host);
 }
@@ -9541,16 +9823,16 @@ function syncDialogParsePreview() {
 function syncDialogRepeatFields() {
   const mode = document.getElementById("dialog-repeat")?.value || "none";
   const weekday = document.getElementById("dialog-repeat-weekday");
+  const field = document.getElementById("dialog-schedule-field");
   const schedule = document.getElementById("dialog-schedule");
-  const scheduleLabel = document.querySelector('label[for="dialog-schedule"]');
   const hint = document.getElementById("dialog-schedule-hint");
   if (weekday) weekday.classList.toggle("hidden", mode !== "weekly");
   const repeating = mode === "daily" || mode === "weekly";
-  if (schedule) {
-    schedule.classList.toggle("hidden", repeating);
-    if (repeating) schedule.value = "";
+  field?.classList.toggle("hidden", repeating);
+  if (repeating && schedule) {
+    schedule.value = "";
+    dialogScheduleCalendarOpen = false;
   }
-  scheduleLabel?.classList.toggle("hidden", repeating);
   if (hint) {
     hint.classList.toggle("hidden", !repeating);
     if (mode === "daily") {
@@ -9559,45 +9841,152 @@ function syncDialogRepeatFields() {
       hint.textContent = "Shows on that weekday in Week view.";
     }
   }
+  if (!repeating) renderDialogSchedulePicker();
 }
 
-function fillDialogScheduleOptions(selectedValue = "") {
-  const select = document.getElementById("dialog-schedule");
-  if (!select) return;
+function ensureDialogScheduleWindowStart(selectedValue = "") {
   const selected = normalizeScheduledFor(selectedValue);
-  const week = getCurrentWeekDayKeys();
-  const options = [`<option value="">Anytime</option>`];
-  const seen = new Set();
-  week.forEach((key) => {
-    seen.add(key);
-    const label =
-      key === reflectionTodayKey()
-        ? `Today · ${formatArchiveDayHeading(key)}`
-        : formatArchiveDayHeading(key);
-    options.push(
-      `<option value="${escapeHtml(key)}"${key === selected ? " selected" : ""}>${escapeHtml(label)}</option>`
-    );
-  });
-  if (selected && !seen.has(selected)) {
-    options.push(
-      `<option value="${escapeHtml(selected)}" selected>${escapeHtml(formatArchiveDayHeading(selected))}</option>`
-    );
+  if (selected) {
+    dialogScheduleWindowStartKey = startOfWeekForDayKey(selected);
+    return dialogScheduleWindowStartKey;
   }
-  select.innerHTML = options.join("");
+  if (!dialogScheduleWindowStartKey) {
+    dialogScheduleWindowStartKey = ensureWeeklyWindowStartKey();
+  }
+  return dialogScheduleWindowStartKey;
+}
+
+function getDialogScheduleDayKeys() {
+  return getDayKeysRange(ensureDialogScheduleWindowStart(), WEEKLY_WINDOW_LEN);
+}
+
+function updateDialogScheduleSummary(selected) {
+  const summary = document.getElementById("dialog-schedule-summary");
+  if (!summary) return;
+  summary.textContent = selected
+    ? formatArchiveDayHeading(selected)
+    : "Not tied to a specific day.";
+}
+
+function renderDialogSchedulePicker() {
+  const schedule = document.getElementById("dialog-schedule");
+  const strip = document.getElementById("dialog-schedule-strip");
+  const anytime = document.getElementById("dialog-schedule-anytime");
+  const calBtn = document.getElementById("dialog-schedule-cal-btn");
+  const calendar = document.getElementById("dialog-schedule-calendar");
+  if (!schedule || !strip) return;
+
+  const selected = normalizeScheduledFor(schedule.value);
+  ensureDialogScheduleWindowStart(selected || dialogScheduleWindowStartKey);
+  const keys = getDialogScheduleDayKeys();
+
+  anytime?.classList.toggle("is-active", !selected);
+  anytime?.setAttribute("aria-pressed", !selected ? "true" : "false");
+
+  strip.innerHTML = weeklyDayStripHtml(selected, keys);
+  strip.querySelectorAll(".weekly-day-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      schedule.value = btn.dataset.weekDay || "";
+      dialogScheduleCalendarOpen = false;
+      renderDialogSchedulePicker();
+    });
+  });
+
+  calBtn?.setAttribute("aria-expanded", dialogScheduleCalendarOpen ? "true" : "false");
+  calBtn?.classList.toggle("is-active", dialogScheduleCalendarOpen);
+
+  if (calendar) {
+    if (dialogScheduleCalendarOpen) {
+      const monthKey =
+        dialogScheduleCalendarMonthKey ||
+        monthKeyFromDayKey(selected || keys[0] || reflectionTodayKey());
+      calendar.hidden = false;
+      calendar.classList.remove("hidden");
+      calendar.innerHTML = monthCalendarHtml({
+        monthKey,
+        selectedDayKey: selected,
+        rangeStartKey: keys[0],
+        rangeEndKey: keys[keys.length - 1],
+        hint: "Tap a day to schedule this task.",
+      });
+      bindMonthCalendar(calendar, {
+        onChangeMonth: (delta) => {
+          dialogScheduleCalendarMonthKey = shiftMonthKey(
+            dialogScheduleCalendarMonthKey || monthKey,
+            delta
+          );
+          renderDialogSchedulePicker();
+        },
+        onSelectDay: (dayKey) => {
+          schedule.value = dayKey;
+          dialogScheduleWindowStartKey = startOfWeekForDayKey(dayKey);
+          dialogScheduleCalendarMonthKey = monthKeyFromDayKey(dayKey);
+          dialogScheduleCalendarOpen = false;
+          renderDialogSchedulePicker();
+        },
+      });
+    } else {
+      calendar.hidden = true;
+      calendar.classList.add("hidden");
+      calendar.innerHTML = "";
+    }
+  }
+
+  updateDialogScheduleSummary(selected);
+  requestAnimationFrame(() =>
+    scrollWeeklyStripToActive(document.getElementById("dialog-schedule-controls"))
+  );
 }
 
 function setDialogScheduleField(task) {
+  const schedule = document.getElementById("dialog-schedule");
   const defaultDay =
     weeklyView && weeklySelectedDayKey && weeklySelectedDayKey !== reflectionTodayKey()
       ? weeklySelectedDayKey
       : "";
   const value = task ? normalizeScheduledFor(task.scheduledFor) : defaultDay;
-  fillDialogScheduleOptions(value);
+  if (schedule) schedule.value = value || "";
+  dialogScheduleWindowStartKey = startOfWeekForDayKey(
+    value || ensureWeeklyWindowStartKey()
+  );
+  dialogScheduleCalendarMonthKey = monthKeyFromDayKey(
+    value || dialogScheduleWindowStartKey
+  );
+  dialogScheduleCalendarOpen = false;
   syncDialogRepeatFields();
+  renderDialogSchedulePicker();
 }
 
 function getDialogScheduledFor() {
   return normalizeScheduledFor(document.getElementById("dialog-schedule")?.value);
+}
+
+function setupDialogSchedulePicker() {
+  const anytime = document.getElementById("dialog-schedule-anytime");
+  const calBtn = document.getElementById("dialog-schedule-cal-btn");
+  const schedule = document.getElementById("dialog-schedule");
+  if (anytime && !anytime.dataset.bound) {
+    anytime.dataset.bound = "1";
+    anytime.addEventListener("click", () => {
+      if (schedule) schedule.value = "";
+      dialogScheduleCalendarOpen = false;
+      renderDialogSchedulePicker();
+    });
+  }
+  if (calBtn && !calBtn.dataset.bound) {
+    calBtn.dataset.bound = "1";
+    calBtn.addEventListener("click", () => {
+      dialogScheduleCalendarOpen = !dialogScheduleCalendarOpen;
+      if (dialogScheduleCalendarOpen) {
+        dialogScheduleCalendarMonthKey = monthKeyFromDayKey(
+          normalizeScheduledFor(schedule?.value) ||
+            dialogScheduleWindowStartKey ||
+            reflectionTodayKey()
+        );
+      }
+      renderDialogSchedulePicker();
+    });
+  }
 }
 
 function setDialogRepeatFields(task) {
@@ -9787,6 +10176,7 @@ function setupTaskDialog() {
   const input = document.getElementById("dialog-input");
 
   setupDialogNotes();
+  setupDialogSchedulePicker();
 
   document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(1));
 

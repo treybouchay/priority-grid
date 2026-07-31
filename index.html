@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=170" />
+    <link rel="stylesheet" href="styles.css?v=173" />
     <link rel="stylesheet" href="design/task-rows.css?v=16" />
     <link rel="stylesheet" href="design/home-presence.css?v=109" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=45" />
@@ -1116,13 +1116,16 @@
     </dialog>
 
     <dialog class="task-dialog" id="task-dialog">
-      <form method="dialog" id="task-dialog-form">
-        <h3 class="dialog-title" id="dialog-title">Add Task</h3>
+      <form method="dialog" id="task-dialog-form" class="task-dialog-form">
+        <header class="task-dialog-header">
+          <h3 class="dialog-title" id="dialog-title">Add Task</h3>
+        </header>
+        <div class="task-dialog-body">
         <textarea
           id="dialog-input"
           class="dialog-task-input"
           placeholder="One task — or paste a few lines to split into several"
-          rows="3"
+          rows="2"
           maxlength="2000"
           autocomplete="off"
           required
@@ -1144,10 +1147,35 @@
           <option value="3">3rd Priority</option>
           <option value="4">4th Priority</option>
         </select>
-        <label class="dialog-label" for="dialog-schedule">Scheduled for</label>
-        <select id="dialog-schedule" aria-label="Scheduled day">
-          <option value="">Anytime</option>
-        </select>
+        <div class="dialog-schedule-field" id="dialog-schedule-field">
+          <div class="dialog-schedule-head">
+            <span class="dialog-label" id="dialog-schedule-label">Scheduled for</span>
+            <button
+              type="button"
+              class="date-cal-btn"
+              id="dialog-schedule-cal-btn"
+              aria-label="Open calendar"
+              aria-expanded="false"
+              title="Calendar"
+            >
+              <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+            </button>
+          </div>
+          <input type="hidden" id="dialog-schedule" value="" />
+          <div class="dialog-schedule-controls" id="dialog-schedule-controls">
+            <button type="button" class="dialog-schedule-anytime" id="dialog-schedule-anytime" aria-pressed="true">
+              Anytime
+            </button>
+            <div
+              class="weekly-day-strip dialog-schedule-strip"
+              id="dialog-schedule-strip"
+              role="group"
+              aria-label="Scheduled day"
+            ></div>
+          </div>
+          <div class="month-calendar hidden" id="dialog-schedule-calendar" hidden></div>
+          <p class="dialog-schedule-summary" id="dialog-schedule-summary"></p>
+        </div>
         <label class="dialog-label" for="dialog-repeat">Repeat</label>
         <div class="dialog-repeat-row">
           <select id="dialog-repeat" aria-label="Repeat schedule">
@@ -1200,11 +1228,14 @@
         <input type="hidden" id="dialog-original-context" value="" />
         <input type="hidden" id="dialog-brain-id" value="" />
         <input type="hidden" id="dialog-brain-context" value="" />
-        <div class="dialog-actions dialog-actions--edit">
-          <button type="button" class="btn-danger-ghost hidden" id="dialog-delete">Delete</button>
-          <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
-          <button type="submit" class="btn-primary" id="dialog-submit">Save</button>
         </div>
+        <footer class="task-dialog-footer">
+          <div class="dialog-actions dialog-actions--edit">
+            <button type="button" class="btn-danger-ghost hidden" id="dialog-delete">Delete</button>
+            <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
+            <button type="submit" class="btn-primary" id="dialog-submit">Save</button>
+          </div>
+        </footer>
       </form>
     </dialog>
 
@@ -1396,6 +1427,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=299"></script>
+    <script src="app.js?v=302"></script>
   </body>
 </html>
