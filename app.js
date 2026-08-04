@@ -5694,7 +5694,6 @@ function taskCardHtml(task) {
         <div class="task-card-trailing">
           ${attachHtml}
           ${contextBadge}
-          ${taskDragHandleHtml()}
         </div>
       </div>
       <div class="task-card-actions">
@@ -5703,6 +5702,7 @@ function taskCardHtml(task) {
         ${archiveButtonHtml()}
         ${deleteButtonHtml()}
       </div>
+      ${taskDragHandleHtml()}
     </li>`;
 }
 
@@ -6188,7 +6188,7 @@ function getCompletedTasksForDay(dayKey) {
   const tasks = [];
   getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (!t.done || !t.completedAt) return;
+      if (t.archived || !t.done || !t.completedAt) return;
       if (String(t.id || "").startsWith(DEMO_REFLECTION_ID_PREFIX)) return;
       if (archiveDayKey(t.completedAt) !== target) return;
       const key = `${ctx}:${t.id}`;
@@ -7903,7 +7903,6 @@ function tasksFlatRowHtml(task) {
   return `
     <li class="history-item task-card tasks-flat-item${task.done ? " done" : ""}" draggable="false"
       data-id="${task.id}" data-context="${task.context}">
-      ${taskDragHandleHtml()}
       <label class="task-check">
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
@@ -7919,6 +7918,7 @@ function tasksFlatRowHtml(task) {
       <div class="task-card-actions">
         ${archiveButtonHtml()}
         ${deleteButtonHtml()}
+        ${taskDragHandleHtml()}
       </div>
     </li>`;
 }
@@ -9535,16 +9535,19 @@ function bindTaskEvents(card) {
     bindMouseGripDrag(card);
   }
 
-  card.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
+  card.querySelector('input[type="checkbox"]')?.addEventListener("change", (e) => {
     toggleTaskDone(id, ctx, e.target.checked);
   });
 
-  card.querySelector(".archive-btn").addEventListener("click", (e) => {
+  const archiveBtn = card.querySelector(".archive-btn");
+  archiveBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
     e.stopPropagation();
     archiveTask(id, ctx);
   });
 
   card.querySelector(".delete-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
     e.stopPropagation();
     confirmDeleteTask(id, ctx);
   });
@@ -9554,14 +9557,15 @@ function bindTaskEvents(card) {
     if (task) openEditTaskDialog(task, ctx);
   };
 
-  card.querySelector(".edit-btn").addEventListener("click", (e) => {
+  card.querySelector(".edit-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
     e.stopPropagation();
     openEdit();
   });
 
   bindAttachmentIndicator(card, id, ctx);
 
-  card.querySelector(".task-text-btn").addEventListener("click", (e) => {
+  card.querySelector(".task-text-btn")?.addEventListener("click", (e) => {
     e.stopPropagation();
     openEdit();
   });

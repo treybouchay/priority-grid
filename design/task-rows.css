@@ -262,7 +262,9 @@ body[data-page="tasks"] .tier-expand-list .task-card-actions .edit-btn,
 body[data-page="home"] .tier-expand-list .task-card-actions .archive-btn,
 body[data-page="tasks"] .tier-expand-list .task-card-actions .archive-btn,
 body[data-page="home"] .tier-expand-list .task-card-actions .delete-btn,
-body[data-page="tasks"] .tier-expand-list .task-card-actions .delete-btn {
+body[data-page="tasks"] .tier-expand-list .task-card-actions .delete-btn,
+body[data-page="home"] .tier-expand-list .task-card > .task-drag-handle,
+body[data-page="tasks"] .tier-expand-list .task-card > .task-drag-handle {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;

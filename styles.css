@@ -6532,7 +6532,8 @@ dialog {
 .tier-expand-list .task-card-actions .edit-btn,
 .tier-expand-list .task-card-actions .archive-btn,
 .tier-expand-list .task-card-actions .delete-btn,
-.tier-expand-list .task-card-actions .forget-it-indicator {
+.tier-expand-list .task-card-actions .forget-it-indicator,
+.tier-expand-list .task-card > .task-drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
