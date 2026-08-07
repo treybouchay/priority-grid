@@ -67,13 +67,13 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=175" />
+    <link rel="stylesheet" href="styles.css?v=177" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=109" />
+    <link rel="stylesheet" href="design/home-presence.css?v=110" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
     <link rel="stylesheet" href="design/history-wins.css?v=13" />
     <link rel="stylesheet" href="design/settings-page.css?v=8" />
-    <link rel="stylesheet" href="design/reflection.css?v=79" />
+    <link rel="stylesheet" href="design/reflection.css?v=81" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -408,13 +408,18 @@
               <div class="presence-focus">
                 <p class="presence-focus-label">FOCUS</p>
                 <h2 class="presence-focus-title">Take care of what sparks joy.</h2>
-                <button type="button" class="presence-focus-btn" id="focus-reflection-btn">
-                  <span>View Thoughts</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
-                    <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
+                <div class="presence-focus-actions">
+                  <button type="button" class="presence-focus-btn" id="focus-thoughts-btn">
+                    <span>View Thoughts</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                      <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                  <button type="button" class="presence-focus-btn presence-focus-btn--secondary" id="focus-reflection-btn">
+                    <span>View Reflection</span>
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -1290,7 +1295,7 @@
       </div>
     </dialog>
 
-    <dialog class="reflection-dialog" id="reflection-dialog" aria-label="Thoughts">
+    <dialog class="reflection-dialog" id="reflection-dialog" aria-label="Reflection">
       <div class="reflection-screen">
         <!-- Sticky wallpaper: stays put while header + cards scroll over it (mirrors Home) -->
         <div class="reflection-screen-wallpaper" aria-hidden="true"></div>
@@ -1315,7 +1320,30 @@
         </div>
 
         <div class="reflection-tab-panels">
-          <section class="reflection-tab-panel active" id="reflection-panel-review" role="region" data-tab="review" aria-label="Anxiety Box">
+          <section class="reflection-tab-panel active" id="reflection-panel-review" role="region" data-tab="review" aria-label="Review of the day">
+            <section class="reflection-hero reflection-hero--review">
+              <p class="reflection-hero-label">REFLECTION</p>
+              <h1 class="reflection-hero-title">Look what you’re<br>pulling off.</h1>
+              <div class="reflection-summary" id="reflection-summary" aria-label="Today's accomplishments"></div>
+            </section>
+            <section class="reflection-review">
+              <h2 class="reflection-review-heading" id="reflection-review-heading">Wins from today</h2>
+              <div id="reflection-favourite-slot"></div>
+              <ul class="reflection-review-list" id="reflection-review-list"></ul>
+              <p class="reflection-review-empty hidden" id="reflection-review-empty">No tasks checked off yet today.</p>
+            </section>
+
+            <footer class="reflection-footer">
+              <button type="button" class="reflection-continue-btn" id="reflection-review-continue">
+                <span>Continue to thoughts</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </footer>
+          </section>
+
+          <section class="reflection-tab-panel hidden" id="reflection-panel-thoughts" role="region" data-tab="thoughts" aria-label="Thoughts">
             <section class="reflection-hero reflection-hero--thoughts">
               <p class="reflection-hero-label">THOUGHTS</p>
               <h1 class="reflection-hero-title">Set it down.<br>Breathe.</h1>
@@ -1433,6 +1461,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=304"></script>
+    <script src="app.js?v=306"></script>
   </body>
 </html>

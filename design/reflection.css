@@ -178,13 +178,13 @@ html.reflection-open body .capture-clip-fab {
 }
 
 #reflection-panel-review .reflection-hero--review,
-#reflection-panel-review .reflection-hero--thoughts {
+#reflection-panel-thoughts .reflection-hero--thoughts {
   /* Mid-hero like Home FOCUS; scales down on short viewports so cards stay reachable */
   margin-top: clamp(5rem, 20vh, 12rem);
   margin-bottom: 1.15rem;
 }
 
-#reflection-panel-review .reflection-hero--thoughts .reflection-hero-subtitle {
+#reflection-panel-thoughts .reflection-hero--thoughts .reflection-hero-subtitle {
   max-width: min(20rem, 88vw);
   color: rgba(253, 249, 244, 0.82);
 }
@@ -224,16 +224,19 @@ html.reflection-open body .capture-clip-fab {
 }
 
 /* When review hero scrolls into the cream veil at the top */
-#reflection-panel-review .reflection-hero--on-cream .reflection-hero-label {
+#reflection-panel-review .reflection-hero--on-cream .reflection-hero-label,
+#reflection-panel-thoughts .reflection-hero--on-cream .reflection-hero-label {
   color: #11302c;
   opacity: 0.6;
 }
 
-#reflection-panel-review .reflection-hero--on-cream .reflection-hero-title {
+#reflection-panel-review .reflection-hero--on-cream .reflection-hero-title,
+#reflection-panel-thoughts .reflection-hero--on-cream .reflection-hero-title {
   color: #11302c;
 }
 
-#reflection-panel-review .reflection-hero--on-cream .reflection-hero-subtitle {
+#reflection-panel-review .reflection-hero--on-cream .reflection-hero-subtitle,
+#reflection-panel-thoughts .reflection-hero--on-cream .reflection-hero-subtitle {
   color: rgba(17, 48, 44, 0.7);
 }
 
@@ -1623,7 +1626,8 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
   flex-direction: column;
   gap: 0.35rem;
   width: 100%;
-  max-height: min(28vh, 9rem);
+  /* Show ~3 parked thoughts by default; scroll beyond that */
+  max-height: min(42vh, 12.5rem);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }

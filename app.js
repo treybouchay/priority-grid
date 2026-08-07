@@ -3201,22 +3201,16 @@ function renderReflectionAnxietyBox() {
   const tossedEmpty = document.getElementById("reflection-tossed-empty");
   const tossedHeading = document.getElementById("reflection-tossed-heading");
   const tossedCount = document.getElementById("reflection-tossed-count");
-  const dayPagerSlot = document.getElementById("reflection-day-pager-slot");
   const items = loadAnxietyBox();
-  const dayKey = ensureReflectionSelectedDayKey();
+  // Thoughts/Anxiety always uses today — day pager lives on Reflection review only.
+  const dayKey = reflectionTodayKey();
   const tossedToday = getAnxietyHistoryForDay(dayKey, "tossed");
   const checkedDay = getAnxietyHistoryForDay(dayKey, "checked");
   const hasItems = items.length > 0;
   const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
   // Sticky dock only when items exist; park card stays for add.
   const showDock = hasItems && dialogOpen;
-  const dayLabel =
-    dayKey === reflectionTodayKey() ? "today" : formatArchiveDayHeading(dayKey);
-
-  if (dayPagerSlot) {
-    dayPagerSlot.innerHTML = reflectionDayPagerHtml(dayKey);
-    bindReflectionDayPager(dayKey);
-  }
+  const dayLabel = "today";
 
   card?.classList.toggle("hidden", !showDock);
   document.documentElement.classList.toggle("reflection-anxiety-active", showDock);
@@ -6934,6 +6928,9 @@ function shiftReflectionSelectedDay(delta) {
   if (next < 0 || next >= week.length) return false;
   setReflectionSelectedDayKey(week[next]);
   if (document.getElementById("reflection-dialog")?.open) {
+    if (getActiveReflectionTab() === "review") {
+      renderReflectionReview();
+    }
     renderReflectionAnxietyBox();
   } else {
     renderReflectionReview();
@@ -7102,7 +7099,7 @@ function prefersReflectionReducedMotion() {
 function observeReflectionScrollCards(container) {
   const root =
     container ||
-    document.querySelector(".history-day-review") ||
+    document.getElementById("reflection-panel-review") ||
     document.querySelector(".reflection-screen");
   if (!root) return;
 
@@ -7164,10 +7161,7 @@ function renderReflectionReview() {
   const favouriteId = getReflectionFavouriteId(dayKey);
   const favouriteTask = completed.find((t) => t.id === favouriteId) || null;
 
-  if (dayPagerSlot) {
-    dayPagerSlot.innerHTML = reflectionDayPagerHtml(dayKey);
-    bindReflectionDayPager(dayKey);
-  }
+  syncReflectionDayPagerVisibility("review");
 
   if (summary) {
     const categoriesHtml = (story.categories || [])
@@ -7366,7 +7360,7 @@ function renderReflectionReview() {
     empty.textContent = isToday
       ? "Your day is still in motion — nothing checked off yet. Your vibe shows up after two wins."
       : `Rest day — nothing was checked off ${dayPhrase}.`;
-    observeReflectionScrollCards(document.querySelector(".history-day-review"));
+    observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
     return;
   }
 
@@ -7374,7 +7368,7 @@ function renderReflectionReview() {
   list.innerHTML = completed
     .map((task, index) => reflectionReviewItemHtml(task, index, favouriteId))
     .join("");
-  observeReflectionScrollCards(document.querySelector(".history-day-review"));
+  observeReflectionScrollCards(document.getElementById("reflection-panel-review"));
 }
 
 function syncHistoryJournalForSelectedDay() {
@@ -7386,6 +7380,20 @@ function syncHistoryJournalForSelectedDay() {
   updateReflectionCharCount();
 }
 
+function syncReflectionDayPagerVisibility(tab = getActiveReflectionTab()) {
+  const slot = document.getElementById("reflection-day-pager-slot");
+  if (!slot) return;
+  const show = tab === "review";
+  slot.classList.toggle("hidden", !show);
+  if (!show) {
+    slot.innerHTML = "";
+    return;
+  }
+  const dayKey = ensureReflectionSelectedDayKey();
+  slot.innerHTML = reflectionDayPagerHtml(dayKey);
+  bindReflectionDayPager(dayKey);
+}
+
 function setReflectionTab(tab) {
   const nextTab = tab === "thoughts" ? "thoughts" : "review";
   document.querySelectorAll(".reflection-tab").forEach((btn) => {
@@ -7394,14 +7402,13 @@ function setReflectionTab(tab) {
     btn.setAttribute("aria-selected", active ? "true" : "false");
   });
   document.querySelectorAll(".reflection-tab-panel").forEach((panel) => {
-    // Thoughts dialog is anxiety-only — keep the single review panel active.
-    const isOnlyPanel = !document.getElementById("reflection-panel-thoughts");
-    const show = isOnlyPanel || panel.dataset.tab === nextTab;
+    const show = panel.dataset.tab === nextTab;
     panel.classList.toggle("hidden", !show);
     panel.classList.toggle("active", show);
   });
+  syncReflectionDayPagerVisibility(nextTab);
   const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
-  applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, "review");
+  applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   updateReflectionHeroOnCream();
 }
 
@@ -7427,9 +7434,10 @@ function updateReflectionHeroOnCream() {
   };
 
   const hero =
-    document.querySelector("#reflection-panel-review .reflection-hero--thoughts") ||
+    document.querySelector("#reflection-panel-thoughts.reflection-tab-panel.active .reflection-hero--thoughts") ||
+    document.querySelector("#reflection-panel-review.reflection-tab-panel.active .reflection-hero--review") ||
     document.querySelector("#reflection-panel-review .reflection-hero--review") ||
-    document.querySelector(".history-day-hero");
+    document.querySelector("#reflection-panel-thoughts .reflection-hero--thoughts");
   if (hero) {
     const title = hero.querySelector(".reflection-hero-title");
     const label = hero.querySelector(".reflection-hero-label");
@@ -7473,18 +7481,23 @@ function closeReflectionDialog() {
   if (dialog?.open) dialog.close();
 }
 
-function openReflectionDialog() {
+function openReflectionDialog(tab = "review") {
   const dialog = document.getElementById("reflection-dialog");
   if (!dialog) return;
 
+  const nextTab = tab === "thoughts" ? "thoughts" : "review";
+  if (nextTab === "review") {
+    renderReflectionReview();
+  }
   renderReflectionAnxietyBox();
-  setReflectionTab("review");
+  setReflectionTab(nextTab);
   syncBottomChrome();
   setReflectionOpenState(true);
-  // Non-modal so the standard bottom nav stays above Thoughts and stays tappable
+  // Non-modal so the standard bottom nav stays above Reflection and stays tappable
   dialog.show();
   dialog.scrollTop = 0;
   requestAnimationFrame(() => {
+    if (nextTab === "review") renderReflectionReview();
     renderReflectionAnxietyBox();
     renderFocusTimerChrome();
     syncBottomChrome();
@@ -7497,9 +7510,15 @@ function setupReflection() {
   const textarea = document.getElementById("reflection-text");
   const refreshBtn = document.getElementById("reflection-prompts-refresh");
   const continueBtn = document.getElementById("reflection-continue");
+  const reviewContinueBtn = document.getElementById("reflection-review-continue");
   const promptsList = document.getElementById("reflection-prompts-list");
 
-  document.getElementById("focus-reflection-btn")?.addEventListener("click", openReflectionDialog);
+  document.getElementById("focus-thoughts-btn")?.addEventListener("click", () => {
+    openReflectionDialog("thoughts");
+  });
+  document.getElementById("focus-reflection-btn")?.addEventListener("click", () => {
+    openReflectionDialog("review");
+  });
 
   setupFocusTimer();
 
@@ -7532,6 +7551,13 @@ function setupReflection() {
     textarea.value = `${prefix}${prompt}: `;
     updateReflectionCharCount();
     textarea.focus();
+  });
+
+  reviewContinueBtn?.addEventListener("click", () => {
+    setReflectionTab("thoughts");
+    renderReflectionAnxietyBox();
+    dialog.scrollTop = 0;
+    requestAnimationFrame(() => updateReflectionHeroOnCream());
   });
 
   continueBtn?.addEventListener("click", () => {

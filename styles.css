@@ -5097,6 +5097,7 @@ dialog {
 }
 
 .dialog-parse-hint {
+  flex-shrink: 0;
   margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
@@ -5110,11 +5111,22 @@ dialog {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  max-height: 9rem;
-  overflow: auto;
   border-radius: 1rem;
   background: rgba(14, 48, 48, 0.05);
   border: 1px solid rgba(14, 48, 48, 0.08);
+}
+
+/* Keep ~3 tasks visible; dialog body flex was collapsing this to one line */
+#task-dialog .dialog-parse-preview {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: 8.75rem;
+  height: 8.75rem;
+  max-height: 8.75rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dialog-parse-preview li {
