@@ -8,6 +8,7 @@ const LEGACY_VIEW_KEY = "priority-grid-view";
 const SYNC_BANNER_KEY = "priority-grid-sync-banner-dismissed";
 const MODE_135_KEY = "priority-grid-135-mode";
 const VISIBLE_TIERS_KEY = "priority-grid-visible-tiers";
+const HOME_CONTEXT_FILTER_KEY = "priority-grid-home-context-filter";
 const SIDEBAR_TAB_KEY = "priority-grid-sidebar-tab";
 const SIDEBAR_COLLAPSED_KEY = "priority-grid-sidebar-collapsed";
 const PLAN_135_PREFIX = "priority-grid-135-";
@@ -499,6 +500,10 @@ function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
   const wallpaper = reflectionScreen.querySelector(".reflection-screen-wallpaper");
   if (!wallpaper) return;
   const shiftPx = tab === "review" ? REFLECTION_TEAL_SHIFT_REVIEW : 0;
+  const thoughtsCream =
+    "linear-gradient(to bottom, rgba(253, 249, 244, 0.94) 0%, rgba(253, 249, 244, 0.62) 14%, rgba(253, 249, 244, 0.18) 28%, rgba(253, 249, 244, 0.05) 40%, rgba(253, 249, 244, 0.14) 100%)";
+  const reviewCream =
+    "linear-gradient(to bottom, rgba(253, 249, 244, 0.78) 0%, rgba(253, 249, 244, 0.42) 16%, rgba(253, 249, 244, 0.12) 30%, rgba(253, 249, 244, 0.06) 42%, rgba(253, 249, 244, 0.18) 100%)";
   // Clear legacy screen-level bg so only the sticky wallpaper layer paints mountains.
   reflectionScreen.style.backgroundImage = "";
   reflectionScreen.style.backgroundSize = "";
@@ -507,7 +512,7 @@ function applyReflectionScreenBackground(reflectionScreen, assets, tab) {
   // Teal mountain treatment (review shifted): wallpaper + teal fade, cream veil for dark-text readability.
   wallpaper.style.backgroundColor = "#0d2b2b";
   wallpaper.style.backgroundImage = [
-    "linear-gradient(to bottom, rgba(253, 249, 244, 0.78) 0%, rgba(253, 249, 244, 0.42) 16%, rgba(253, 249, 244, 0.12) 30%, rgba(253, 249, 244, 0.06) 42%, rgba(253, 249, 244, 0.18) 100%)",
+    tab === "thoughts" ? thoughtsCream : reviewCream,
     "linear-gradient(to bottom, rgba(13, 43, 43, 0) 0%, rgba(13, 43, 43, 0.12) 20%, rgb(13, 43, 43) 55%)",
     `url("${assets.mobile}")`,
   ].join(", ");
@@ -643,6 +648,7 @@ let touchDragGhost = null;
 let dragGrabOffset = { x: 0, y: 0 };
 let listDragState = null;
 let visibleTiers = getVisibleTiers();
+let homeContextFilter = getHomeContextFilter();
 let dialogPhotoDraft = [];
 let dialogPhotoUrls = [];
 let dialogNoteEntries = [];
@@ -1631,6 +1637,49 @@ function saveAnxietyBox(items, options = {}) {
     )
   );
   if (!options.skipSync) markSyncDirty();
+  syncThoughtsBellAnimation();
+}
+
+const THOUGHTS_STALE_MS = 2 * 60 * 60 * 1000;
+const THOUGHTS_BELL_SELECTOR = "#presence-thoughts-btn, #presence-toolbar-thoughts-btn";
+let thoughtsBellTimer = 0;
+
+function hasStaleThoughts(now = Date.now()) {
+  const cutoff = now - THOUGHTS_STALE_MS;
+  return loadAnxietyBox().some((item) => {
+    const created = new Date(item.createdAt).getTime();
+    return !Number.isNaN(created) && created <= cutoff;
+  });
+}
+
+function scheduleThoughtsBellCheck(now = Date.now()) {
+  window.clearTimeout(thoughtsBellTimer);
+  thoughtsBellTimer = 0;
+  let nextAt = Infinity;
+  loadAnxietyBox().forEach((item) => {
+    const created = new Date(item.createdAt).getTime();
+    if (Number.isNaN(created)) return;
+    const staleAt = created + THOUGHTS_STALE_MS;
+    if (staleAt > now && staleAt < nextAt) nextAt = staleAt;
+  });
+  if (!Number.isFinite(nextAt)) return;
+  const delay = Math.min(Math.max(nextAt - now + 200, 250), 2147483647);
+  thoughtsBellTimer = window.setTimeout(() => {
+    syncThoughtsBellAnimation();
+  }, delay);
+}
+
+function syncThoughtsBellAnimation() {
+  const stale = hasStaleThoughts();
+  document.querySelectorAll(THOUGHTS_BELL_SELECTOR).forEach((btn) => {
+    btn.classList.toggle("is-ringing", stale);
+    if (stale) {
+      btn.setAttribute("title", "A thought has been waiting over 2 hours");
+    } else {
+      btn.removeAttribute("title");
+    }
+  });
+  scheduleThoughtsBellCheck();
 }
 
 function addAnxietyBoxItem(text) {
@@ -2890,6 +2939,67 @@ function setupPriorityVisibilityTags() {
   syncPriorityVisibilityTags();
 }
 
+function getHomeContextFilter() {
+  try {
+    const saved = localStorage.getItem(HOME_CONTEXT_FILTER_KEY);
+    if (saved === "all" || isValidContext(saved)) return saved;
+  } catch {
+    /* ignore */
+  }
+  return "all";
+}
+
+function matchesHomeContextFilter(ctx) {
+  return homeContextFilter === "all" || ctx === homeContextFilter;
+}
+
+function setHomeContextFilter(ctx) {
+  const next = ctx === "all" || isValidContext(ctx) ? ctx : "all";
+  homeContextFilter = next;
+  try {
+    localStorage.setItem(HOME_CONTEXT_FILTER_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  renderHomeCategoryTags();
+  if (page === "home") renderHome();
+}
+
+function renderHomeCategoryTags() {
+  const el = document.getElementById("home-category-tags");
+  if (!el) return;
+  if (homeContextFilter !== "all" && !isValidContext(homeContextFilter)) {
+    homeContextFilter = "all";
+  }
+  const contexts = getContexts();
+  el.innerHTML = [
+    `<button type="button" class="home-category-tag${
+      homeContextFilter === "all" ? " active" : ""
+    }" data-context="all" aria-pressed="${homeContextFilter === "all"}">All</button>`,
+    ...contexts.map((ctx) => {
+      const active = homeContextFilter === ctx;
+      return `<button type="button" class="home-category-tag${
+        active ? " active" : ""
+      }" data-context="${escapeHtml(ctx)}" aria-pressed="${active}">
+        ${contextIconHtml(ctx, "home-category-tag-icon")}
+        <span>${escapeHtml(contextLabel(ctx))}</span>
+      </button>`;
+    }),
+  ].join("");
+}
+
+function setupHomeCategoryTags() {
+  const el = document.getElementById("home-category-tags");
+  if (!el || el.dataset.bound) return;
+  el.dataset.bound = "1";
+  el.addEventListener("click", (event) => {
+    const btn = event.target.closest(".home-category-tag");
+    if (!btn) return;
+    setHomeContextFilter(btn.dataset.context || "all");
+  });
+  renderHomeCategoryTags();
+}
+
 function formatHomeDate(date = new Date()) {
   const weekday = date.toLocaleDateString("en-US", { weekday: "long" });
   const month = date.toLocaleDateString("en-US", { month: "long" });
@@ -3261,6 +3371,7 @@ function renderReflectionAnxietyBox() {
   }
   pastSection?.classList.toggle("is-empty", checkedDay.length === 0);
 
+  syncThoughtsBellAnimation();
   requestAnimationFrame(() => updateReflectionHeroOnCream());
 }
 
@@ -4955,6 +5066,15 @@ function rebuildContextUi() {
     filter = "all";
     localStorage.setItem(FILTER_KEY, filter);
   }
+  if (homeContextFilter !== "all" && !isValidContext(homeContextFilter)) {
+    homeContextFilter = "all";
+    try {
+      localStorage.setItem(HOME_CONTEXT_FILTER_KEY, "all");
+    } catch {
+      /* ignore */
+    }
+  }
+  renderHomeCategoryTags();
   syncNavActive();
 }
 
@@ -7499,11 +7619,15 @@ function openReflectionDialog(tab = "review") {
   dialog.show();
   dialog.scrollTop = 0;
   requestAnimationFrame(() => {
+    dialog.scrollTop = 0;
     if (nextTab === "review") renderReflectionReview();
     renderReflectionAnxietyBox();
     renderFocusTimerChrome();
     syncBottomChrome();
     updateReflectionHeroOnCream();
+    if (nextTab === "thoughts") {
+      document.getElementById("reflection-anxiety-input")?.blur();
+    }
   });
 }
 
@@ -8690,7 +8814,9 @@ function renderHomeWeekly() {
   if (progress) progress.classList.add("hidden");
   empty.classList.add("hidden");
 
-  const tasks = getTasksForWeeklyDay(dayKey);
+  const tasks = getTasksForWeeklyDay(dayKey).filter((task) =>
+    matchesHomeContextFilter(task.context)
+  );
   content.innerHTML = weeklyViewHtml(dayKey, tasks);
   bindWeeklyView(content);
 }
@@ -8723,7 +8849,10 @@ function renderTasksWeekly() {
 
 function getTasksByTierForHome(tier, limit) {
   if (!isTierVisible(tier)) return [];
-  const sorted = sortTierTasksForDisplay(getTierTasksAllContexts(tier), tier);
+  const sorted = sortTierTasksForDisplay(
+    getTierTasksAllContexts(tier).filter((task) => matchesHomeContextFilter(task.context)),
+    tier
+  );
   if (limit == null) return sorted;
   return sorted.slice(0, limit);
 }
@@ -9533,6 +9662,8 @@ function renderHomeCompletedToday() {
 
 function renderHome() {
   syncWeeklyViewUi();
+  renderHomeCategoryTags();
+  syncThoughtsBellAnimation();
   if (weeklyView) {
     renderHomeWeekly();
   } else {
@@ -11240,8 +11371,10 @@ setupReflection();
 setupMode135();
 setupForgetIt();
 setupPriorityVisibilityTags();
+setupHomeCategoryTags();
 setupBottomChromeObserver();
 setupNotifyPanel();
+syncThoughtsBellAnimation();
 updateBoardHint();
 rebuildContextUi();
 

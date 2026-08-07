@@ -177,16 +177,24 @@ html.reflection-open body .capture-clip-fab {
   flex-shrink: 0;
 }
 
-#reflection-panel-review .reflection-hero--review,
-#reflection-panel-thoughts .reflection-hero--thoughts {
+#reflection-panel-review .reflection-hero--review {
   /* Mid-hero like Home FOCUS; scales down on short viewports so cards stay reachable */
   margin-top: clamp(5rem, 20vh, 12rem);
   margin-bottom: 1.15rem;
 }
 
+/* Thoughts opens cream-first like the Anxiety Box landing view */
+#reflection-panel-thoughts .reflection-hero--thoughts {
+  margin-top: clamp(2.5rem, 7vh, 3.75rem);
+  margin-bottom: 1rem;
+}
+
 #reflection-panel-thoughts .reflection-hero--thoughts .reflection-hero-subtitle {
-  max-width: min(20rem, 88vw);
-  color: rgba(253, 249, 244, 0.82);
+  max-width: min(22rem, 90vw);
+}
+
+#reflection-panel-thoughts .reflection-hero--thoughts .reflection-hero-title {
+  max-width: min(18rem, 88vw);
 }
 
 /* Match Home FOCUS label + serif title pattern */
