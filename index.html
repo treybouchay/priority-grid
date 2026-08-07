@@ -67,9 +67,9 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=177" />
+    <link rel="stylesheet" href="styles.css?v=178" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=110" />
+    <link rel="stylesheet" href="design/home-presence.css?v=111" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
     <link rel="stylesheet" href="design/history-wins.css?v=13" />
     <link rel="stylesheet" href="design/settings-page.css?v=8" />
@@ -128,6 +128,11 @@
       <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16l-2-2Z"/>
         <path d="M10 20a2 2 0 0 0 4 0"/>
+      </symbol>
+      <symbol id="icon-thought" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8.5 15.5c-2.4-.4-4-2.3-4-4.7A5 5 0 0 1 12.8 6c.4-1.9 2.1-3.3 4.1-3.3a4.3 4.3 0 0 1 4.3 4.8A4.6 4.6 0 0 1 17.5 16c-1.3 0-2.5-.4-3.4-1.2-.7.9-1.8 1.5-3.1 1.5-.9 0-1.7-.3-2.5-.8"/>
+        <circle cx="7.2" cy="18.2" r="1.15"/>
+        <circle cx="4.6" cy="20.4" r="0.75"/>
       </symbol>
       <symbol id="icon-menu" viewBox="0 0 24 24" fill="currentColor">
         <circle cx="12" cy="6" r="1.5"/>
@@ -383,9 +388,8 @@
               <button type="button" class="presence-toolbar-btn" aria-label="Search">
                 <svg class="icon icon-header" aria-hidden="true"><use href="#icon-search"></use></svg>
               </button>
-              <button type="button" class="presence-toolbar-btn presence-toolbar-btn-bell" aria-label="Notifications">
-                <svg class="icon icon-header" aria-hidden="true"><use href="#icon-bell"></use></svg>
-                <span class="presence-notify-dot" aria-hidden="true"></span>
+              <button type="button" class="presence-toolbar-btn presence-toolbar-btn-thoughts" id="presence-toolbar-thoughts-btn" aria-label="View Thoughts">
+                <svg class="icon icon-header" aria-hidden="true"><use href="#icon-thought"></use></svg>
               </button>
               <span class="presence-toolbar-divider" aria-hidden="true"></span>
               <button type="button" class="presence-toolbar-add" id="presence-hero-add-task">Add Task</button>
@@ -397,29 +401,20 @@
                   <h1 class="presence-greeting-name"><span data-display-name>Friend</span> <span class="home-greeting-wave" aria-hidden="true">👋</span></h1>
                   <p class="presence-greeting-date" id="home-date"></p>
                 </div>
-                <button type="button" class="presence-notify-btn" aria-label="Notifications">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  <span class="presence-notify-dot" aria-hidden="true"></span>
+                <button type="button" class="presence-thoughts-btn" id="presence-thoughts-btn" aria-label="View Thoughts">
+                  <svg class="icon icon-header" aria-hidden="true"><use href="#icon-thought"></use></svg>
                 </button>
               </div>
               <div class="presence-focus">
                 <p class="presence-focus-label">FOCUS</p>
                 <h2 class="presence-focus-title">Take care of what sparks joy.</h2>
-                <div class="presence-focus-actions">
-                  <button type="button" class="presence-focus-btn" id="focus-thoughts-btn">
-                    <span>View Thoughts</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
-                      <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                  <button type="button" class="presence-focus-btn presence-focus-btn--secondary" id="focus-reflection-btn">
-                    <span>View Reflection</span>
-                  </button>
-                </div>
+                <button type="button" class="presence-focus-btn" id="focus-reflection-btn">
+                  <span>View Reflection</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
+                    <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
               </div>
             </div>
           </section>
@@ -1461,6 +1456,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=306"></script>
+    <script src="app.js?v=308"></script>
   </body>
 </html>

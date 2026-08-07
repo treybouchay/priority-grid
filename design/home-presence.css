@@ -568,7 +568,7 @@ body[data-page="home"] .presence-greeting-date {
   opacity: 0.6;
 }
 
-body[data-page="home"] .presence-notify-btn {
+body[data-page="home"] .presence-thoughts-btn {
   position: relative;
   padding: 0.5rem;
   border: none;
@@ -577,21 +577,11 @@ body[data-page="home"] .presence-notify-btn {
   cursor: pointer;
 }
 
-body[data-page="home"] .presence-notify-btn svg {
+body[data-page="home"] .presence-thoughts-btn svg,
+body[data-page="home"] .presence-thoughts-btn .icon-header {
   width: 1.5rem;
   height: 1.5rem;
   display: block;
-}
-
-body[data-page="home"] .presence-notify-dot {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: #c76b4d;
-  border: 2px solid #fdf9f4;
 }
 
 body[data-page="home"] .presence-focus {
@@ -636,28 +626,6 @@ body[data-page="home"] .presence-focus-btn {
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-}
-
-body[data-page="home"] .presence-focus-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem;
-  margin-top: 1.5rem;
-}
-
-body[data-page="home"] .presence-focus-actions .presence-focus-btn {
-  margin-top: 0;
-}
-
-body[data-page="home"] .presence-focus-btn--secondary {
-  background: transparent;
-  border: 1.5px solid rgba(17, 48, 44, 0.55);
-  color: #11302c;
-}
-
-body[data-page="home"] .presence-focus-btn--secondary:hover {
-  background: rgba(17, 48, 44, 0.06);
 }
 
 body[data-page="home"] .presence-focus-btn svg {
@@ -2359,7 +2327,7 @@ body[data-page="home"] .section-link--plan svg {
     border-radius: 50%;
   }
 
-  body[data-page="home"] .presence-toolbar-btn-bell {
+  body[data-page="home"] .presence-toolbar-btn-thoughts {
     position: relative;
   }
 
@@ -2386,7 +2354,7 @@ body[data-page="home"] .section-link--plan svg {
     max-width: 720px;
   }
 
-  body[data-page="home"] .presence-notify-btn {
+  body[data-page="home"] .presence-thoughts-btn {
     display: none;
   }
 
@@ -2758,7 +2726,7 @@ html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-name
 html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-date,
 html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-label,
 html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-title,
-html[data-hero-wallpaper="night"] body[data-page="home"] .presence-notify-btn {
+html[data-hero-wallpaper="night"] body[data-page="home"] .presence-thoughts-btn {
   color: #eef8f7;
 }
 
@@ -2766,15 +2734,6 @@ html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-time
 html[data-hero-wallpaper="night"] body[data-page="home"] .presence-greeting-date,
 html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-label {
   opacity: 0.85;
-}
-
-html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-btn--secondary {
-  border-color: rgba(238, 248, 247, 0.55);
-  color: #eef8f7;
-}
-
-html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-btn--secondary:hover {
-  background: rgba(238, 248, 247, 0.1);
 }
 
 @media (min-width: 769px) {

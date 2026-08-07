@@ -21,6 +21,8 @@ const APP_STARTED_KEY = "priority-grid-app-started";
 const ANXIETY_BOX_KEY = "priority-grid-anxiety-box";
 const ANXIETY_HISTORY_KEY = "priority-grid-anxiety-history";
 const STANDALONE_NOTES_KEY = "priority-grid-standalone-notes";
+const NOTIFY_SEEN_KEY = "priority-grid-notify-seen-at";
+const NOTIFY_BELL_SELECTOR = "#tasks-page-notify, #page-header-actions .header-icon-btn-bell";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
@@ -7513,11 +7515,14 @@ function setupReflection() {
   const reviewContinueBtn = document.getElementById("reflection-review-continue");
   const promptsList = document.getElementById("reflection-prompts-list");
 
-  document.getElementById("focus-thoughts-btn")?.addEventListener("click", () => {
-    openReflectionDialog("thoughts");
-  });
   document.getElementById("focus-reflection-btn")?.addEventListener("click", () => {
     openReflectionDialog("review");
+  });
+  document.getElementById("presence-thoughts-btn")?.addEventListener("click", () => {
+    openReflectionDialog("thoughts");
+  });
+  document.getElementById("presence-toolbar-thoughts-btn")?.addEventListener("click", () => {
+    openReflectionDialog("thoughts");
   });
 
   setupFocusTimer();
@@ -9009,6 +9014,305 @@ function formatCompletionTime(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatDurationShort(ms) {
+  const mins = Math.max(1, Math.round(Number(ms) / 60000));
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const rem = mins % 60;
+  if (rem === 0) return hours === 1 ? "1 hr" : `${hours} hr`;
+  return `${hours}h ${rem}m`;
+}
+
+function formatTimeAgo(iso) {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const ms = Date.now() - then;
+  if (ms < 45 * 1000) return "just now";
+  if (ms < 60 * 60 * 1000) return `${Math.max(1, Math.floor(ms / 60000))}m ago`;
+  if (ms < 24 * 60 * 60 * 1000) return `${Math.max(1, Math.floor(ms / 3600000))}h ago`;
+  return formatCompletionTime(iso);
+}
+
+function getNotifySeenAt() {
+  try {
+    return localStorage.getItem(NOTIFY_SEEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function markNotifySeen() {
+  try {
+    localStorage.setItem(NOTIFY_SEEN_KEY, new Date().toISOString());
+  } catch {
+    /* ignore */
+  }
+  syncNotifyDots();
+}
+
+function getRecentCompletedForNotify(limit = 8) {
+  const todayKeyStr = archiveDayKey(new Date().toISOString());
+  const seen = new Set();
+  const merged = [];
+
+  const pushTask = (task, ctx) => {
+    if (!task?.done || !task.completedAt) return;
+    const key = `${ctx}:${task.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push({ ...task, context: ctx });
+  };
+
+  getCompletedTodayTasks().forEach((task) => pushTask(task, task.context));
+  getArchivedTodayWinsTasks().forEach((task) => pushTask(task, task.context));
+
+  if (merged.length === 0) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    getContexts().forEach((ctx) => {
+      loadTasks(ctx).forEach((task) => {
+        if (!task?.done || !task.completedAt) return;
+        const stamp = new Date(task.completedAt).getTime();
+        if (Number.isNaN(stamp) || stamp < cutoff) return;
+        pushTask(task, ctx);
+      });
+    });
+  }
+
+  return merged
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+    .slice(0, limit)
+    .map((task) => ({
+      ...task,
+      isToday: archiveDayKey(task.completedAt) === todayKeyStr,
+    }));
+}
+
+function buildCompletionPace(tasks) {
+  const chronological = [...tasks]
+    .filter((task) => task?.completedAt)
+    .sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
+  const count = chronological.length;
+  const todayKeyStr = archiveDayKey(new Date().toISOString());
+  const todayCount = chronological.filter(
+    (task) => archiveDayKey(task.completedAt) === todayKeyStr
+  ).length;
+
+  if (count === 0) {
+    return {
+      headline: "Quiet so far",
+      detail: "Cross one off and your pace will show up here.",
+      todayCount: 0,
+    };
+  }
+
+  if (count === 1) {
+    const only = chronological[0];
+    const isToday = archiveDayKey(only.completedAt) === todayKeyStr;
+    return {
+      headline: isToday ? "First win of the day" : "Most recent win",
+      detail: `Checked off at ${formatCompletionTime(only.completedAt)}.`,
+      todayCount,
+    };
+  }
+
+  const first = new Date(chronological[0].completedAt).getTime();
+  const last = new Date(chronological[count - 1].completedAt).getTime();
+  const now = Date.now();
+  const gaps = [];
+  for (let i = 1; i < chronological.length; i += 1) {
+    gaps.push(
+      new Date(chronological[i].completedAt).getTime() -
+        new Date(chronological[i - 1].completedAt).getTime()
+    );
+  }
+  const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+  const spanHours = Math.max((Math.max(last, now) - first) / 3600000, 1 / 60);
+  const perHour = count / spanHours;
+  const lastHourCount = chronological.filter(
+    (task) => new Date(task.completedAt).getTime() >= now - 3600000
+  ).length;
+
+  let headline;
+  if (avgGap <= 20 * 60 * 1000) {
+    headline = `On a roll — 1 every ${formatDurationShort(avgGap)}`;
+  } else if (perHour >= 1) {
+    const rounded = perHour >= 10 ? Math.round(perHour) : Math.round(perHour * 10) / 10;
+    headline = `${String(rounded).replace(/\.0$/, "")} per hour`;
+  } else {
+    headline = `1 every ${formatDurationShort(avgGap)}`;
+  }
+
+  const detailParts = [];
+  if (todayCount > 0) {
+    detailParts.push(`${todayCount} win${todayCount === 1 ? "" : "s"} today`);
+  } else {
+    detailParts.push(`${count} recent win${count === 1 ? "" : "s"}`);
+  }
+  if (lastHourCount >= 2) detailParts.push(`${lastHourCount} in the last hour`);
+  detailParts.push(`since ${formatCompletionTime(chronological[0].completedAt)}`);
+
+  return {
+    headline,
+    detail: detailParts.join(" · "),
+    todayCount,
+  };
+}
+
+function hasUnseenCompletions() {
+  const recent = getRecentCompletedForNotify(12);
+  if (!recent.length) return false;
+  const seenAt = getNotifySeenAt();
+  if (!seenAt) return true;
+  const seenMs = new Date(seenAt).getTime();
+  if (Number.isNaN(seenMs)) return true;
+  return recent.some((task) => new Date(task.completedAt).getTime() > seenMs);
+}
+
+function syncNotifyDots() {
+  const show = hasUnseenCompletions();
+  document.querySelectorAll(".header-notify-dot").forEach((dot) => {
+    dot.classList.toggle("hidden", !show);
+  });
+  document.querySelectorAll(NOTIFY_BELL_SELECTOR).forEach((btn) => {
+    btn.setAttribute("aria-expanded", String(isNotifyPanelOpen()));
+  });
+}
+
+function isNotifyPanelOpen() {
+  return Boolean(document.getElementById("notify-panel")?.classList.contains("is-open"));
+}
+
+function notifyPanelItemHtml(task) {
+  const time = formatCompletionTime(task.completedAt);
+  const ago = formatTimeAgo(task.completedAt);
+  const tier =
+    task.tier >= 1 && task.tier <= 4 ? TIER_LABELS[task.tier - 1] : "";
+  const meta = [time, contextLabel(task.context), tier].filter(Boolean).join(" · ");
+  return `
+    <li class="notify-panel-item">
+      <span class="notify-panel-check" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+          <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </span>
+      <div class="notify-panel-item-body">
+        <p class="notify-panel-item-text">${escapeHtml(task.text || "Task")}</p>
+        <p class="notify-panel-item-meta">${escapeHtml(meta)}</p>
+      </div>
+      <span class="notify-panel-item-ago">${escapeHtml(ago)}</span>
+    </li>`;
+}
+
+function ensureNotifyPanel() {
+  let panel = document.getElementById("notify-panel");
+  if (panel) return panel;
+  panel = document.createElement("div");
+  panel.id = "notify-panel";
+  panel.className = "notify-panel";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-label", "Recent wins and pace");
+  panel.innerHTML = `
+    <header class="notify-panel-header">
+      <div class="notify-panel-heading">
+        <p class="notify-panel-kicker">Recent wins</p>
+        <h2 class="notify-panel-title" id="notify-panel-title">Quiet so far</h2>
+        <p class="notify-panel-detail" id="notify-panel-detail"></p>
+      </div>
+      <button type="button" class="notify-panel-close" aria-label="Close notifications">×</button>
+    </header>
+    <ul class="notify-panel-list" id="notify-panel-list"></ul>
+    <p class="notify-panel-empty hidden" id="notify-panel-empty">Nothing completed yet — your first win will land here.</p>
+  `;
+  document.body.appendChild(panel);
+  panel.querySelector(".notify-panel-close")?.addEventListener("click", () => {
+    closeNotifyPanel();
+  });
+  return panel;
+}
+
+function renderNotifyPanel() {
+  const panel = document.getElementById("notify-panel");
+  if (!panel || !isNotifyPanelOpen()) {
+    syncNotifyDots();
+    return;
+  }
+
+  const recent = getRecentCompletedForNotify(8);
+  const pace = buildCompletionPace(recent);
+  const title = panel.querySelector("#notify-panel-title");
+  const detail = panel.querySelector("#notify-panel-detail");
+  const list = panel.querySelector("#notify-panel-list");
+  const empty = panel.querySelector("#notify-panel-empty");
+
+  if (title) title.textContent = pace.headline;
+  if (detail) detail.textContent = pace.detail;
+  if (list) {
+    list.innerHTML = recent.map(notifyPanelItemHtml).join("");
+    list.classList.toggle("hidden", recent.length === 0);
+  }
+  empty?.classList.toggle("hidden", recent.length > 0);
+  if (recent[0]?.completedAt) {
+    try {
+      localStorage.setItem(NOTIFY_SEEN_KEY, recent[0].completedAt);
+    } catch {
+      /* ignore */
+    }
+  }
+  syncNotifyDots();
+}
+
+function openNotifyPanel() {
+  const panel = ensureNotifyPanel();
+  panel.classList.add("is-open");
+  markNotifySeen();
+  renderNotifyPanel();
+  requestAnimationFrame(() => {
+    panel.querySelector(".notify-panel-close")?.focus();
+  });
+}
+
+function closeNotifyPanel() {
+  const panel = document.getElementById("notify-panel");
+  if (!panel) return;
+  panel.classList.remove("is-open");
+  syncNotifyDots();
+}
+
+function toggleNotifyPanel() {
+  if (isNotifyPanelOpen()) closeNotifyPanel();
+  else openNotifyPanel();
+}
+
+function setupNotifyPanel() {
+  ensureNotifyPanel();
+  document.querySelectorAll(NOTIFY_BELL_SELECTOR).forEach((btn) => {
+    btn.setAttribute("aria-haspopup", "dialog");
+    btn.setAttribute("aria-controls", "notify-panel");
+    btn.setAttribute("aria-expanded", "false");
+  });
+
+  document.addEventListener("click", (event) => {
+    const bell = event.target.closest?.(NOTIFY_BELL_SELECTOR);
+    if (bell) {
+      event.preventDefault();
+      toggleNotifyPanel();
+      return;
+    }
+    const panel = document.getElementById("notify-panel");
+    if (panel && isNotifyPanelOpen() && !panel.contains(event.target)) {
+      closeNotifyPanel();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && isNotifyPanelOpen()) {
+      closeNotifyPanel();
+    }
+  });
+
+  syncNotifyDots();
 }
 
 function getCompletedTodayTasks() {
@@ -10871,6 +11175,7 @@ function renderAll() {
     renderReflectionAnxietyBox();
   }
   renderFocusTimerChrome();
+  renderNotifyPanel();
 }
 
 function seedHomeFromNotebook() {
@@ -10936,6 +11241,7 @@ setupMode135();
 setupForgetIt();
 setupPriorityVisibilityTags();
 setupBottomChromeObserver();
+setupNotifyPanel();
 updateBoardHint();
 rebuildContextUi();
 
