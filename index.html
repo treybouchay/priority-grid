@@ -69,7 +69,7 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=178" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=115" />
+    <link rel="stylesheet" href="design/home-presence.css?v=116" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
     <link rel="stylesheet" href="design/history-wins.css?v=13" />
     <link rel="stylesheet" href="design/settings-page.css?v=8" />
@@ -441,22 +441,47 @@
                   </button>
                 </div>
               </header>
-              <div
-                class="priority-visibility-tags priority-visibility-tags--home"
-                role="group"
-                aria-label="Show priority cards"
-              >
-                <button type="button" class="priority-visibility-tag active" data-tier="1" aria-pressed="true" disabled>1st</button>
-                <button type="button" class="priority-visibility-tag active" data-tier="2" aria-pressed="true">2nd</button>
-                <button type="button" class="priority-visibility-tag active" data-tier="3" aria-pressed="true">3rd</button>
-                <button type="button" class="priority-visibility-tag active" data-tier="4" aria-pressed="true">4th</button>
+              <div class="home-plan-filters">
+                <div class="home-plan-tag-row">
+                  <div
+                    class="priority-visibility-tags priority-visibility-tags--home"
+                    id="home-priority-tags"
+                    role="group"
+                    aria-label="Show priority cards"
+                  >
+                    <button type="button" class="priority-visibility-tag active" data-tier="1" aria-pressed="true" disabled>1st</button>
+                    <button type="button" class="priority-visibility-tag active" data-tier="2" aria-pressed="true">2nd</button>
+                    <button type="button" class="priority-visibility-tag active" data-tier="3" aria-pressed="true">3rd</button>
+                    <button type="button" class="priority-visibility-tag active" data-tier="4" aria-pressed="true">4th</button>
+                  </div>
+                  <button
+                    type="button"
+                    class="home-tag-scroll-btn"
+                    data-scroll-target="home-priority-tags"
+                    aria-label="Scroll priorities"
+                    hidden
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                  </button>
+                </div>
+                <div class="home-plan-tag-row">
+                  <div
+                    class="home-category-tags"
+                    id="home-category-tags"
+                    role="group"
+                    aria-label="Filter by list"
+                  ></div>
+                  <button
+                    type="button"
+                    class="home-tag-scroll-btn"
+                    data-scroll-target="home-category-tags"
+                    aria-label="Scroll lists"
+                    hidden
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                  </button>
+                </div>
               </div>
-              <div
-                class="home-category-tags"
-                id="home-category-tags"
-                role="group"
-                aria-label="Filter by list"
-              ></div>
               <p class="home-priority-progress hidden" id="home-priority-progress"></p>
               <div id="home-priority-content">
                 <ul class="priority-preview-list" id="home-priority-list"></ul>
@@ -1456,6 +1481,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=311"></script>
+    <script src="app.js?v=312"></script>
   </body>
 </html>

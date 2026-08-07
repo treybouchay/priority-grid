@@ -2986,6 +2986,40 @@ function renderHomeCategoryTags() {
       </button>`;
     }),
   ].join("");
+  requestAnimationFrame(() => syncHomeTagScrollButtons());
+}
+
+function syncHomeTagScrollButtons() {
+  document.querySelectorAll(".home-plan-tag-row").forEach((row) => {
+    const scroller = row.querySelector(".priority-visibility-tags--home, .home-category-tags");
+    const btn = row.querySelector(".home-tag-scroll-btn");
+    if (!scroller || !btn) return;
+    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+    const canScrollMore = maxScroll > 4 && scroller.scrollLeft < maxScroll - 4;
+    row.classList.toggle("has-more", canScrollMore);
+    btn.hidden = !canScrollMore;
+  });
+}
+
+function setupHomeTagScrollButtons() {
+  const filters = document.querySelector(".home-plan-filters");
+  if (!filters || filters.dataset.scrollBound) return;
+  filters.dataset.scrollBound = "1";
+
+  filters.addEventListener("click", (event) => {
+    const btn = event.target.closest(".home-tag-scroll-btn");
+    if (!btn) return;
+    const scroller = document.getElementById(btn.dataset.scrollTarget || "");
+    if (!scroller) return;
+    scroller.scrollBy({ left: Math.max(scroller.clientWidth * 0.7, 140), behavior: "smooth" });
+  });
+
+  filters.querySelectorAll(".priority-visibility-tags--home, .home-category-tags").forEach((scroller) => {
+    scroller.addEventListener("scroll", () => syncHomeTagScrollButtons(), { passive: true });
+  });
+
+  window.addEventListener("resize", () => syncHomeTagScrollButtons());
+  requestAnimationFrame(() => syncHomeTagScrollButtons());
 }
 
 function setupHomeCategoryTags() {
@@ -2997,6 +3031,7 @@ function setupHomeCategoryTags() {
     if (!btn) return;
     setHomeContextFilter(btn.dataset.context || "all");
   });
+  setupHomeTagScrollButtons();
   renderHomeCategoryTags();
 }
 
@@ -9664,6 +9699,7 @@ function renderHome() {
   syncWeeklyViewUi();
   renderHomeCategoryTags();
   syncThoughtsBellAnimation();
+  syncHomeTagScrollButtons();
   if (weeklyView) {
     renderHomeWeekly();
   } else {
