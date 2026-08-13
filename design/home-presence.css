@@ -1527,11 +1527,26 @@ body[data-page="home"] .focus-timer-session-tasks.hidden,
 
   .focus-timer-mini {
     left: var(--sidebar-rail-width, 13.5rem);
-    border-radius: 0 0 1.25rem 0;
+    border-radius: 0 0 1.25rem 1.25rem;
+  }
+
+  body.focus-timer-session .focus-timer-mini {
+    left: 0;
+    border-radius: 0 0 1.25rem 1.25rem;
   }
 
   .sidebar {
     z-index: 220;
+  }
+
+  body.focus-timer-session .sidebar {
+    display: none;
+  }
+
+  body.focus-timer-session .main {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 auto;
   }
 }
 
@@ -1940,6 +1955,17 @@ body[data-page="home"] .presence-plan {
   width: 100%;
 }
 
+body[data-page="home"] .presence-plan-tools {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 0.15rem 0.7rem;
+  position: relative;
+  z-index: 25;
+}
+
 body[data-page="home"] .presence-plan-header {
   align-items: center;
 }
@@ -1957,6 +1983,7 @@ body[data-page="home"] .home-timer-jump {
   justify-content: center;
   width: 2.35rem;
   height: 2.35rem;
+  margin-right: 20px;
   padding: 0;
   border: none;
   border-radius: 999px;
@@ -1991,7 +2018,7 @@ body[data-page="home"] .home-timer-jump:focus-visible {
 }
 
 body[data-page="home"] .home-timer-jump.is-running .home-timer-jump-hand {
-  animation: home-timer-jump-hand 60s linear infinite;
+  animation: home-timer-jump-hand 8s linear infinite;
 }
 
 body[data-page="home"] .home-timer-jump.is-done {
@@ -3066,6 +3093,7 @@ html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-label {
     color: #ffdbd2;
     padding: 1.25rem 0.85rem 1rem;
     border-right: none;
+    transition: background 0.25s ease, width 0.22s ease, padding 0.22s ease;
   }
 
   .sidebar-identity-name {
