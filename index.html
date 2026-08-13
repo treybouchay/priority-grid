@@ -69,11 +69,11 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=178" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=116" />
+    <link rel="stylesheet" href="design/home-presence.css?v=117" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
     <link rel="stylesheet" href="design/history-wins.css?v=13" />
-    <link rel="stylesheet" href="design/settings-page.css?v=8" />
-    <link rel="stylesheet" href="design/reflection.css?v=82" />
+    <link rel="stylesheet" href="design/settings-page.css?v=9" />
+    <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -364,7 +364,7 @@
         </header>
 
         <div class="sync-banner hidden" id="sync-banner">
-          <p>Start <strong>./serve.sh</strong> on your Mac and open the same address on each device to sync tasks automatically.</p>
+          <p id="sync-banner-text">Sign in under Settings to sync across devices, or run <strong>./serve.sh</strong> for local sync.</p>
           <button type="button" class="sync-banner-dismiss" id="sync-banner-dismiss" aria-label="Dismiss">×</button>
         </div>
 
@@ -443,6 +443,16 @@
               </header>
               <div class="home-plan-filters">
                 <div class="home-plan-tag-row">
+                  <button
+                    type="button"
+                    class="home-tag-scroll-btn home-tag-scroll-btn--prev"
+                    data-scroll-target="home-priority-tags"
+                    data-scroll-dir="-1"
+                    aria-label="Scroll priorities left"
+                    hidden
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                  </button>
                   <div
                     class="priority-visibility-tags priority-visibility-tags--home"
                     id="home-priority-tags"
@@ -456,15 +466,26 @@
                   </div>
                   <button
                     type="button"
-                    class="home-tag-scroll-btn"
+                    class="home-tag-scroll-btn home-tag-scroll-btn--next"
                     data-scroll-target="home-priority-tags"
-                    aria-label="Scroll priorities"
+                    data-scroll-dir="1"
+                    aria-label="Scroll priorities right"
                     hidden
                   >
                     <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
                   </button>
                 </div>
                 <div class="home-plan-tag-row">
+                  <button
+                    type="button"
+                    class="home-tag-scroll-btn home-tag-scroll-btn--prev"
+                    data-scroll-target="home-category-tags"
+                    data-scroll-dir="-1"
+                    aria-label="Scroll lists left"
+                    hidden
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                  </button>
                   <div
                     class="home-category-tags"
                     id="home-category-tags"
@@ -473,9 +494,10 @@
                   ></div>
                   <button
                     type="button"
-                    class="home-tag-scroll-btn"
+                    class="home-tag-scroll-btn home-tag-scroll-btn--next"
                     data-scroll-target="home-category-tags"
-                    aria-label="Scroll lists"
+                    data-scroll-dir="1"
+                    aria-label="Scroll lists right"
                     hidden
                   >
                     <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
@@ -1047,11 +1069,29 @@
                 <h2 class="settings-card-title" id="settings-sync-heading">Data &amp; sync</h2>
                 <p class="settings-card-desc">Keep phone and computer in sync, or export a backup.</p>
               </header>
+              <div class="sync-auth hidden" id="sync-auth-panel" aria-live="polite">
+                <p class="settings-field-label" id="sync-auth-label">Cloud sync</p>
+                <form class="sync-auth-form" id="sync-auth-form">
+                  <input
+                    type="email"
+                    id="sync-auth-email"
+                    class="sync-auth-email"
+                    placeholder="you@example.com"
+                    autocomplete="email"
+                    required
+                  />
+                  <button type="submit" class="btn-secondary" id="sync-auth-submit">Send sign-in link</button>
+                </form>
+                <p class="settings-hint sync-auth-hint" id="sync-auth-hint">
+                  We’ll email a one-time link. Open it on any device to sync your tasks.
+                </p>
+                <div class="sync-auth-signed-in hidden" id="sync-auth-signed-in">
+                  <p class="sync-auth-user" id="sync-auth-user"></p>
+                  <button type="button" class="btn-secondary" id="sync-auth-sign-out">Sign out</button>
+                </div>
+              </div>
               <p class="sync-status" id="sync-status">Checking sync…</p>
-              <p class="settings-hint">
-                Run <code class="settings-code">./serve.sh</code> and open the same URL on each device to sync
-                automatically. Export anytime for a local backup.
-              </p>
+              <p class="settings-hint sync-hint" id="sync-hint"></p>
               <div class="sync-actions">
                 <button type="button" class="btn-secondary" id="sync-now-btn">Sync now</button>
                 <button type="button" class="btn-secondary" id="export-data-btn">Export backup</button>
@@ -1481,6 +1521,8 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=312"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="app.js?v=318"></script>
   </body>
 </html>

@@ -644,6 +644,14 @@ let syncPushTimer = null;
 let syncPulling = false;
 let syncPushing = false;
 let syncDirty = false;
+let syncBackend = "local";
+let supabaseClient = null;
+let supabaseUserId = null;
+let supabaseAuthEmail = null;
+let supabaseRealtimeChannel = null;
+let syncPollTimer = null;
+let syncListenersBound = false;
+let supabaseSyncStarted = false;
 let touchDragGhost = null;
 let dragGrabOffset = { x: 0, y: 0 };
 let listDragState = null;
@@ -1837,7 +1845,357 @@ function setupDataSync() {
     document.getElementById("sync-banner").classList.add("hidden");
   });
 
+  setupSupabaseAuthUi();
   initRemoteSync();
+}
+
+function isSupabaseConfigured() {
+  const cfg = window.SUPABASE_CONFIG;
+  return Boolean(cfg?.url && cfg?.anonKey && typeof window.supabase?.createClient === "function");
+}
+
+function getSupabaseClient() {
+  if (!isSupabaseConfigured()) return null;
+  if (!supabaseClient) {
+    const cfg = window.SUPABASE_CONFIG;
+    supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+  }
+  return supabaseClient;
+}
+
+function mergeListsByIdForSync(existingList, incomingList) {
+  const existing = Array.isArray(existingList) ? existingList : [];
+  const incoming = Array.isArray(incomingList) ? incomingList : [];
+  const merged = {};
+  const order = [];
+  for (const item of existing) {
+    const id = item?.id;
+    if (!id) continue;
+    merged[id] = item;
+    order.push(id);
+  }
+  for (const item of incoming) {
+    const id = item?.id;
+    if (!id) continue;
+    if (!merged[id]) order.push(id);
+    merged[id] = item;
+  }
+  return order.map((id) => merged[id]);
+}
+
+function mergeDictsForSync(existing, incoming) {
+  const a = existing && typeof existing === "object" ? existing : {};
+  const b = incoming && typeof incoming === "object" ? incoming : {};
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  const out = {};
+  keys.forEach((key) => {
+    out[key] = b[key] !== undefined ? b[key] : a[key];
+  });
+  return out;
+}
+
+function mergeSyncPayloads(existing, incoming) {
+  if (!existing?.updatedAt) return incoming;
+  if (!incoming?.updatedAt) return existing;
+
+  const newer = incoming.updatedAt >= existing.updatedAt ? incoming : existing;
+  const older = newer === incoming ? existing : incoming;
+
+  const olderCustomTasks =
+    older.customTasks && typeof older.customTasks === "object" ? older.customTasks : {};
+  const newerCustomTasks =
+    newer.customTasks && typeof newer.customTasks === "object" ? newer.customTasks : {};
+  const customTaskKeys = new Set([...Object.keys(olderCustomTasks), ...Object.keys(newerCustomTasks)]);
+  const mergedCustomTasks = {};
+  customTaskKeys.forEach((key) => {
+    mergedCustomTasks[key] = mergeListsByIdForSync(olderCustomTasks[key], newerCustomTasks[key]);
+  });
+
+  const olderCustomBrain =
+    older.customBrainDump && typeof older.customBrainDump === "object" ? older.customBrainDump : {};
+  const newerCustomBrain =
+    newer.customBrainDump && typeof newer.customBrainDump === "object" ? newer.customBrainDump : {};
+  const customBrainKeys = new Set([...Object.keys(olderCustomBrain), ...Object.keys(newerCustomBrain)]);
+  const mergedCustomBrain = {};
+  customBrainKeys.forEach((key) => {
+    mergedCustomBrain[key] = mergeListsByIdForSync(olderCustomBrain[key], newerCustomBrain[key]);
+  });
+
+  return {
+    version: Math.max(existing.version || 1, incoming.version || 1),
+    updatedAt: incoming.updatedAt >= existing.updatedAt ? incoming.updatedAt : existing.updatedAt,
+    work: mergeListsByIdForSync(older.work, newer.work),
+    home: mergeListsByIdForSync(older.home, newer.home),
+    brainDumpWork: mergeListsByIdForSync(older.brainDumpWork, newer.brainDumpWork),
+    brainDumpHome: mergeListsByIdForSync(older.brainDumpHome, newer.brainDumpHome),
+    customContexts: mergeListsByIdForSync(older.customContexts, newer.customContexts),
+    customTasks: mergedCustomTasks,
+    customBrainDump: mergedCustomBrain,
+    plans: mergeDictsForSync(older.plans, newer.plans),
+    nextWeek: mergeDictsForSync(older.nextWeek, newer.nextWeek),
+    forgetIt: mergeDictsForSync(older.forgetIt || older.nextWeek, newer.forgetIt || newer.nextWeek),
+    displayName: newer.displayName ?? older.displayName,
+    profileAvatar: newer.profileAvatar !== undefined ? newer.profileAvatar : older.profileAvatar,
+    anxietyBox: mergeListsByIdForSync(older.anxietyBox, newer.anxietyBox),
+    anxietyHistory: mergeListsByIdForSync(older.anxietyHistory, newer.anxietyHistory),
+    standaloneNotes: mergeListsByIdForSync(older.standaloneNotes, newer.standaloneNotes),
+    weekStart: newer.weekStart ?? older.weekStart,
+  };
+}
+
+async function fetchRemotePayload() {
+  if (syncBackend === "supabase") {
+    if (!supabaseClient || !supabaseUserId) return { version: 1, updatedAt: null };
+    const { data, error } = await supabaseClient
+      .from("app_state")
+      .select("payload, updated_at")
+      .eq("user_id", supabaseUserId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data?.payload) return { version: 1, updatedAt: null };
+    const updatedAt = data.updated_at || data.payload.updatedAt || null;
+    return { ...data.payload, updatedAt };
+  }
+
+  const response = await fetch(SYNC_API, { cache: "no-store" });
+  if (!response.ok) throw new Error("sync unavailable");
+  return response.json();
+}
+
+async function saveRemotePayload(payload) {
+  if (syncBackend === "supabase") {
+    if (!supabaseClient || !supabaseUserId) throw new Error("not signed in");
+    let remote = null;
+    try {
+      remote = await fetchRemotePayload();
+    } catch {
+      remote = null;
+    }
+    const merged = remote?.updatedAt ? mergeSyncPayloads(remote, payload) : payload;
+    const { error } = await supabaseClient.from("app_state").upsert(
+      {
+        user_id: supabaseUserId,
+        payload: merged,
+        updated_at: merged.updatedAt,
+      },
+      { onConflict: "user_id" }
+    );
+    if (error) throw error;
+    return merged;
+  }
+
+  const response = await fetch(SYNC_API, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("sync push failed");
+  return response.json();
+}
+
+function stopSyncPolling() {
+  if (syncPollTimer) {
+    clearInterval(syncPollTimer);
+    syncPollTimer = null;
+  }
+}
+
+function teardownSupabaseRealtime() {
+  if (supabaseRealtimeChannel && supabaseClient) {
+    supabaseClient.removeChannel(supabaseRealtimeChannel);
+    supabaseRealtimeChannel = null;
+  }
+}
+
+function setupSupabaseRealtime() {
+  if (!supabaseClient || !supabaseUserId || supabaseRealtimeChannel) return;
+  supabaseRealtimeChannel = supabaseClient
+    .channel(`app_state:${supabaseUserId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "app_state",
+        filter: `user_id=eq.${supabaseUserId}`,
+      },
+      () => pullRemoteSync({ force: true })
+    )
+    .subscribe();
+}
+
+function updateAuthUi() {
+  const panel = document.getElementById("sync-auth-panel");
+  const form = document.getElementById("sync-auth-form");
+  const signedIn = document.getElementById("sync-auth-signed-in");
+  const userEl = document.getElementById("sync-auth-user");
+  const hint = document.getElementById("sync-auth-hint");
+  if (!panel) return;
+
+  if (!isSupabaseConfigured()) {
+    panel.classList.add("hidden");
+    return;
+  }
+
+  panel.classList.remove("hidden");
+
+  if (supabaseUserId && supabaseAuthEmail) {
+    form?.classList.add("hidden");
+    hint?.classList.add("hidden");
+    signedIn?.classList.remove("hidden");
+    if (userEl) userEl.textContent = `Signed in as ${supabaseAuthEmail}`;
+  } else {
+    form?.classList.remove("hidden");
+    hint?.classList.remove("hidden");
+    signedIn?.classList.add("hidden");
+    if (userEl) userEl.textContent = "";
+  }
+}
+
+function setupSupabaseAuthUi() {
+  if (!isSupabaseConfigured()) return;
+
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const form = document.getElementById("sync-auth-form");
+  const emailInput = document.getElementById("sync-auth-email");
+  const submitBtn = document.getElementById("sync-auth-submit");
+  const signOutBtn = document.getElementById("sync-auth-sign-out");
+  const authHint = document.getElementById("sync-auth-hint");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = emailInput?.value?.trim();
+    if (!email) return;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Sending…";
+    }
+    try {
+      const { error } = await client.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin + window.location.pathname },
+      });
+      if (error) throw error;
+      if (authHint) {
+        authHint.textContent = `Check ${email} for your sign-in link.`;
+      }
+    } catch (err) {
+      alert(err?.message || "Could not send sign-in link.");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Send sign-in link";
+      }
+    }
+  });
+
+  signOutBtn?.addEventListener("click", async () => {
+    stopSyncPolling();
+    teardownSupabaseRealtime();
+    syncAvailable = false;
+    supabaseSyncStarted = false;
+    supabaseUserId = null;
+    supabaseAuthEmail = null;
+    await client.auth.signOut();
+    updateAuthUi();
+    updateSyncUi();
+  });
+
+  client.auth.onAuthStateChange((_event, session) => {
+    const wasSignedIn = Boolean(supabaseUserId);
+    supabaseUserId = session?.user?.id || null;
+    supabaseAuthEmail = session?.user?.email || null;
+    updateAuthUi();
+
+    if (supabaseUserId && !wasSignedIn) {
+      startSupabaseSync();
+    } else if (!supabaseUserId && wasSignedIn) {
+      stopSyncPolling();
+      teardownSupabaseRealtime();
+      syncAvailable = false;
+      updateSyncUi();
+    }
+  });
+
+  client.auth.getSession().then(({ data }) => {
+    supabaseUserId = data.session?.user?.id || null;
+    supabaseAuthEmail = data.session?.user?.email || null;
+    updateAuthUi();
+    if (supabaseUserId) startSupabaseSync();
+    else updateSyncUi();
+  });
+}
+
+async function bootstrapRemoteSync(remote) {
+  await pullRemoteSync();
+
+  const hasLocal = countLocalTasks() > 0;
+  const hasRemote = countPayloadTasks(remote) > 0;
+
+  if (!hasLocal && !hasRemote) {
+    seedHomeFromNotebook();
+    markSyncDirty();
+  }
+
+  if (!getSyncMeta().updatedAt || syncDirty) {
+    await pushRemoteSync({ force: true });
+  }
+
+  updateSyncUi();
+  if (!syncPollTimer) {
+    syncPollTimer = setInterval(() => pullRemoteSync(), SYNC_POLL_MS);
+  }
+  if (!syncListenersBound) {
+    syncListenersBound = true;
+    document.addEventListener("visibilitychange", onSyncVisibilityChange);
+    window.addEventListener("focus", onSyncWindowFocus);
+  }
+}
+
+function onSyncVisibilityChange() {
+  if (document.visibilityState === "visible") pullRemoteSync();
+}
+
+function onSyncWindowFocus() {
+  pullRemoteSync();
+}
+
+async function startSupabaseSync() {
+  if (!supabaseUserId) return;
+  if (supabaseSyncStarted && syncAvailable) return;
+  getSupabaseClient();
+  syncBackend = "supabase";
+  syncAvailable = true;
+  supabaseSyncStarted = true;
+  setupSupabaseRealtime();
+  try {
+    const remote = await fetchRemotePayload();
+    await bootstrapRemoteSync(remote);
+  } catch {
+    syncAvailable = false;
+    supabaseSyncStarted = false;
+    updateSyncUi();
+  }
+}
+
+async function initLocalSync() {
+  syncBackend = "local";
+  try {
+    const remote = await fetchRemotePayload();
+    syncAvailable = true;
+    await bootstrapRemoteSync(remote);
+  } catch {
+    syncAvailable = false;
+    updateSyncUi();
+  }
 }
 
 function getSyncMeta() {
@@ -2116,9 +2474,7 @@ async function pullRemoteSync(options = {}) {
   if (syncDirty && !options.force) return;
   syncPulling = true;
   try {
-    const response = await fetch(SYNC_API, { cache: "no-store" });
-    if (!response.ok) return;
-    const remote = await response.json();
+    const remote = await fetchRemotePayload();
     if (!remote?.updatedAt) {
       const hasLocal =
         getContexts().some((ctx) => loadTasks(ctx).length > 0 || loadBrainDump(ctx).length > 0);
@@ -2149,6 +2505,7 @@ async function pullRemoteSync(options = {}) {
       updateSyncUi();
     }
   } catch {
+    if (syncBackend !== "supabase") syncAvailable = false;
     updateSyncUi();
   } finally {
     syncPulling = false;
@@ -2162,20 +2519,14 @@ async function pushRemoteSync(options = {}) {
   syncPushing = true;
   try {
     const payload = buildSyncPayload();
-    const response = await fetch(SYNC_API, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) return;
-    const saved = await response.json();
+    const saved = await saveRemotePayload(payload);
     if (saved?.updatedAt) {
       setSyncMeta({ updatedAt: saved.updatedAt });
       syncDirty = false;
       updateSyncUi();
     }
   } catch {
-    syncAvailable = false;
+    if (syncBackend !== "supabase") syncAvailable = false;
     updateSyncUi();
   } finally {
     syncPushing = false;
@@ -2192,55 +2543,72 @@ function scheduleSyncPush() {
 }
 
 function updateSyncUi() {
-  const hint = document.querySelector(".sync-hint");
+  const hint = document.getElementById("sync-hint") || document.querySelector(".sync-hint");
   const status = document.getElementById("sync-status");
   const banner = document.getElementById("sync-banner");
+  const bannerText = document.getElementById("sync-banner-text");
   const dismissed = localStorage.getItem(SYNC_BANNER_KEY) === "1";
   const host = location.hostname;
   const isRemoteHost = host !== "localhost" && host !== "127.0.0.1";
   const localCount = countLocalTasks();
+  const usingSupabase = isSupabaseConfigured();
 
   if (status) {
-    if (syncAvailable) {
+    if (usingSupabase && !supabaseUserId) {
+      status.textContent = "Sign in to sync across devices";
+      status.classList.add("sync-status-offline");
+    } else if (syncAvailable) {
       const taskNote = localCount === 1 ? "1 task" : `${localCount} tasks`;
+      const cloudNote = usingSupabase ? "Cloud sync" : "Connected";
       status.textContent = syncDirty
-        ? `Connected — saving… (${taskNote} on this device)`
-        : `Connected — synced (${taskNote} on this device)`;
+        ? `${cloudNote} — saving… (${taskNote} on this device)`
+        : `${cloudNote} — synced (${taskNote} on this device)`;
       status.classList.remove("sync-status-offline");
     } else {
-      status.textContent = "Not connected to sync server";
+      status.textContent = usingSupabase
+        ? "Cloud sync unavailable — check your connection"
+        : "Not connected to sync server";
       status.classList.add("sync-status-offline");
     }
   }
 
   if (syncAvailable) {
     if (hint) {
-      hint.textContent = isRemoteHost
-        ? `This device is on ${location.host}. Tasks sync with other devices using the same address.`
-        : "On your phone, open the http:// address from ./serve.sh (hotspot IP), not localhost.";
+      hint.textContent = usingSupabase
+        ? "Signed-in devices share the same tasks automatically."
+        : isRemoteHost
+          ? `This device is on ${location.host}. Tasks sync with other devices using the same address.`
+          : "On your phone, open the http:// address from ./serve.sh (hotspot IP), not localhost.";
     }
     if (banner) banner.classList.add("hidden");
     return;
   }
 
   if (hint) {
-    hint.textContent =
-      "Run ./serve.sh on your Mac, then open the same http:// address on phone and computer.";
+    hint.textContent = usingSupabase
+      ? "Your tasks stay on this device until you sign in with email."
+      : "Run ./serve.sh on your Mac, then open the same http:// address on phone and computer.";
   }
   if (banner && isRemoteHost && !dismissed) {
     banner.classList.remove("hidden");
-    banner.querySelector("p").innerHTML =
-      "Sync server not detected. Run <strong>./serve.sh</strong> on your Mac and use the same URL on every device.";
+    const message = usingSupabase
+      ? "Sign in under <strong>Settings → Data &amp; sync</strong> to keep tasks in sync across devices."
+      : "Sync server not detected. Run <strong>./serve.sh</strong> on your Mac and use the same URL on every device.";
+    if (bannerText) bannerText.innerHTML = message;
+    else banner.querySelector("p").innerHTML = message;
   }
 }
 
 async function forceSyncNow() {
+  if (isSupabaseConfigured() && !supabaseUserId) {
+    alert("Sign in under Settings → Data & sync to use cloud sync.");
+    return;
+  }
+
   try {
-    const probe = await fetch(SYNC_API, { cache: "no-store" });
-    if (!probe.ok) throw new Error("sync unavailable");
+    const remote = await fetchRemotePayload();
     syncAvailable = true;
     syncDirty = false;
-    const remote = await probe.json();
     const localCount = countLocalTasks();
     const remoteCount = countPayloadTasks(remote);
 
@@ -2256,45 +2624,19 @@ async function forceSyncNow() {
   } catch {
     syncAvailable = false;
     updateSyncUi();
-    alert(
-      "Could not reach the sync server. On your phone, open the exact http:// address from ./serve.sh on your Mac (hotspot IP, not localhost)."
-    );
+    const message = isSupabaseConfigured()
+      ? "Could not reach cloud sync. Check your connection and try again."
+      : "Could not reach the sync server. On your phone, open the exact http:// address from ./serve.sh on your Mac (hotspot IP, not localhost).";
+    alert(message);
   }
 }
 
 async function initRemoteSync() {
-  try {
-    const response = await fetch(SYNC_API, { cache: "no-store" });
-    if (!response.ok) {
-      updateSyncUi();
-      return;
-    }
-    syncAvailable = true;
-    const remote = await response.json();
-    await pullRemoteSync();
-
-    const hasLocal = countLocalTasks() > 0;
-    const hasRemote = countPayloadTasks(remote) > 0;
-
-    if (!hasLocal && !hasRemote) {
-      seedHomeFromNotebook();
-      markSyncDirty();
-    }
-
-    if (!getSyncMeta().updatedAt || syncDirty) {
-      await pushRemoteSync({ force: true });
-    }
-
-    updateSyncUi();
-    setInterval(() => pullRemoteSync(), SYNC_POLL_MS);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") pullRemoteSync();
-    });
-    window.addEventListener("focus", () => pullRemoteSync());
-  } catch {
-    syncAvailable = false;
-    updateSyncUi();
+  if (isSupabaseConfigured()) {
+    if (!supabaseUserId) updateSyncUi();
+    return;
   }
+  await initLocalSync();
 }
 
 function getPage() {
@@ -2990,14 +3332,28 @@ function renderHomeCategoryTags() {
 }
 
 function syncHomeTagScrollButtons() {
+  const desktop = window.matchMedia("(min-width: 769px)").matches;
   document.querySelectorAll(".home-plan-tag-row").forEach((row) => {
     const scroller = row.querySelector(".priority-visibility-tags--home, .home-category-tags");
-    const btn = row.querySelector(".home-tag-scroll-btn");
-    if (!scroller || !btn) return;
+    const prevBtn = row.querySelector(".home-tag-scroll-btn--prev");
+    const nextBtn = row.querySelector(".home-tag-scroll-btn--next");
+    if (!scroller || !prevBtn || !nextBtn) return;
+
+    if (!desktop) {
+      row.classList.remove("has-prev", "has-next");
+      prevBtn.hidden = true;
+      nextBtn.hidden = true;
+      return;
+    }
+
     const maxScroll = scroller.scrollWidth - scroller.clientWidth;
-    const canScrollMore = maxScroll > 4 && scroller.scrollLeft < maxScroll - 4;
-    row.classList.toggle("has-more", canScrollMore);
-    btn.hidden = !canScrollMore;
+    const canScroll = maxScroll > 4;
+    const canPrev = canScroll && scroller.scrollLeft > 4;
+    const canNext = canScroll && scroller.scrollLeft < maxScroll - 4;
+    row.classList.toggle("has-prev", canPrev);
+    row.classList.toggle("has-next", canNext);
+    prevBtn.hidden = !canPrev;
+    nextBtn.hidden = !canNext;
   });
 }
 
@@ -3008,10 +3364,12 @@ function setupHomeTagScrollButtons() {
 
   filters.addEventListener("click", (event) => {
     const btn = event.target.closest(".home-tag-scroll-btn");
-    if (!btn) return;
+    if (!btn || window.matchMedia("(max-width: 768px)").matches) return;
     const scroller = document.getElementById(btn.dataset.scrollTarget || "");
     if (!scroller) return;
-    scroller.scrollBy({ left: Math.max(scroller.clientWidth * 0.7, 140), behavior: "smooth" });
+    const dir = Number(btn.dataset.scrollDir) || 1;
+    const amount = Math.max(scroller.clientWidth * 0.7, 140) * dir;
+    scroller.scrollBy({ left: amount, behavior: "smooth" });
   });
 
   filters.querySelectorAll(".priority-visibility-tags--home, .home-category-tags").forEach((scroller) => {
@@ -6122,16 +6480,6 @@ function getOpenTasksSnapshot() {
 
 let reflectionSelectedDayKey = null;
 
-function getReflectionWeekDayKeys() {
-  const keys = [];
-  const now = new Date();
-  for (let offset = 0; offset < 7; offset += 1) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
-    keys.push(archiveDayKey(d.toISOString()));
-  }
-  return keys;
-}
-
 function ensureReflectionSelectedDayKey() {
   const week = getReflectionWeekDayKeys();
   if (!reflectionSelectedDayKey || !week.includes(reflectionSelectedDayKey)) {
@@ -6176,7 +6524,7 @@ function reflectionDayChipLabel(dayKey) {
 }
 
 function getDailySummaryForDay(dayKey) {
-  const completed = getCompletedTasksForDay(dayKey);
+  const completed = getCompletedTasksForDay(dayKey, { allowDemo: true });
   return {
     dayKey,
     completedCount: completed.length,
@@ -6186,6 +6534,7 @@ function getDailySummaryForDay(dayKey) {
 
 /** In-memory only — never written to localStorage / sync. Used when a day has no wins. */
 const DEMO_REFLECTION_ID_PREFIX = "demo-reflect-";
+const REFLECTION_DEMO_DAY_COUNT = 15;
 
 function wantsForcedReflectionDemoWins() {
   try {
@@ -6193,6 +6542,16 @@ function wantsForcedReflectionDemoWins() {
   } catch {
     return false;
   }
+}
+
+function getReflectionWeekDayKeys() {
+  const keys = [];
+  const now = new Date();
+  for (let offset = 0; offset < REFLECTION_DEMO_DAY_COUNT; offset += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
+    keys.push(archiveDayKey(d.toISOString()));
+  }
+  return keys;
 }
 
 function buildDemoReflectionWins(dayKey = reflectionTodayKey()) {
@@ -6207,61 +6566,111 @@ function buildDemoReflectionWins(dayKey = reflectionTodayKey()) {
   const slot = Math.max(0, week.indexOf(dayKey));
   const id = (n) => `${DEMO_REFLECTION_ID_PREFIX}${slot}-${n}`;
 
-  /** Seven distinct shapes so each day chip lands on a different persona. */
+  /** One win shape per persona so paging the day strip previews the full catalog. */
   const sets = [
-    // 0 Today — Bookend Day (morning + evening anchors)
+    // bookend
     [
       { id: id(1), text: "Morning stretch + walk", tier: 2, done: true, notes: "", completedAt: at(7, 45), context: "health" },
       { id: id(2), text: "Send client proposal", tier: 1, done: true, notes: "Felt clearer after outlining the ask.", completedAt: at(11, 20), context: "work" },
       { id: id(3), text: "Walk the dog at sunset", tier: 2, done: true, notes: "", completedAt: at(18, 40), context: "home" },
     ],
-    // 1 — Morning Machine (2 morning + 2 afternoon so front-loaded doesn’t outrank)
+    // morning
     [
       { id: id(1), text: "Inbox zero sprint", tier: 2, done: true, notes: "", completedAt: at(7, 15), context: "work" },
       { id: id(2), text: "Prep lunch for the week", tier: 3, done: true, notes: "", completedAt: at(8, 40), context: "home" },
       { id: id(3), text: "Afternoon stretch", tier: 2, done: true, notes: "", completedAt: at(13, 20), context: "health" },
       { id: id(4), text: "Clear desk clutter", tier: 3, done: true, notes: "", completedAt: at(15, 10), context: "work" },
     ],
-    // 2 — The Closer (tier-1 finish)
+    // front-loaded
     [
-      { id: id(1), text: "Clear kitchen counters", tier: 3, done: true, notes: "", completedAt: at(10, 5), context: "home" },
-      { id: id(2), text: "Pick up prescriptions", tier: 4, done: true, notes: "", completedAt: at(14, 20), context: "errands" },
-      { id: id(3), text: "Ship the deck to stakeholders", tier: 1, done: true, notes: "Last move of the day.", completedAt: at(16, 55), context: "work" },
+      { id: id(1), text: "Ship morning standup notes", tier: 2, done: true, notes: "", completedAt: at(7, 5), context: "work" },
+      { id: id(2), text: "Deep-work block on the deck", tier: 1, done: true, notes: "", completedAt: at(8, 30), context: "work" },
+      { id: id(3), text: "Quick kitchen reset", tier: 3, done: true, notes: "", completedAt: at(10, 15), context: "home" },
+      { id: id(4), text: "Short walk after lunch", tier: 3, done: true, notes: "", completedAt: at(13, 10), context: "health" },
     ],
-    // 3 — Home Captain
-    [
-      { id: id(1), text: "Fold laundry", tier: 3, done: true, notes: "", completedAt: at(9, 10), context: "home" },
-      { id: id(2), text: "Reset living room", tier: 3, done: true, notes: "", completedAt: at(12, 30), context: "home" },
-      { id: id(3), text: "Cook a real dinner", tier: 2, done: true, notes: "", completedAt: at(18, 15), context: "home" },
-    ],
-    // 4 — Soft Landing (hard afternoon open → soft evening close; avoids Bookend)
-    [
-      { id: id(1), text: "Lead standup + unblockers", tier: 1, done: true, notes: "", completedAt: at(13, 5), context: "work" },
-      { id: id(2), text: "Draft follow-up emails", tier: 2, done: true, notes: "", completedAt: at(15, 40), context: "work" },
-      { id: id(3), text: "Evening journal", tier: 3, done: true, notes: "", completedAt: at(20, 10), context: "personal" },
-    ],
-    // 5 — Closing Shift (evening-heavy)
+    // closing
     [
       { id: id(1), text: "Grocery run", tier: 3, done: true, notes: "", completedAt: at(17, 20), context: "errands" },
       { id: id(2), text: "Pack tomorrow’s bag", tier: 3, done: true, notes: "", completedAt: at(19, 5), context: "home" },
       { id: id(3), text: "Wind-down walk", tier: 2, done: true, notes: "", completedAt: at(20, 30), context: "health" },
     ],
-    // 6 — Top-priority Hunter (tier-1 first)
+    // closer
+    [
+      { id: id(1), text: "Clear kitchen counters", tier: 3, done: true, notes: "", completedAt: at(10, 5), context: "home" },
+      { id: id(2), text: "Pick up prescriptions", tier: 4, done: true, notes: "", completedAt: at(14, 20), context: "errands" },
+      { id: id(3), text: "Ship the deck to stakeholders", tier: 1, done: true, notes: "Last move of the day.", completedAt: at(16, 55), context: "work" },
+    ],
+    // hunter
     [
       { id: id(1), text: "Finish board update", tier: 1, done: true, notes: "", completedAt: at(8, 50), context: "work" },
       { id: id(2), text: "Schedule dentist", tier: 4, done: true, notes: "", completedAt: at(11, 15), context: "errands" },
       { id: id(3), text: "Water plants", tier: 3, done: true, notes: "", completedAt: at(15, 40), context: "home" },
     ],
+    // soft-landing
+    [
+      { id: id(1), text: "Lead standup + unblockers", tier: 1, done: true, notes: "", completedAt: at(13, 5), context: "work" },
+      { id: id(2), text: "Draft follow-up emails", tier: 2, done: true, notes: "", completedAt: at(15, 40), context: "work" },
+      { id: id(3), text: "Evening journal", tier: 3, done: true, notes: "", completedAt: at(20, 10), context: "personal" },
+    ],
+    // easy-wins
+    [
+      { id: id(1), text: "Empty the dishwasher", tier: 4, done: true, notes: "", completedAt: at(9, 20), context: "home" },
+      { id: id(2), text: "Reply to two texts", tier: 4, done: true, notes: "", completedAt: at(11, 5), context: "personal" },
+      { id: id(3), text: "Take out recycling", tier: 3, done: true, notes: "", completedAt: at(14, 40), context: "home" },
+      { id: id(4), text: "Water the herbs", tier: 3, done: true, notes: "", completedAt: at(16, 15), context: "home" },
+    ],
+    // cat-home
+    [
+      { id: id(1), text: "Fold laundry", tier: 3, done: true, notes: "", completedAt: at(9, 10), context: "home" },
+      { id: id(2), text: "Reset living room", tier: 3, done: true, notes: "", completedAt: at(12, 30), context: "home" },
+      { id: id(3), text: "Cook a real dinner", tier: 2, done: true, notes: "", completedAt: at(18, 15), context: "home" },
+    ],
+    // cat-errands
+    [
+      { id: id(1), text: "Drop off dry cleaning", tier: 3, done: true, notes: "", completedAt: at(10, 20), context: "errands" },
+      { id: id(2), text: "Post office run", tier: 3, done: true, notes: "", completedAt: at(13, 5), context: "errands" },
+      { id: id(3), text: "Hardware store pickup", tier: 2, done: true, notes: "", completedAt: at(16, 40), context: "errands" },
+    ],
+    // cat-work
+    [
+      { id: id(1), text: "Outline the Q3 brief", tier: 2, done: true, notes: "", completedAt: at(10, 15), context: "work" },
+      { id: id(2), text: "Review teammate PR", tier: 2, done: true, notes: "", completedAt: at(13, 45), context: "work" },
+      { id: id(3), text: "Send status update", tier: 2, done: true, notes: "", completedAt: at(16, 20), context: "work" },
+    ],
+    // cat-health
+    [
+      { id: id(1), text: "Morning mobility flow", tier: 2, done: true, notes: "", completedAt: at(8, 10), context: "health" },
+      { id: id(2), text: "Midday walk outside", tier: 3, done: true, notes: "", completedAt: at(12, 30), context: "health" },
+      { id: id(3), text: "Evening stretch + water", tier: 3, done: true, notes: "", completedAt: at(19, 20), context: "health" },
+    ],
+    // cat-personal
+    [
+      { id: id(1), text: "Catch up on reading", tier: 3, done: true, notes: "", completedAt: at(10, 40), context: "personal" },
+      { id: id(2), text: "Call a friend back", tier: 3, done: true, notes: "", completedAt: at(14, 15), context: "personal" },
+      { id: id(3), text: "Plan weekend fun", tier: 2, done: true, notes: "", completedAt: at(17, 50), context: "personal" },
+    ],
+    // cat-faith
+    [
+      { id: id(1), text: "Morning quiet time", tier: 2, done: true, notes: "", completedAt: at(7, 30), context: "faith" },
+      { id: id(2), text: "Write a short prayer", tier: 3, done: true, notes: "", completedAt: at(12, 10), context: "faith" },
+      { id: id(3), text: "Evening gratitude note", tier: 3, done: true, notes: "", completedAt: at(20, 5), context: "faith" },
+    ],
+    // fallback — mixed so no single story wins hard
+    [
+      { id: id(1), text: "Tidy one drawer", tier: 3, done: true, notes: "", completedAt: at(11, 20), context: "home" },
+      { id: id(2), text: "Reply to a work ping", tier: 2, done: true, notes: "", completedAt: at(14, 5), context: "work" },
+      { id: id(3), text: "Pick up a card", tier: 4, done: true, notes: "", completedAt: at(16, 35), context: "errands" },
+    ],
   ];
 
-  return [...(sets[slot] || sets[0])].sort(
+  return [...(sets[slot] || sets[sets.length - 1])].sort(
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
 }
 
 /**
- * Catalog fills for week browsing — distinct personas across the 7 day chips.
- * Used when a day is sparse / demo and we still want variety in the vibe card.
+ * Catalog fills for week browsing — one persona per day chip.
+ * Used when a day is demo-filled so each page shows a different vibe.
  */
 const REFLECTION_WEEK_PERSONA_FILLS = [
   {
@@ -6279,25 +6688,11 @@ const REFLECTION_WEEK_PERSONA_FILLS = [
     tone: "forest",
   },
   {
-    kind: "closer",
-    name: "The Closer",
-    meaning: "You knocked out a top priority.",
-    blurb: "You warmed up, then saved the punch for a clean finish.",
+    kind: "front-loaded",
+    name: "Front-loaded Day",
+    meaning: "Most of your wins landed before noon.",
+    blurb: "Heavy before noon. Afternoon got to coast a little.",
     tone: "forest",
-  },
-  {
-    kind: "cat-home",
-    name: "Home Captain",
-    meaning: "Most of the day’s energy went to Home.",
-    blurb: "Home got the lion’s share — the fort held.",
-    tone: "peach",
-  },
-  {
-    kind: "soft-landing",
-    name: "Soft Landing",
-    meaning: "You opened strong and closed soft.",
-    blurb: "Serious open, then a soft close. The day knew when to exhale.",
-    tone: "peach",
   },
   {
     kind: "closing",
@@ -6307,10 +6702,80 @@ const REFLECTION_WEEK_PERSONA_FILLS = [
     tone: "peach",
   },
   {
+    kind: "closer",
+    name: "The Closer",
+    meaning: "You knocked out a top priority.",
+    blurb: "You warmed up, then saved the punch for a clean finish.",
+    tone: "forest",
+  },
+  {
     kind: "hunter",
     name: "Top-priority Hunter",
     meaning: "You went after what mattered most first.",
     blurb: "Big rocks before pebbles — you went after what mattered first.",
+    tone: "forest",
+  },
+  {
+    kind: "soft-landing",
+    name: "Soft Landing",
+    meaning: "You opened strong and closed soft.",
+    blurb: "Serious open, then a soft close. The day knew when to exhale.",
+    tone: "peach",
+  },
+  {
+    kind: "easy-wins",
+    name: "Easy-wins Collector",
+    meaning: "You stacked a bunch of quick wins.",
+    blurb: "Small moves, real momentum — quick checks stacked up.",
+    tone: "peach",
+  },
+  {
+    kind: "cat-home",
+    name: "Home Captain",
+    meaning: "Most of the day’s energy went to Home.",
+    blurb: "Home got the lion’s share — the fort held.",
+    tone: "peach",
+  },
+  {
+    kind: "cat-errands",
+    name: "Errand Runner",
+    meaning: "You knocked out the out-and-about stuff.",
+    blurb: "Out and back. Errands mode: unlocked.",
+    tone: "forest",
+  },
+  {
+    kind: "cat-work",
+    name: "Work Lead",
+    meaning: "Most of the day’s energy went to Work.",
+    blurb: "The desk led the day. Focus stayed on the work.",
+    tone: "forest",
+  },
+  {
+    kind: "cat-health",
+    name: "Body Mover",
+    meaning: "You made room to move your body.",
+    blurb: "You moved on purpose. Body got a real vote that day.",
+    tone: "forest",
+  },
+  {
+    kind: "cat-personal",
+    name: "Personal Pace",
+    meaning: "You tended to personal things.",
+    blurb: "Kept it personal. Quiet progress that still counts.",
+    tone: "peach",
+  },
+  {
+    kind: "cat-faith",
+    name: "Quiet Keeper",
+    meaning: "You made quiet space for what matters.",
+    blurb: "You made room for what matters. Quiet space, kept.",
+    tone: "forest",
+  },
+  {
+    kind: "fallback",
+    name: "Presence Player",
+    meaning: "You showed up and moved a few things forward.",
+    blurb: "Not flashy — just present. A few honest checks still count.",
     tone: "forest",
   },
 ];
@@ -6333,13 +6798,14 @@ function getWeekSlotPersonaFill(dayKey) {
   };
 }
 
-function getCompletedTasksForDay(dayKey) {
+function getCompletedTasksForDay(dayKey, { includeArchived = true, allowDemo = false } = {}) {
   const target = dayKey || reflectionTodayKey();
   const seen = new Set();
   const tasks = [];
   getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (t.archived || !t.done || !t.completedAt) return;
+      if (!includeArchived && t.archived) return;
+      if (!t.done || !t.completedAt) return;
       if (String(t.id || "").startsWith(DEMO_REFLECTION_ID_PREFIX)) return;
       if (archiveDayKey(t.completedAt) !== target) return;
       const key = `${ctx}:${t.id}`;
@@ -6357,7 +6823,12 @@ function getCompletedTasksForDay(dayKey) {
     return buildDemoReflectionWins(target);
   }
 
-  // Real data only — never seed demo wins / week personas on empty days.
+  // Reflection-only: fill sparse past days with persona examples.
+  const isToday = target === reflectionTodayKey();
+  if (allowDemo && !isToday && sorted.length < 2) {
+    return buildDemoReflectionWins(target);
+  }
+
   return sorted;
 }
 
@@ -6692,33 +7163,33 @@ function reflectionPersonaMarkSvg(kind) {
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-bookend-left">
           <rect x="3.5" y="6.5" width="5.2" height="19" rx="0.9" fill="#0e3030"/>
-          <path d="M5.2 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
+          <path d="M5.2 8v16" stroke="#f4b49a" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
         </g>
         <g class="rpm-bookend-mids">
-          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#ffdbd2"/>
+          <rect x="9.4" y="9" width="3" height="16.5" rx="0.55" fill="#f4b49a"/>
           <rect x="12.7" y="8" width="2.6" height="17.5" rx="0.55" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
-          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#ffdbd2" opacity="0.9"/>
+          <rect class="rpm-bookend-slot" x="15.6" y="9.5" width="3.2" height="16" rx="0.55" fill="#f4b49a" opacity="0.9"/>
           <rect x="19.1" y="8.5" width="2.4" height="17" rx="0.5" fill="#fdf9f4" stroke="#0e3030" stroke-width="0.7"/>
         </g>
         <g class="rpm-bookend-right">
           <rect x="23.2" y="6.5" width="5.2" height="19" rx="0.9" fill="#0e3030"/>
-          <path d="M26.7 8v16" stroke="#ffdbd2" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
+          <path d="M26.7 8v16" stroke="#f4b49a" stroke-width="0.9" stroke-linecap="round" opacity="0.75"/>
         </g>
       </svg>`,
     morning: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-sunrise-horizon" d="M3 23.5h26" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
-        <path d="M3 23.5c4.5-2.2 9-3.2 13-3.2s8.5 1 13 3.2" fill="#ffdbd2" opacity="0.55"/>
+        <path d="M3 23.5c4.5-2.2 9-3.2 13-3.2s8.5 1 13 3.2" fill="#f4b49a" opacity="0.55"/>
         <g class="rpm-sunrise-sun">
-          <g class="rpm-sunrise-rays" stroke="#ffdbd2" stroke-width="1.35" stroke-linecap="round">
+          <g class="rpm-sunrise-rays" stroke="#f4b49a" stroke-width="1.35" stroke-linecap="round">
             <path d="M16 6.2v2.6"/>
             <path d="M8.4 10.2l1.9 1.9"/>
             <path d="M23.6 10.2l-1.9 1.9"/>
             <path d="M5.8 17.5h2.5"/>
             <path d="M23.7 17.5h2.5"/>
           </g>
-          <circle cx="16" cy="17.5" r="5.1" fill="#ffdbd2"/>
-          <circle cx="14.4" cy="16" r="1.5" fill="#ffdbd2" opacity="0.55"/>
+          <circle cx="16" cy="17.5" r="5.1" fill="#f4b49a"/>
+          <circle cx="14.4" cy="16" r="1.5" fill="#f4b49a" opacity="0.55"/>
         </g>
       </svg>`,
     "front-loaded": `
@@ -6731,30 +7202,30 @@ function reflectionPersonaMarkSvg(kind) {
             <path d="M8.4 10.2l1.9 1.9"/>
             <path d="M23.6 10.2l-1.9 1.9"/>
           </g>
-          <circle cx="16" cy="17.5" r="5.1" fill="#ffdbd2"/>
+          <circle cx="16" cy="17.5" r="5.1" fill="#f4b49a"/>
         </g>
       </svg>`,
     closing: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-dusk-moon">
-          <path d="M19.2 8.2a8.2 8.2 0 1 0 6.1 12.8 6.6 6.6 0 1 1-6.1-12.8Z" fill="#ffdbd2"/>
+          <path d="M19.2 8.2a8.2 8.2 0 1 0 6.1 12.8 6.6 6.6 0 1 1-6.1-12.8Z" fill="#f4b49a"/>
         </g>
         <g class="rpm-dusk-stars" fill="#0e3030">
           <circle class="rpm-dusk-star rpm-dusk-star-1" cx="8.2" cy="11" r="1.15"/>
           <circle class="rpm-dusk-star rpm-dusk-star-2" cx="12.5" cy="7.2" r="0.85"/>
-          <circle class="rpm-dusk-star rpm-dusk-star-3" cx="9.8" cy="16.5" r="0.7" fill="#ffdbd2"/>
+          <circle class="rpm-dusk-star rpm-dusk-star-3" cx="9.8" cy="16.5" r="0.7" fill="#f4b49a"/>
         </g>
       </svg>`,
     closer: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle cx="16" cy="16" r="11" fill="#ffdbd2"/>
+        <circle cx="16" cy="16" r="11" fill="#f4b49a"/>
         <circle class="rpm-check-ring" cx="16" cy="16" r="11" stroke="#0e3030" stroke-width="1.4" opacity="0.2"/>
         <path class="rpm-check-mark" d="M10.2 16.4l3.6 3.6 8.2-8.4" stroke="#0e3030" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
     hunter: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <circle class="rpm-target-ring" cx="16" cy="16" r="10" stroke="#0e3030" stroke-width="1.5" opacity="0.35"/>
-        <circle class="rpm-target-ring" cx="16" cy="16" r="6.2" stroke="#ffdbd2" stroke-width="1.6"/>
+        <circle class="rpm-target-ring" cx="16" cy="16" r="6.2" stroke="#f4b49a" stroke-width="1.6"/>
         <circle class="rpm-target-core" cx="16" cy="16" r="2.4" fill="#0e3030"/>
         <g class="rpm-target-cross" stroke="#0e3030" stroke-width="1.3" stroke-linecap="round" opacity="0.55">
           <path d="M16 4.5v3.2M16 24.3v3.2M4.5 16h3.2M24.3 16h3.2"/>
@@ -6765,9 +7236,9 @@ function reflectionPersonaMarkSvg(kind) {
         <g class="rpm-house">
           <path d="M5.5 15.2L16 6.2l10.5 9" stroke="#0e3030" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M8.8 14.5V25h14.4V14.5" stroke="#0e3030" stroke-width="1.75" stroke-linejoin="round"/>
-          <rect x="13.5" y="18.2" width="5" height="6.8" rx="0.55" fill="#ffdbd2"/>
+          <rect x="13.5" y="18.2" width="5" height="6.8" rx="0.55" fill="#f4b49a"/>
           <path d="M21.2 10.2v-2.4h2.6" stroke="#0e3030" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          <rect x="10.2" y="16.8" width="3.2" height="2.6" rx="0.35" fill="#ffdbd2"/>
+          <rect x="10.2" y="16.8" width="3.2" height="2.6" rx="0.35" fill="#f4b49a"/>
         </g>
       </svg>`,
     "soft-landing": `
@@ -6775,54 +7246,54 @@ function reflectionPersonaMarkSvg(kind) {
         <ellipse class="rpm-soft-shadow" cx="16" cy="25.2" rx="7.2" ry="1.4" fill="#0e3030" opacity="0.18"/>
         <path class="rpm-soft-ground" d="M6 25.2h20" stroke="#0e3030" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
         <g class="rpm-soft-lander">
-          <ellipse cx="16" cy="13.2" rx="8.4" ry="5.4" fill="#ffdbd2"/>
-          <ellipse cx="16" cy="13.8" rx="5.6" ry="3.2" fill="#ffdbd2" opacity="0.55"/>
+          <ellipse cx="16" cy="13.2" rx="8.4" ry="5.4" fill="#f4b49a"/>
+          <ellipse cx="16" cy="13.8" rx="5.6" ry="3.2" fill="#f4b49a" opacity="0.55"/>
           <ellipse cx="12.8" cy="11.4" rx="2.2" ry="1.3" fill="#fdf9f4" opacity="0.7"/>
         </g>
       </svg>`,
     "easy-wins": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-tick rpm-tick-1">
-          <rect x="6" y="5.5" width="20" height="6.2" rx="1.2" fill="#ffdbd2"/>
+          <rect x="6" y="5.5" width="20" height="6.2" rx="1.2" fill="#f4b49a"/>
           <path d="M9.2 8.6l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
         <g class="rpm-tick rpm-tick-2">
-          <rect x="6" y="12.9" width="20" height="6.2" rx="1.2" fill="#ffdbd2" opacity="0.9"/>
+          <rect x="6" y="12.9" width="20" height="6.2" rx="1.2" fill="#f4b49a" opacity="0.9"/>
           <path d="M9.2 16l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
         <g class="rpm-tick rpm-tick-3">
-          <rect x="6" y="20.3" width="20" height="6.2" rx="1.2" fill="#ffdbd2"/>
+          <rect x="6" y="20.3" width="20" height="6.2" rx="1.2" fill="#f4b49a"/>
           <path d="M9.2 23.4l2 2 4.6-4.4" stroke="#0e3030" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
       </svg>`,
     "cat-errands": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <path class="rpm-errand-path" d="M5 22c2.5-9 6.5-13 11-13 5.2 0 8.2 5.5 11 13" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" stroke-dasharray="2.8 2.4" opacity="0.4"/>
-        <path d="M24.5 9.5l2.2 1.2-1.5 2.4" stroke="#ffdbd2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24.5 9.5l2.2 1.2-1.5 2.4" stroke="#f4b49a" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
         <g class="rpm-errand-dot">
-          <circle cx="7.5" cy="20.5" r="3.1" fill="#ffdbd2"/>
+          <circle cx="7.5" cy="20.5" r="3.1" fill="#f4b49a"/>
           <circle cx="7.5" cy="20.5" r="1.15" fill="#0e3030" opacity="0.35"/>
         </g>
       </svg>`,
     "cat-work": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-briefcase">
-          <rect x="5.5" y="12" width="21" height="13.5" rx="2.2" fill="#ffdbd2" stroke="#0e3030" stroke-width="1.55"/>
+          <rect x="5.5" y="12" width="21" height="13.5" rx="2.2" fill="#f4b49a" stroke="#0e3030" stroke-width="1.55"/>
           <path d="M11.5 12V9.8a2.2 2.2 0 0 1 2.2-2.2h4.6A2.2 2.2 0 0 1 20.5 9.8V12" stroke="#0e3030" stroke-width="1.55"/>
-          <path d="M5.5 17.2h21" stroke="#ffdbd2" stroke-width="1.7"/>
+          <path d="M5.5 17.2h21" stroke="#f4b49a" stroke-width="1.7"/>
           <rect x="14.2" y="15.6" width="3.6" height="2.4" rx="0.5" fill="#0e3030"/>
         </g>
       </svg>`,
     "cat-health": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path class="rpm-health-heart" d="M16 26s-9.2-5.8-9.2-12.2A5.4 5.4 0 0 1 16 10.2a5.4 5.4 0 0 1 9.2 3.6C25.2 20.2 16 26 16 26Z" fill="#ffdbd2"/>
+        <path class="rpm-health-heart" d="M16 26s-9.2-5.8-9.2-12.2A5.4 5.4 0 0 1 16 10.2a5.4 5.4 0 0 1 9.2 3.6C25.2 20.2 16 26 16 26Z" fill="#f4b49a"/>
         <path class="rpm-health-pulse" d="M9.5 15.8h3.2l1.6-3.4 2.6 6.6 1.5-3.2h4.1" stroke="#0e3030" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
     "cat-personal": `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-personal">
           <circle class="rpm-personal-core" cx="16" cy="11" r="4.6" fill="#0e3030"/>
-          <path class="rpm-personal-ring" d="M7.5 26c1.4-5.2 4.6-7.8 8.5-7.8S23.1 20.8 24.5 26" stroke="#ffdbd2" stroke-width="2.2" stroke-linecap="round"/>
+          <path class="rpm-personal-ring" d="M7.5 26c1.4-5.2 4.6-7.8 8.5-7.8S23.1 20.8 24.5 26" stroke="#f4b49a" stroke-width="2.2" stroke-linecap="round"/>
         </g>
       </svg>`,
     "cat-faith": `
@@ -6831,16 +7302,16 @@ function reflectionPersonaMarkSvg(kind) {
           <rect x="14.2" y="18.5" width="3.6" height="7" rx="0.7" fill="#0e3030"/>
           <path d="M11.5 18.5h9" stroke="#0e3030" stroke-width="1.6" stroke-linecap="round"/>
           <g class="rpm-faith-flame">
-            <path d="M16 6.5c3.2 3.2 5.2 5.4 5.2 8.1A5.2 5.2 0 0 1 16 19.8 5.2 5.2 0 0 1 10.8 14.6C10.8 11.9 12.8 9.7 16 6.5Z" fill="#ffdbd2"/>
-            <path d="M16 11.2c1.5 1.5 2.3 2.5 2.3 3.7A2.3 2.3 0 0 1 16 17.2a2.3 2.3 0 0 1-2.3-2.3c0-1.2.8-2.2 2.3-3.7Z" fill="#ffdbd2"/>
+            <path d="M16 6.5c3.2 3.2 5.2 5.4 5.2 8.1A5.2 5.2 0 0 1 16 19.8 5.2 5.2 0 0 1 10.8 14.6C10.8 11.9 12.8 9.7 16 6.5Z" fill="#f4b49a"/>
+            <path d="M16 11.2c1.5 1.5 2.3 2.5 2.3 3.7A2.3 2.3 0 0 1 16 17.2a2.3 2.3 0 0 1-2.3-2.3c0-1.2.8-2.2 2.3-3.7Z" fill="#f4b49a"/>
           </g>
         </g>
       </svg>`,
     fallback: `
       <svg class="reflection-persona-mark-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <g class="rpm-fallback-orb">
-          <path d="M16 5.5l1.7 5.2h5.5l-4.4 3.2 1.7 5.3L16 16.2l-4.5 3 1.7-5.3-4.4-3.2h5.5L16 5.5Z" fill="#ffdbd2"/>
-          <path d="M24.5 18.5l.9 2.7h2.8l-2.3 1.7.9 2.7-2.3-1.6-2.3 1.6.9-2.7-2.3-1.7h2.8l.9-2.7Z" fill="#ffdbd2"/>
+          <path d="M16 5.5l1.7 5.2h5.5l-4.4 3.2 1.7 5.3L16 16.2l-4.5 3 1.7-5.3-4.4-3.2h5.5L16 5.5Z" fill="#f4b49a"/>
+          <path d="M24.5 18.5l.9 2.7h2.8l-2.3 1.7.9 2.7-2.3-1.6-2.3 1.6.9-2.7-2.3-1.7h2.8l.9-2.7Z" fill="#f4b49a"/>
           <path d="M7.2 19l.7 2.1h2.2L8.4 22.4l.7 2.1-1.9-1.3-1.9 1.3.7-2.1-1.7-1.3h2.2L7.2 19Z" fill="#0e3030" opacity="0.55"/>
         </g>
       </svg>`,
@@ -6919,6 +7390,33 @@ function buildReflectionInsights(completed, dayKey = reflectionTodayKey()) {
     const sorted = [...completed].sort(
       (a, b) => new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime()
     );
+    const allDemo = sorted.every((task) =>
+      String(task.id || "").startsWith(DEMO_REFLECTION_ID_PREFIX)
+    );
+    if (allDemo) {
+      const fill = getWeekSlotPersonaFill(dayKey);
+      const picked = pickReflectionPersona(sorted);
+      if (fill) {
+        const sample = sorted[0];
+        const sample2 = sorted[1] || null;
+        const citeBit = sample
+          ? ` Wins like ${reflectionTaskCite(sample)}${
+              sample2 ? ` and ${reflectionTaskCite(sample2)}` : ""
+            } set the tone.`
+          : "";
+        return {
+          persona: {
+            ...fill,
+            // Prefer live cite blurbs when the picker lands on the intended persona.
+            blurb:
+              picked?.kind === fill.kind && picked.blurb
+                ? picked.blurb
+                : `${fill.blurb}${citeBit}`,
+            meaning: picked?.kind === fill.kind && picked.meaning ? picked.meaning : fill.meaning,
+          },
+        };
+      }
+    }
     return { persona: pickReflectionPersona(sorted) };
   }
 
@@ -7045,7 +7543,7 @@ function reflectionDayPagerHtml(selectedDayKey) {
   const parts = reflectionDayPagerDayParts(selectedDayKey);
 
   return `
-    <nav class="reflection-day-pager" aria-label="Last 7 days" data-reflection-day-index="${index}">
+    <nav class="reflection-day-pager" aria-label="Recent days" data-reflection-day-index="${index}">
       <div class="reflection-day-pager-row">
         <button
           type="button"
@@ -7372,15 +7870,15 @@ function renderReflectionReview() {
           : "";
       const markSvg = story.restDay
         ? `<svg class="reflection-rest-svg" viewBox="0 0 48 48" fill="none">
-                    <circle class="reflection-rest-halo" cx="24" cy="24" r="18" stroke="#ffdbd2" stroke-width="2.5" opacity="0.85"/>
+                    <circle class="reflection-rest-halo" cx="24" cy="24" r="18" stroke="#f4b49a" stroke-width="2.5" opacity="0.95"/>
                     <circle class="reflection-rest-core" cx="24" cy="24" r="8" fill="#0e3030"/>
-                    <path class="reflection-rest-leaf" d="M24 10c4.5 3.2 7 7.2 7 12s-2.5 8.8-7 12c-4.5-3.2-7-7.2-7-12s2.5-8.8 7-12Z" fill="#ffdbd2" opacity="0.9"/>
+                    <path class="reflection-rest-leaf" d="M24 10c4.5 3.2 7 7.2 7 12s-2.5 8.8-7 12c-4.5-3.2-7-7.2-7-12s2.5-8.8 7-12Z" fill="#f4b49a" opacity="0.95"/>
                   </svg>`
         : story.inMotion
           ? `<svg class="reflection-motion-svg" viewBox="0 0 48 48" fill="none">
-                    <circle class="reflection-motion-orbit" cx="24" cy="24" r="16" stroke="#ffdbd2" stroke-width="2" stroke-dasharray="6 7" opacity="0.9"/>
+                    <circle class="reflection-motion-orbit" cx="24" cy="24" r="16" stroke="#f4b49a" stroke-width="2" stroke-dasharray="6 7" opacity="0.95"/>
                     <circle class="reflection-motion-core" cx="24" cy="24" r="6.5" fill="#0e3030"/>
-                    <circle class="reflection-motion-spark" cx="40" cy="24" r="3.2" fill="#ffdbd2"/>
+                    <circle class="reflection-motion-spark" cx="40" cy="24" r="3.2" fill="#f4b49a"/>
                   </svg>`
           : "";
       visualsHtml = `
@@ -8669,7 +9167,7 @@ function getTasksForWeeklyDay(dayKey) {
     tasks.push(withTaskDayAppearance(t, dayKey));
   };
 
-  getCompletedTasksForDay(dayKey).forEach((t) => {
+  getCompletedTasksForDay(dayKey, { includeArchived: dayKey !== today }).forEach((t) => {
     if (!isTierVisible(t.tier)) return;
     push(t);
   });

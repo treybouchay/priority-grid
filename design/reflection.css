@@ -347,7 +347,7 @@ html.reflection-open body .capture-clip-fab {
   bottom: 0.85rem;
   width: 3px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #ffdbd2 0%, rgba(255, 219, 210, 0.55) 55%, rgba(14, 48, 48, 0.35) 100%);
+  background: linear-gradient(180deg, #f4b49a 0%, rgba(235, 160, 127, 0.8) 55%, rgba(14, 48, 48, 0.35) 100%);
 }
 
 .reflection-story-top {
@@ -487,7 +487,7 @@ html.reflection-open body .capture-clip-fab {
 }
 
 .reflection-story-bar-fill--peach {
-  background: linear-gradient(90deg, #ffdbd2 0%, rgba(255, 219, 210, 0.55) 100%);
+  background: linear-gradient(90deg, #eba07f 0%, #f4b49a 100%);
 }
 
 .reflection-story-bar-value {
