@@ -652,6 +652,9 @@ let supabaseRealtimeChannel = null;
 let syncPollTimer = null;
 let syncListenersBound = false;
 let supabaseSyncStarted = false;
+let lastHistorySavedAt = 0;
+const SYNC_HISTORY_KEEP = 20;
+const SYNC_HISTORY_THROTTLE_MS = 5 * 60 * 1000;
 let touchDragGhost = null;
 let dragGrabOffset = { x: 0, y: 0 };
 let listDragState = null;
@@ -1839,6 +1842,14 @@ function setupDataSync() {
     e.target.value = "";
   });
   document.getElementById("sync-now-btn")?.addEventListener("click", forceSyncNow);
+  document.getElementById("sync-history-refresh")?.addEventListener("click", () => {
+    refreshSyncHistory();
+  });
+  document.getElementById("sync-history-list")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-restore-history]");
+    if (!btn) return;
+    restoreSyncHistory(btn.getAttribute("data-restore-history"));
+  });
 
   document.getElementById("sync-banner-dismiss").addEventListener("click", () => {
     localStorage.setItem(SYNC_BANNER_KEY, "1");
@@ -1999,6 +2010,161 @@ async function saveRemotePayload(payload) {
   return response.json();
 }
 
+function syncHistoryReasonLabel(reason) {
+  if (reason === "manual") return "Sync now";
+  if (reason === "restore") return "Restored";
+  return "Auto save";
+}
+
+function formatSyncHistoryWhen(iso) {
+  if (!iso) return "Unknown time";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Unknown time";
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+async function pruneSyncHistory() {
+  if (!supabaseClient || !supabaseUserId) return;
+  const { data, error } = await supabaseClient
+    .from("app_state_history")
+    .select("id")
+    .eq("user_id", supabaseUserId)
+    .order("created_at", { ascending: false });
+  if (error || !Array.isArray(data) || data.length <= SYNC_HISTORY_KEEP) return;
+  const staleIds = data.slice(SYNC_HISTORY_KEEP).map((row) => row.id);
+  if (!staleIds.length) return;
+  await supabaseClient.from("app_state_history").delete().in("id", staleIds);
+}
+
+async function recordSyncHistory(payload, options = {}) {
+  if (syncBackend !== "supabase" || !supabaseClient || !supabaseUserId || !payload) return;
+  const reason = options.reason || "auto";
+  const now = Date.now();
+  if (reason === "auto" && now - lastHistorySavedAt < SYNC_HISTORY_THROTTLE_MS) return;
+
+  const taskCount = countPayloadTasks(payload);
+  const { error } = await supabaseClient.from("app_state_history").insert({
+    user_id: supabaseUserId,
+    payload,
+    task_count: taskCount,
+    reason,
+  });
+  if (error) {
+    console.warn("Could not save sync history", error);
+    return;
+  }
+  lastHistorySavedAt = now;
+  await pruneSyncHistory();
+  refreshSyncHistory({ quiet: true });
+}
+
+async function fetchSyncHistoryRows() {
+  if (!supabaseClient || !supabaseUserId) return [];
+  const { data, error } = await supabaseClient
+    .from("app_state_history")
+    .select("id, created_at, task_count, reason")
+    .eq("user_id", supabaseUserId)
+    .order("created_at", { ascending: false })
+    .limit(SYNC_HISTORY_KEEP);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+function renderSyncHistory(rows) {
+  const panel = document.getElementById("sync-history");
+  const list = document.getElementById("sync-history-list");
+  const empty = document.getElementById("sync-history-empty");
+  if (!panel || !list) return;
+
+  const show = Boolean(isSupabaseConfigured() && supabaseUserId);
+  panel.classList.toggle("hidden", !show);
+  if (!show) {
+    list.innerHTML = "";
+    empty?.classList.add("hidden");
+    return;
+  }
+
+  if (!rows.length) {
+    list.innerHTML = "";
+    empty?.classList.remove("hidden");
+    return;
+  }
+
+  empty?.classList.add("hidden");
+  list.innerHTML = rows
+    .map((row) => {
+      const tasks = Number(row.task_count) || 0;
+      const taskLabel = tasks === 1 ? "1 task" : `${tasks} tasks`;
+      return `<li class="sync-history-item">
+        <div class="sync-history-meta">
+          <p class="sync-history-title">${formatSyncHistoryWhen(row.created_at)}</p>
+          <p class="sync-history-detail">${syncHistoryReasonLabel(row.reason)} · ${taskLabel}</p>
+        </div>
+        <button type="button" class="btn-secondary" data-restore-history="${row.id}">Restore</button>
+      </li>`;
+    })
+    .join("");
+}
+
+async function refreshSyncHistory(options = {}) {
+  const panel = document.getElementById("sync-history");
+  if (!panel || !isSupabaseConfigured() || !supabaseUserId) {
+    renderSyncHistory([]);
+    return;
+  }
+  try {
+    const rows = await fetchSyncHistoryRows();
+    renderSyncHistory(rows);
+  } catch (err) {
+    renderSyncHistory([]);
+    if (!options.quiet) {
+      const detail = err?.message || "";
+      alert(
+        detail.includes("app_state_history") || detail.includes("relation")
+          ? "Sync history needs one more Supabase step: run supabase/schema-history.sql in the SQL Editor."
+          : `Could not load sync history.${detail ? ` (${detail})` : ""}`
+      );
+    }
+  }
+}
+
+async function restoreSyncHistory(historyId) {
+  if (!historyId || !supabaseClient || !supabaseUserId) return;
+  const confirmed = window.confirm(
+    "Restore this snapshot? It will replace tasks on this device and sync that version to your other signed-in devices."
+  );
+  if (!confirmed) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("app_state_history")
+      .select("payload")
+      .eq("id", historyId)
+      .eq("user_id", supabaseUserId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data?.payload) throw new Error("Snapshot not found");
+
+    applySyncPayload(
+      { ...data.payload, updatedAt: new Date().toISOString() },
+      { preferRemote: true }
+    );
+    syncDirty = true;
+    syncAvailable = true;
+    syncBackend = "supabase";
+    await pushRemoteSync({ force: true, throwOnError: true, historyReason: "restore" });
+    await refreshSyncHistory({ quiet: true });
+    alert("Snapshot restored and synced.");
+  } catch (err) {
+    alert(`Could not restore snapshot.${err?.message ? ` (${err.message})` : ""}`);
+  }
+}
+
 function stopSyncPolling() {
   if (syncPollTimer) {
     clearInterval(syncPollTimer);
@@ -2050,11 +2216,13 @@ function updateAuthUi() {
     hint?.classList.add("hidden");
     signedIn?.classList.remove("hidden");
     if (userEl) userEl.textContent = `Signed in as ${supabaseAuthEmail}`;
+    refreshSyncHistory({ quiet: true });
   } else {
     form?.classList.remove("hidden");
     hint?.classList.remove("hidden");
     signedIn?.classList.add("hidden");
     if (userEl) userEl.textContent = "";
+    renderSyncHistory([]);
   }
 }
 
@@ -2179,6 +2347,7 @@ async function startSupabaseSync() {
   try {
     const remote = await fetchRemotePayload();
     await bootstrapRemoteSync(remote);
+    await refreshSyncHistory({ quiet: true });
   } catch {
     syncAvailable = false;
     supabaseSyncStarted = false;
@@ -2524,6 +2693,9 @@ async function pushRemoteSync(options = {}) {
       setSyncMeta({ updatedAt: saved.updatedAt });
       syncDirty = false;
       updateSyncUi();
+      await recordSyncHistory(saved, {
+        reason: options.historyReason || "auto",
+      });
     }
   } catch (err) {
     if (syncBackend !== "supabase") syncAvailable = false;
@@ -2625,16 +2797,18 @@ async function forceSyncNow() {
 
     if (remoteCount > localCount && remoteCount > 0) {
       applySyncPayload(remote, { preferRemote: true });
-      await pushRemoteSync({ force: true, throwOnError: true });
+      await pushRemoteSync({ force: true, throwOnError: true, historyReason: "manual" });
     } else if (localCount > 0) {
-      await pushRemoteSync({ force: true, throwOnError: true });
+      await pushRemoteSync({ force: true, throwOnError: true, historyReason: "manual" });
     } else if (remoteCount > 0) {
       applySyncPayload(remote, { preferRemote: true });
+      await recordSyncHistory(remote, { reason: "manual" });
     } else {
-      await pushRemoteSync({ force: true, throwOnError: true });
+      await pushRemoteSync({ force: true, throwOnError: true, historyReason: "manual" });
     }
 
     updateSyncUi();
+    await refreshSyncHistory({ quiet: true });
     if (btn) btn.textContent = "Synced!";
   } catch (err) {
     if (syncBackend !== "supabase") syncAvailable = false;

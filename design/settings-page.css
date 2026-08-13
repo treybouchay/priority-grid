@@ -411,6 +411,80 @@ body[data-page="settings"] .sync-actions {
   margin-top: 0.85rem;
 }
 
+body[data-page="settings"] .sync-history {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(14, 48, 48, 0.1);
+}
+
+body[data-page="settings"] .sync-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+body[data-page="settings"] .sync-history-header .settings-field-label {
+  margin: 0;
+}
+
+body[data-page="settings"] .sync-history-refresh {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+body[data-page="settings"] .sync-history-list {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+body[data-page="settings"] .sync-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(14, 48, 48, 0.08);
+  border-radius: 0.85rem;
+}
+
+body[data-page="settings"] .sync-history-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+body[data-page="settings"] .sync-history-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0e3030;
+}
+
+body[data-page="settings"] .sync-history-detail {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(17, 48, 44, 0.65);
+}
+
+body[data-page="settings"] .sync-history-item .btn-secondary {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+body[data-page="settings"] .sync-history-empty {
+  margin-top: 0.65rem;
+}
+
 body[data-page="settings"] .settings-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125em;

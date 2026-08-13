@@ -72,7 +72,7 @@
     <link rel="stylesheet" href="design/home-presence.css?v=117" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
     <link rel="stylesheet" href="design/history-wins.css?v=13" />
-    <link rel="stylesheet" href="design/settings-page.css?v=9" />
+    <link rel="stylesheet" href="design/settings-page.css?v=10" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1100,6 +1100,21 @@
                   <input type="file" id="import-data-input" accept="application/json,.json" hidden />
                 </label>
               </div>
+              <div class="sync-history hidden" id="sync-history">
+                <div class="sync-history-header">
+                  <p class="settings-field-label">Sync history</p>
+                  <button type="button" class="btn-secondary sync-history-refresh" id="sync-history-refresh">
+                    Refresh
+                  </button>
+                </div>
+                <p class="settings-hint">
+                  Recent cloud snapshots. Restore replaces tasks on this device, then syncs that version to your other devices.
+                </p>
+                <ul class="sync-history-list" id="sync-history-list" aria-label="Sync history"></ul>
+                <p class="settings-hint sync-history-empty hidden" id="sync-history-empty">
+                  No snapshots yet. Tap Sync now to save the first one.
+                </p>
+              </div>
             </article>
           </section>
         </div>
@@ -1523,6 +1538,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=319"></script>
+    <script src="app.js?v=320"></script>
   </body>
 </html>

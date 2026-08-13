@@ -41,6 +41,12 @@ The anon key is safe to ship in front-end code. Never expose the `service_role` 
 
 Sync stores one JSON blob per user (`app_state` table). Local `./serve.sh` sync is still used when Supabase is not configured.
 
+If you already ran the original schema, also run `supabase/schema-history.sql` to enable sync history + restore.
+
+### Sync history
+
+Signed-in devices keep the last ~20 cloud snapshots (Sync now always saves one; auto-saves are throttled). In Settings → Data & sync you can restore any snapshot.
+
 ### Optional: live updates
 
 In Supabase, enable replication for `app_state` (Database → Replication) so changes from another device appear without waiting for the poll interval.
