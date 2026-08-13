@@ -1143,6 +1143,16 @@ function setupFocusTimer() {
     if (running) requestFocusWakeLock();
     else releaseFocusWakeLock();
 
+    const timerJump = document.getElementById("home-timer-jump");
+    if (timerJump) {
+      timerJump.classList.toggle("is-running", running);
+      timerJump.classList.toggle("is-done", done);
+      timerJump.setAttribute(
+        "aria-label",
+        done ? "Focus complete — jump to timer" : running ? "Focus timer running — jump to timer" : "Jump to focus timer"
+      );
+    }
+
     const toggleLabel = document.getElementById("focus-timer-toggle-label");
     if (toggleLabel) {
       toggleLabel.textContent = running ? "Pause" : done ? "Start Focus" : active ? "Resume" : "Start Focus";
@@ -4152,11 +4162,16 @@ function syncSidebarCollapsed() {
   const sidebar = document.getElementById("sidebar");
   if (btn) {
     btn.setAttribute("aria-expanded", String(!collapsed));
-    btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    btn.setAttribute("aria-label", collapsed ? "Expand nav" : "Minimize nav");
+    btn.setAttribute("title", collapsed ? "Expand nav" : "Minimize nav");
   }
   if (sidebar) {
     sidebar.classList.toggle("is-collapsed", collapsed);
   }
+  document.documentElement.style.setProperty(
+    "--sidebar-rail-width",
+    collapsed ? "4.75rem" : "13.5rem"
+  );
 }
 
 function setSidebarCollapsed(collapsed) {
@@ -5190,11 +5205,7 @@ function syncNavActive() {
     } else if (page === "settings") {
       active = btn.dataset.page === "settings";
     } else if (page === "tasks") {
-      if (btn.dataset.focusBrain === "true") {
-        active = false;
-      } else {
-        active = btn.dataset.page === "tasks" && btn.dataset.filter === filter;
-      }
+      active = btn.dataset.page === "tasks";
     }
     btn.classList.toggle("active", active);
   });
@@ -5207,8 +5218,8 @@ function syncNavActive() {
       active = btn.dataset.page === "history";
     } else if (page === "settings") {
       active = btn.dataset.page === "settings";
-    } else if (page === "tasks" && btn.dataset.page === "tasks") {
-      active = !btn.dataset.focusBrain && btn.dataset.filter === filter && !btn.dataset.nav;
+    } else if (page === "tasks") {
+      active = btn.dataset.page === "tasks";
     }
     btn.classList.toggle("active", active);
   });
@@ -5601,15 +5612,7 @@ function rebuildContextUi() {
 
   const sidebarSlot = document.getElementById("sidebar-extra-lists");
   if (sidebarSlot) {
-    sidebarSlot.innerHTML = getExtraContextIds()
-      .map(
-        (ctx) => `
-      <button type="button" class="nav-item" data-page="tasks" data-filter="${escapeHtml(ctx)}" data-extra="true">
-        ${contextIconHtml(ctx, "icon-nav")}
-        <span class="nav-item-label">${escapeHtml(contextLabel(ctx))}</span>
-      </button>`
-      )
-      .join("");
+    sidebarSlot.innerHTML = "";
   }
 
   fillContextSelect(document.getElementById("dialog-context"), document.getElementById("dialog-context")?.value);
@@ -5981,6 +5984,17 @@ function setupNavigation() {
   document.getElementById("home-view-tasks").addEventListener("click", () => {
     closeReflectionDialog();
     setPage("tasks", filter);
+  });
+
+  document.getElementById("home-timer-jump")?.addEventListener("click", () => {
+    const timer = document.getElementById("focus-timer");
+    if (!timer) return;
+    if (page !== "home") setPage("home");
+    requestAnimationFrame(() => {
+      timer.scrollIntoView({ behavior: "smooth", block: "center" });
+      timer.classList.add("focus-timer-card--pulse");
+      window.setTimeout(() => timer.classList.remove("focus-timer-card--pulse"), 900);
+    });
   });
 
   const sidebarMenuBtn = document.getElementById("sidebar-menu-btn");
