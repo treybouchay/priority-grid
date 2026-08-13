@@ -2525,9 +2525,10 @@ async function pushRemoteSync(options = {}) {
       syncDirty = false;
       updateSyncUi();
     }
-  } catch {
+  } catch (err) {
     if (syncBackend !== "supabase") syncAvailable = false;
     updateSyncUi();
+    if (options.throwOnError) throw err;
   } finally {
     syncPushing = false;
   }
@@ -2605,29 +2606,54 @@ async function forceSyncNow() {
     return;
   }
 
+  const btn = document.getElementById("sync-now-btn");
+  const status = document.getElementById("sync-status");
+  const prevLabel = btn?.textContent || "Sync now";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Syncing…";
+  }
+  if (status) status.textContent = "Syncing with cloud…";
+
   try {
-    const remote = await fetchRemotePayload();
     syncAvailable = true;
-    syncDirty = false;
+    if (isSupabaseConfigured()) syncBackend = "supabase";
+
+    const remote = await fetchRemotePayload();
     const localCount = countLocalTasks();
     const remoteCount = countPayloadTasks(remote);
 
-    if (remoteCount >= localCount && remoteCount > 0) {
+    if (remoteCount > localCount && remoteCount > 0) {
       applySyncPayload(remote, { preferRemote: true });
+      await pushRemoteSync({ force: true, throwOnError: true });
     } else if (localCount > 0) {
-      await pushRemoteSync({ force: true });
+      await pushRemoteSync({ force: true, throwOnError: true });
     } else if (remoteCount > 0) {
       applySyncPayload(remote, { preferRemote: true });
+    } else {
+      await pushRemoteSync({ force: true, throwOnError: true });
     }
 
     updateSyncUi();
-  } catch {
-    syncAvailable = false;
+    if (btn) btn.textContent = "Synced!";
+  } catch (err) {
+    if (syncBackend !== "supabase") syncAvailable = false;
     updateSyncUi();
+    const detail = err?.message || err?.error_description || "";
     const message = isSupabaseConfigured()
-      ? "Could not reach cloud sync. Check your connection and try again."
+      ? `Could not sync with cloud.${detail ? ` (${detail})` : " Check your connection and try again."}`
       : "Could not reach the sync server. On your phone, open the exact http:// address from ./serve.sh on your Mac (hotspot IP, not localhost).";
     alert(message);
+    if (btn) btn.textContent = prevLabel;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (btn.textContent === "Synced!") {
+        setTimeout(() => {
+          if (btn.textContent === "Synced!") btn.textContent = prevLabel;
+        }, 1600);
+      }
+    }
   }
 }
 
