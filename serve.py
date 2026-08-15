@@ -3,6 +3,8 @@
 
 import json
 import os
+import time
+from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -10,6 +12,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent
 SYNC_FILE = ROOT / ".priority-grid-sync.json"
 PORT = int(os.environ.get("PORT", "8765"))
+DELETED_ID_TTL_SECONDS = 90 * 24 * 60 * 60
 
 
 def read_sync():
@@ -55,6 +58,21 @@ def merge_dicts(existing, incoming):
     return {key: incoming.get(key, existing.get(key)) for key in keys}
 
 
+def prune_deleted(deleted):
+    deleted = deleted if isinstance(deleted, dict) else {}
+    cutoff = time.time() - DELETED_ID_TTL_SECONDS
+    out = {}
+    for item_id, iso in deleted.items():
+        try:
+            at = datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            out[item_id] = iso
+            continue
+        if at >= cutoff:
+            out[item_id] = iso
+    return out
+
+
 def merge_payload(existing, incoming):
     if not existing or not existing.get("updatedAt"):
         return incoming
@@ -64,11 +82,20 @@ def merge_payload(existing, incoming):
     newer = incoming if incoming["updatedAt"] >= existing["updatedAt"] else existing
     older = existing if newer is incoming else incoming
 
+    merged_deleted = prune_deleted({**(older.get("deleted") or {}), **(newer.get("deleted") or {})})
+
+    def merge_lists(older_list, newer_list):
+        return [
+            item
+            for item in merge_lists_by_id(older_list, newer_list)
+            if item.get("id") not in merged_deleted
+        ]
+
     older_custom_tasks = older.get("customTasks") if isinstance(older.get("customTasks"), dict) else {}
     newer_custom_tasks = newer.get("customTasks") if isinstance(newer.get("customTasks"), dict) else {}
     custom_task_keys = set(older_custom_tasks) | set(newer_custom_tasks)
     merged_custom_tasks = {
-        key: merge_lists_by_id(older_custom_tasks.get(key), newer_custom_tasks.get(key))
+        key: merge_lists(older_custom_tasks.get(key), newer_custom_tasks.get(key))
         for key in custom_task_keys
     }
 
@@ -76,17 +103,18 @@ def merge_payload(existing, incoming):
     newer_custom_brain = newer.get("customBrainDump") if isinstance(newer.get("customBrainDump"), dict) else {}
     custom_brain_keys = set(older_custom_brain) | set(newer_custom_brain)
     merged_custom_brain = {
-        key: merge_lists_by_id(older_custom_brain.get(key), newer_custom_brain.get(key))
+        key: merge_lists(older_custom_brain.get(key), newer_custom_brain.get(key))
         for key in custom_brain_keys
     }
 
     merged = {
         "version": max(existing.get("version", 1), incoming.get("version", 1)),
         "updatedAt": max(existing["updatedAt"], incoming["updatedAt"]),
-        "work": merge_lists_by_id(older.get("work"), newer.get("work")),
-        "home": merge_lists_by_id(older.get("home"), newer.get("home")),
-        "brainDumpWork": merge_lists_by_id(older.get("brainDumpWork"), newer.get("brainDumpWork")),
-        "brainDumpHome": merge_lists_by_id(older.get("brainDumpHome"), newer.get("brainDumpHome")),
+        "deleted": merged_deleted,
+        "work": merge_lists(older.get("work"), newer.get("work")),
+        "home": merge_lists(older.get("home"), newer.get("home")),
+        "brainDumpWork": merge_lists(older.get("brainDumpWork"), newer.get("brainDumpWork")),
+        "brainDumpHome": merge_lists(older.get("brainDumpHome"), newer.get("brainDumpHome")),
         "customContexts": merge_lists_by_id(older.get("customContexts"), newer.get("customContexts")),
         "customTasks": merged_custom_tasks,
         "customBrainDump": merged_custom_brain,
@@ -96,6 +124,12 @@ def merge_payload(existing, incoming):
             older.get("forgetIt") or older.get("nextWeek"),
             newer.get("forgetIt") or newer.get("nextWeek"),
         ),
+        "displayName": newer.get("displayName", older.get("displayName")),
+        "profileAvatar": newer.get("profileAvatar", older.get("profileAvatar")),
+        "anxietyBox": merge_lists(older.get("anxietyBox"), newer.get("anxietyBox")),
+        "anxietyHistory": merge_lists(older.get("anxietyHistory"), newer.get("anxietyHistory")),
+        "standaloneNotes": merge_lists(older.get("standaloneNotes"), newer.get("standaloneNotes")),
+        "weekStart": newer.get("weekStart", older.get("weekStart")),
     }
     return merged
 

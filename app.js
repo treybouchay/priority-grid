@@ -1756,6 +1756,7 @@ function checkAnxietyBoxItem(id) {
 }
 
 function deleteAnxietyHistoryItem(id) {
+  recordDeletedId(id);
   saveAnxietyHistory(loadAnxietyHistory().filter((item) => item.id !== id));
   renderReflectionAnxietyBox();
   if (page === "history") renderHistory();
@@ -1928,6 +1929,10 @@ function mergeSyncPayloads(existing, incoming) {
   const newer = incoming.updatedAt >= existing.updatedAt ? incoming : existing;
   const older = newer === incoming ? existing : incoming;
 
+  const mergedDeleted = pruneDeletedIdMap({ ...(older.deleted || {}), ...(newer.deleted || {}) });
+  const deletedSet = collectDeletedIdSet(mergedDeleted);
+  const mergeLists = (a, b) => dropDeletedFromList(mergeListsByIdForSync(a, b), deletedSet);
+
   const olderCustomTasks =
     older.customTasks && typeof older.customTasks === "object" ? older.customTasks : {};
   const newerCustomTasks =
@@ -1935,7 +1940,7 @@ function mergeSyncPayloads(existing, incoming) {
   const customTaskKeys = new Set([...Object.keys(olderCustomTasks), ...Object.keys(newerCustomTasks)]);
   const mergedCustomTasks = {};
   customTaskKeys.forEach((key) => {
-    mergedCustomTasks[key] = mergeListsByIdForSync(olderCustomTasks[key], newerCustomTasks[key]);
+    mergedCustomTasks[key] = mergeLists(olderCustomTasks[key], newerCustomTasks[key]);
   });
 
   const olderCustomBrain =
@@ -1945,16 +1950,17 @@ function mergeSyncPayloads(existing, incoming) {
   const customBrainKeys = new Set([...Object.keys(olderCustomBrain), ...Object.keys(newerCustomBrain)]);
   const mergedCustomBrain = {};
   customBrainKeys.forEach((key) => {
-    mergedCustomBrain[key] = mergeListsByIdForSync(olderCustomBrain[key], newerCustomBrain[key]);
+    mergedCustomBrain[key] = mergeLists(olderCustomBrain[key], newerCustomBrain[key]);
   });
 
   return {
     version: Math.max(existing.version || 1, incoming.version || 1),
     updatedAt: incoming.updatedAt >= existing.updatedAt ? incoming.updatedAt : existing.updatedAt,
-    work: mergeListsByIdForSync(older.work, newer.work),
-    home: mergeListsByIdForSync(older.home, newer.home),
-    brainDumpWork: mergeListsByIdForSync(older.brainDumpWork, newer.brainDumpWork),
-    brainDumpHome: mergeListsByIdForSync(older.brainDumpHome, newer.brainDumpHome),
+    deleted: mergedDeleted,
+    work: mergeLists(older.work, newer.work),
+    home: mergeLists(older.home, newer.home),
+    brainDumpWork: mergeLists(older.brainDumpWork, newer.brainDumpWork),
+    brainDumpHome: mergeLists(older.brainDumpHome, newer.brainDumpHome),
     customContexts: mergeListsByIdForSync(older.customContexts, newer.customContexts),
     customTasks: mergedCustomTasks,
     customBrainDump: mergedCustomBrain,
@@ -1963,9 +1969,9 @@ function mergeSyncPayloads(existing, incoming) {
     forgetIt: mergeDictsForSync(older.forgetIt || older.nextWeek, newer.forgetIt || newer.nextWeek),
     displayName: newer.displayName ?? older.displayName,
     profileAvatar: newer.profileAvatar !== undefined ? newer.profileAvatar : older.profileAvatar,
-    anxietyBox: mergeListsByIdForSync(older.anxietyBox, newer.anxietyBox),
-    anxietyHistory: mergeListsByIdForSync(older.anxietyHistory, newer.anxietyHistory),
-    standaloneNotes: mergeListsByIdForSync(older.standaloneNotes, newer.standaloneNotes),
+    anxietyBox: mergeLists(older.anxietyBox, newer.anxietyBox),
+    anxietyHistory: mergeLists(older.anxietyHistory, newer.anxietyHistory),
+    standaloneNotes: mergeLists(older.standaloneNotes, newer.standaloneNotes),
     weekStart: newer.weekStart ?? older.weekStart,
   };
 }
@@ -2430,10 +2436,72 @@ function collectNextWeekFromStorage() {
 
 const collectForgetItFromStorage = collectNextWeekFromStorage;
 
+const DELETED_IDS_KEY = "priority-grid-deleted-ids";
+const DELETED_ID_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+function pruneDeletedIdMap(map) {
+  const cutoff = Date.now() - DELETED_ID_TTL_MS;
+  const out = {};
+  Object.entries(map || {}).forEach(([id, iso]) => {
+    const at = new Date(iso).getTime();
+    if (!Number.isFinite(at) || at >= cutoff) out[id] = iso;
+  });
+  return out;
+}
+
+function loadDeletedIds() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DELETED_IDS_KEY) || "{}");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDeletedIds(map) {
+  try {
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(pruneDeletedIdMap(map)));
+  } catch {}
+}
+
+/** Tombstone an id so sync merges can't resurrect it from an older copy. */
+function recordDeletedId(id) {
+  if (!id) return;
+  const map = loadDeletedIds();
+  map[id] = new Date().toISOString();
+  saveDeletedIds(map);
+}
+
+function absorbDeletedIds(remoteDeleted) {
+  if (!remoteDeleted || typeof remoteDeleted !== "object") return;
+  const map = loadDeletedIds();
+  let changed = false;
+  Object.entries(remoteDeleted).forEach(([id, iso]) => {
+    if (!id || map[id]) return;
+    map[id] = typeof iso === "string" ? iso : new Date().toISOString();
+    changed = true;
+  });
+  if (changed) saveDeletedIds(map);
+}
+
+function collectDeletedIdSet(...maps) {
+  const set = new Set();
+  maps.forEach((map) => {
+    Object.keys(map && typeof map === "object" ? map : {}).forEach((id) => set.add(id));
+  });
+  return set;
+}
+
+function dropDeletedFromList(list, deletedSet) {
+  if (!Array.isArray(list) || !deletedSet?.size) return Array.isArray(list) ? list : [];
+  return list.filter((item) => !deletedSet.has(item?.id));
+}
+
 function buildSyncPayload() {
   return {
     version: 2,
     updatedAt: new Date().toISOString(),
+    deleted: loadDeletedIds(),
     work: loadTasks("work"),
     home: loadTasks("home"),
     brainDumpWork: loadBrainDump("work"),
@@ -2456,17 +2524,18 @@ function buildSyncPayload() {
 function mergeTaskLists(localList, remoteList, preferRemote = true) {
   const local = Array.isArray(localList) ? localList : [];
   const remote = Array.isArray(remoteList) ? remoteList : [];
+  const deleted = collectDeletedIdSet(loadDeletedIds());
   const byId = new Map();
   const order = [];
 
   for (const task of local) {
-    if (!task?.id) continue;
+    if (!task?.id || deleted.has(task.id)) continue;
     byId.set(task.id, task);
     order.push(task.id);
   }
 
   for (const task of remote) {
-    if (!task?.id) continue;
+    if (!task?.id || deleted.has(task.id)) continue;
     if (byId.has(task.id)) {
       if (preferRemote) byId.set(task.id, task);
     } else {
@@ -2501,6 +2570,8 @@ function applySyncPayload(payload, options = {}) {
 
   const skipSync = { skipSync: true };
   const preferRemote = options.preferRemote !== false;
+
+  absorbDeletedIds(payload.deleted);
 
   if (Array.isArray(payload.work) || loadTasks("work").length > 0) {
     saveTasks("work", mergeTaskLists(loadTasks("work"), payload.work || [], preferRemote), skipSync);
@@ -3206,6 +3277,7 @@ function addStandaloneNote(text) {
 }
 
 function deleteStandaloneNote(id) {
+  recordDeletedId(id);
   saveStandaloneNotes(loadStandaloneNotes().filter((n) => n.id !== id));
 }
 
@@ -6301,6 +6373,7 @@ function undoLastWinsArchive() {
 }
 
 function deleteTask(id, ctx) {
+  recordDeletedId(id);
   clearTaskRefs(id, ctx);
   focusTimerAttached = focusTimerAttached.filter(
     (ref) => !(ref.id === id && ref.context === ctx)
@@ -11327,6 +11400,7 @@ function sendBrainDumpToTier(id, ctx, tier, textOverride) {
   if (!text) return;
 
   updateTaskInContext(ctx, (list) => [...list, { id: createId(), text, tier, done: false }]);
+  recordDeletedId(id);
   saveBrainDump(
     ctx,
     items.filter((i) => i.id !== id)
@@ -11352,6 +11426,7 @@ function saveTaskFromDialog() {
       withTaskNotes({ id: createId(), text, tier, done: false, photos }, noteEntries)
     );
     saveTasks(newCtx, [...loadTasks(newCtx), created]);
+    recordDeletedId(brainId);
     saveBrainDump(brainCtx, loadBrainDump(brainCtx).filter((i) => i.id !== brainId));
     clearDialogBrainFields();
     return;
@@ -11654,6 +11729,7 @@ function bindBrainDumpItems(listEl, itemClass) {
     });
 
     el.querySelector(".brain-dump-delete")?.addEventListener("click", () => {
+      recordDeletedId(id);
       saveBrainDump(
         ctx,
         loadBrainDump(ctx).filter((i) => i.id !== id)

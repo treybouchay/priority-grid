@@ -69,7 +69,7 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=179" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=127" />
+    <link rel="stylesheet" href="design/home-presence.css?v=130" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
     <link rel="stylesheet" href="design/history-wins.css?v=13" />
     <link rel="stylesheet" href="design/settings-page.css?v=10" />
@@ -404,24 +404,6 @@
           </section>
 
           <section class="presence-plan">
-            <div class="presence-plan-tools">
-              <button
-                type="button"
-                class="home-timer-jump"
-                id="home-timer-jump"
-                aria-label="Jump to focus timer"
-                title="Focus timer"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                  <circle cx="12" cy="13" r="8" />
-                  <path d="M9 3h6" stroke-linecap="round" />
-                  <path d="M12 13v-2.6" stroke-linecap="round" />
-                  <g class="home-timer-jump-hand">
-                    <path d="M12 13v-5.2" stroke-linecap="round" />
-                  </g>
-                </svg>
-              </button>
-            </div>
             <div class="presence-plan-sheet">
               <header class="section-header section-header--plan presence-plan-header">
                 <div class="presence-plan-heading">
@@ -429,6 +411,22 @@
                   <div class="presence-plan-accent" aria-hidden="true"></div>
                 </div>
                 <div class="presence-plan-header-actions">
+                  <button
+                    type="button"
+                    class="home-timer-jump"
+                    id="home-timer-jump"
+                    aria-label="Jump to focus timer"
+                    title="Focus timer"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <circle cx="12" cy="13" r="8" />
+                      <path d="M9 3h6" stroke-linecap="round" />
+                      <path d="M12 13v-2.6" stroke-linecap="round" />
+                      <g class="home-timer-jump-hand">
+                        <path d="M12 13v-5.2" stroke-linecap="round" />
+                      </g>
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     class="weekly-view-toggle"
@@ -1514,6 +1512,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=324"></script>
+    <script src="app.js?v=326"></script>
   </body>
 </html>
