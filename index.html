@@ -67,11 +67,11 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=179" />
+    <link rel="stylesheet" href="styles.css?v=181" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
     <link rel="stylesheet" href="design/home-presence.css?v=130" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
-    <link rel="stylesheet" href="design/history-wins.css?v=13" />
+    <link rel="stylesheet" href="design/history-wins.css?v=15" />
     <link rel="stylesheet" href="design/settings-page.css?v=10" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -373,7 +373,7 @@
                 <svg class="icon icon-header" aria-hidden="true"><use href="#icon-search"></use></svg>
               </button>
               <button type="button" class="presence-toolbar-btn presence-toolbar-btn-thoughts" id="presence-toolbar-thoughts-btn" aria-label="View Thoughts">
-                <svg class="icon icon-header icon-thoughts-bell" aria-hidden="true"><use href="#icon-bell"></use></svg>
+                <svg class="icon icon-header icon-thoughts-bell" aria-hidden="true"><use href="#icon-box"></use></svg>
               </button>
               <span class="presence-toolbar-divider" aria-hidden="true"></span>
               <button type="button" class="presence-toolbar-add" id="presence-hero-add-task">Add Task</button>
@@ -386,7 +386,7 @@
                   <p class="presence-greeting-date" id="home-date"></p>
                 </div>
                 <button type="button" class="presence-thoughts-btn" id="presence-thoughts-btn" aria-label="View Thoughts">
-                  <svg class="icon icon-header icon-thoughts-bell" aria-hidden="true"><use href="#icon-bell"></use></svg>
+                  <svg class="icon icon-header icon-thoughts-bell" aria-hidden="true"><use href="#icon-box"></use></svg>
                 </button>
               </div>
               <div class="presence-focus">
@@ -905,7 +905,7 @@
             </header>
 
             <div id="history-content"></div>
-            <p class="history-empty hidden" id="history-empty">No completed tasks yet. Check something off to start building your history.</p>
+            <p class="history-empty hidden" id="history-empty">No completed tasks or notes yet. Check something off — or swipe to capture a note.</p>
           </section>
         </div>
 
@@ -1174,6 +1174,14 @@
       <form method="dialog" id="task-dialog-form" class="task-dialog-form">
         <header class="task-dialog-header">
           <h3 class="dialog-title" id="dialog-title">Add Task</h3>
+          <div class="dialog-mode-switch" id="dialog-mode-switch" role="tablist" aria-label="Capture type">
+            <button type="button" class="dialog-mode-btn active" data-mode="task" role="tab" aria-selected="true">
+              Task
+            </button>
+            <button type="button" class="dialog-mode-btn" data-mode="note" role="tab" aria-selected="false">
+              Note
+            </button>
+          </div>
         </header>
         <div class="task-dialog-body">
         <textarea
@@ -1187,6 +1195,7 @@
         ></textarea>
         <p class="dialog-parse-hint hidden" id="dialog-parse-hint"></p>
         <ul class="dialog-parse-preview hidden" id="dialog-parse-preview" aria-live="polite"></ul>
+        <div class="dialog-task-fields" id="dialog-task-fields">
         <label class="dialog-label" for="dialog-context">List</label>
         <div class="dialog-list-field">
           <span class="dialog-list-icon" id="dialog-context-icon" aria-hidden="true"></span>
@@ -1273,6 +1282,10 @@
             ></textarea>
             <button type="button" class="dialog-notes-add-btn" id="dialog-notes-add">Add note</button>
           </div>
+          <div class="dialog-notes-existing-row hidden" id="dialog-notes-existing-row">
+            <select id="dialog-notes-existing" class="dialog-notes-existing" aria-label="Attach a note from History"></select>
+            <button type="button" class="dialog-notes-add-btn" id="dialog-notes-attach">Attach</button>
+          </div>
           <input type="hidden" id="dialog-notes" value="" />
         </div>
         <div class="dialog-photos" id="dialog-photos">
@@ -1285,10 +1298,15 @@
           </div>
           <div class="dialog-photo-grid" id="dialog-photo-grid"></div>
         </div>
+        </div>
+        <p class="dialog-note-hint hidden" id="dialog-note-hint">
+          Notes land in History. You can attach them to a task later.
+        </p>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
         <input type="hidden" id="dialog-brain-id" value="" />
         <input type="hidden" id="dialog-brain-context" value="" />
+        <input type="hidden" id="dialog-capture-mode" value="task" />
         </div>
         <footer class="task-dialog-footer">
           <div class="dialog-actions dialog-actions--edit">
@@ -1512,6 +1530,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=326"></script>
+    <script src="app.js?v=328"></script>
   </body>
 </html>

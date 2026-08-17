@@ -584,7 +584,7 @@ body[data-page="home"] .presence-toolbar-btn-thoughts .icon-thoughts-bell {
   height: 1.5rem;
   display: block;
   overflow: visible;
-  transform-origin: 50% 8%;
+  transform-origin: 50% 50%;
 }
 
 body[data-page="home"] .presence-thoughts-btn.is-ringing .icon-thoughts-bell,

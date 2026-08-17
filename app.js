@@ -467,7 +467,11 @@ const HOME_HERO_WALLPAPERS = {
     mobile: "assets/home-hero-morning.png?v=2",
     desktop: "assets/home-hero-morning-wide.png?v=2",
   },
-  afternoon: {
+  day: {
+    mobile: "assets/home-hero-day.png?v=1",
+    desktop: "assets/home-hero-day-wide.png?v=1",
+  },
+  dusk: {
     mobile: "assets/home-hero-afternoon.png?v=1",
     desktop: "assets/home-hero-afternoon-wide.png?v=1",
   },
@@ -477,11 +481,23 @@ const HOME_HERO_WALLPAPERS = {
   },
 };
 
+/*
+ * Wallpaper follows the clock more finely than the theme slots:
+ *   before 5a / after 8p → night, 5–11a → morning (sunrise),
+ *   11a–6p → day (high sun), 6–8p → dusk (pink sun).
+ * A time-preview override still steers it via the slot's start hour.
+ */
 function getHomeHeroWallpaperPeriod(hour = new Date().getHours()) {
-  const slot = getActiveTimeSlot(hour);
-  if (slot.start === 0 || slot.start === 17) return "night";
-  if (slot.start === 12) return "afternoon";
-  return "morning";
+  const preview = getTimePreviewPreference();
+  if (preview !== "auto") {
+    const option = TIME_PREVIEW_OPTIONS.find((entry) => entry.id === preview);
+    if (option?.slot) hour = option.slot.start;
+  }
+  if (hour < 5) return "night";
+  if (hour < 11) return "morning";
+  if (hour < 18) return "day";
+  if (hour < 20) return "dusk";
+  return "night";
 }
 
 const REFLECTION_TEAL_SHIFT_REVIEW = 25;
@@ -3201,9 +3217,11 @@ function renderDialogNotesList() {
       const id = row?.dataset.noteId;
       if (!id) return;
       dialogNoteEntries = dialogNoteEntries.filter((n) => n.id !== id);
+      dialogClaimedNoteIds = dialogClaimedNoteIds.filter((claimed) => claimed !== id);
       renderDialogNotesList();
     });
   });
+  renderDialogExistingNotes();
 }
 
 function addDialogNoteFromInput() {
@@ -3218,14 +3236,59 @@ function addDialogNoteFromInput() {
   renderDialogNotesList();
 }
 
+/* Standalone notes claimed by the dialog draft — removed from History once saved. */
+let dialogClaimedNoteIds = [];
+
+function renderDialogExistingNotes() {
+  const row = document.getElementById("dialog-notes-existing-row");
+  const select = document.getElementById("dialog-notes-existing");
+  if (!row || !select) return;
+  const attached = new Set(dialogNoteEntries.map((n) => n.id));
+  const available = loadStandaloneNotes().filter((note) => !attached.has(note.id));
+  row.classList.toggle("hidden", available.length === 0);
+  select.innerHTML = available
+    .map(
+      (note) =>
+        `<option value="${escapeHtml(note.id)}">${escapeHtml(truncateReflectionLabel(note.text, 48))}</option>`
+    )
+    .join("");
+}
+
+function consumeClaimedDialogNotes() {
+  if (!dialogClaimedNoteIds.length) return;
+  const claimed = new Set(dialogClaimedNoteIds);
+  dialogClaimedNoteIds = [];
+  claimed.forEach((id) => recordDeletedId(id));
+  saveStandaloneNotes(loadStandaloneNotes().filter((note) => !claimed.has(note.id)));
+}
+
+function attachExistingNoteToDialog() {
+  const select = document.getElementById("dialog-notes-existing");
+  const noteId = select?.value || "";
+  if (!noteId) return;
+  const note = loadStandaloneNotes().find((n) => n.id === noteId);
+  if (!note) return;
+  dialogNoteEntries = [...dialogNoteEntries, { ...note }];
+  if (!dialogClaimedNoteIds.includes(noteId)) dialogClaimedNoteIds.push(noteId);
+  renderDialogNotesList();
+}
+
 function setupDialogNotes() {
   const addBtn = document.getElementById("dialog-notes-add");
   const input = document.getElementById("dialog-notes-input");
+  const attachBtn = document.getElementById("dialog-notes-attach");
   if (addBtn && !addBtn.dataset.bound) {
     addBtn.dataset.bound = "1";
     addBtn.addEventListener("click", (e) => {
       e.preventDefault();
       addDialogNoteFromInput();
+    });
+  }
+  if (attachBtn && !attachBtn.dataset.bound) {
+    attachBtn.dataset.bound = "1";
+    attachBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      attachExistingNoteToDialog();
     });
   }
   if (input && !input.dataset.bound) {
@@ -3974,8 +4037,17 @@ function getAnxietyHistoryForDay(dayKey, reason) {
     });
 }
 
-function renderReflectionAnxietyBox() {
+/* Dock lives on the Thoughts tab only — it shouldn't ride along on Review. */
+function syncReflectionAnxietyDock(hasItems = loadAnxietyBox().length > 0) {
   const card = document.getElementById("reflection-anxiety");
+  const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
+  const showDock = hasItems && dialogOpen && getActiveReflectionTab() === "thoughts";
+  card?.classList.toggle("hidden", !showDock);
+  document.documentElement.classList.toggle("reflection-anxiety-active", showDock);
+  return showDock;
+}
+
+function renderReflectionAnxietyBox() {
   const list = document.getElementById("reflection-anxiety-list");
   const countEl = document.getElementById("reflection-anxiety-count");
   const historyList = document.getElementById("reflection-anxiety-history-list");
@@ -3994,13 +4066,9 @@ function renderReflectionAnxietyBox() {
   const tossedToday = getAnxietyHistoryForDay(dayKey, "tossed");
   const checkedDay = getAnxietyHistoryForDay(dayKey, "checked");
   const hasItems = items.length > 0;
-  const dialogOpen = Boolean(document.getElementById("reflection-dialog")?.open);
-  // Sticky dock only when items exist; park card stays for add.
-  const showDock = hasItems && dialogOpen;
   const dayLabel = "today";
 
-  card?.classList.toggle("hidden", !showDock);
-  document.documentElement.classList.toggle("reflection-anxiety-active", showDock);
+  syncReflectionAnxietyDock(hasItems);
   document.documentElement.classList.toggle("reflection-has-anxiety", hasItems);
   if (countEl) {
     countEl.textContent = String(items.length);
@@ -8349,6 +8417,7 @@ function setReflectionTab(tab) {
     panel.classList.toggle("active", show);
   });
   syncReflectionDayPagerVisibility(nextTab);
+  syncReflectionAnxietyDock();
   const assets = HOME_HERO_WALLPAPERS[getHomeHeroWallpaperPeriod()];
   applyReflectionScreenBackground(document.querySelector(".reflection-screen"), assets, nextTab);
   updateReflectionHeroOnCream();
@@ -10983,9 +11052,65 @@ function clearDialogBrainFields() {
   document.getElementById("dialog-brain-context").value = "";
 }
 
+function getDialogCaptureMode() {
+  return document.getElementById("dialog-capture-mode")?.value === "note" ? "note" : "task";
+}
+
+function setDialogCaptureMode(mode, options = {}) {
+  const next = mode === "note" ? "note" : "task";
+  const modeInput = document.getElementById("dialog-capture-mode");
+  if (modeInput) modeInput.value = next;
+
+  const dialog = document.getElementById("task-dialog");
+  dialog?.classList.toggle("is-note-mode", next === "note");
+
+  const switcher = document.getElementById("dialog-mode-switch");
+  if (switcher) {
+    const showSwitcher = options.showSwitcher !== false;
+    switcher.classList.toggle("hidden", !showSwitcher);
+    switcher.querySelectorAll(".dialog-mode-btn").forEach((btn) => {
+      const active = btn.dataset.mode === next;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+  }
+
+  const taskFields = document.getElementById("dialog-task-fields");
+  const noteHint = document.getElementById("dialog-note-hint");
+  const input = document.getElementById("dialog-input");
+  const title = document.getElementById("dialog-title");
+
+  taskFields?.classList.toggle("hidden", next === "note");
+  noteHint?.classList.toggle("hidden", next !== "note");
+
+  if (next === "note") {
+    if (title && options.updateTitle !== false) title.textContent = "Add Note";
+    if (input) {
+      input.placeholder = "Jot something down…";
+      input.maxLength = 1000;
+      input.rows = 4;
+    }
+    setTaskDialogSubmitLabel("Save note");
+    const hint = document.getElementById("dialog-parse-hint");
+    const preview = document.getElementById("dialog-parse-preview");
+    hint?.classList.add("hidden");
+    preview?.classList.add("hidden");
+    if (preview) preview.innerHTML = "";
+  } else {
+    if (title && options.updateTitle !== false) title.textContent = "Add Task";
+    if (input) {
+      input.placeholder = "One task — or paste a few lines to split into several";
+      input.maxLength = 2000;
+      input.rows = 2;
+    }
+    if (options.syncPreview !== false) syncDialogParsePreview();
+  }
+}
+
 function resetDialogMediaFields() {
   dialogPhotoDraft = [];
   dialogNoteEntries = [];
+  dialogClaimedNoteIds = [];
   revokePhotoUrls(dialogPhotoUrls);
   const notesInput = document.getElementById("dialog-notes-input");
   if (notesInput) notesInput.value = "";
@@ -11069,6 +11194,7 @@ function parseTasksFromText(raw) {
 }
 
 function isTaskDialogMultiAddMode() {
+  if (getDialogCaptureMode() === "note") return false;
   const editId = document.getElementById("dialog-edit-id")?.value;
   const brainId = document.getElementById("dialog-brain-id")?.value;
   return !editId && !brainId;
@@ -11326,6 +11452,7 @@ async function openTaskDialog(tier = 1) {
 
   clearDialogBrainFields();
   resetDialogMediaFields();
+  setDialogCaptureMode("task", { showSwitcher: true, updateTitle: true, syncPreview: false });
   document.getElementById("dialog-title").textContent = "Add Task";
   document.getElementById("dialog-input").value = "";
   setDialogTier(tier);
@@ -11345,8 +11472,10 @@ async function openEditTaskDialog(task, ctx) {
   const dialog = document.getElementById("task-dialog");
 
   clearDialogBrainFields();
+  setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
   dialogPhotoDraft = Array.isArray(task.photos) ? task.photos.map((p) => ({ ...p })) : [];
   dialogNoteEntries = getTaskNoteEntries(task).map((n) => ({ ...n }));
+  dialogClaimedNoteIds = [];
   document.getElementById("dialog-title").textContent = "Edit Task";
   document.getElementById("dialog-input").value = task.text;
   setDialogTier(task.tier);
@@ -11374,6 +11503,7 @@ function openBrainDumpSendDialog(item, ctx) {
 
   clearDialogBrainFields();
   resetDialogMediaFields();
+  setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
   document.getElementById("dialog-title").textContent = "Send to Priority";
   document.getElementById("dialog-input").value = item.text;
   setDialogTier(1);
@@ -11408,10 +11538,16 @@ function sendBrainDumpToTier(id, ctx, tier, textOverride) {
 }
 
 function saveTaskFromDialog() {
+  if (getDialogCaptureMode() === "note") {
+    const text = document.getElementById("dialog-input")?.value || "";
+    if (!addStandaloneNote(text)) return false;
+    return true;
+  }
+
   const raw = document.getElementById("dialog-input").value;
   const tier = Number(document.getElementById("dialog-tier-select").value);
   const newCtx = document.getElementById("dialog-context").value;
-  if (!isValidContext(newCtx)) return;
+  if (!isValidContext(newCtx)) return false;
   const editId = document.getElementById("dialog-edit-id").value;
   const oldCtx = document.getElementById("dialog-original-context").value;
   const brainId = document.getElementById("dialog-brain-id").value;
@@ -11421,7 +11557,7 @@ function saveTaskFromDialog() {
 
   if (brainId) {
     const text = raw.trim();
-    if (!text) return;
+    if (!text) return false;
     const created = buildTaskFromDialogFields(
       withTaskNotes({ id: createId(), text, tier, done: false, photos }, noteEntries)
     );
@@ -11429,15 +11565,15 @@ function saveTaskFromDialog() {
     recordDeletedId(brainId);
     saveBrainDump(brainCtx, loadBrainDump(brainCtx).filter((i) => i.id !== brainId));
     clearDialogBrainFields();
-    return;
+    return true;
   }
 
   if (editId) {
     const text = raw.trim();
-    if (!text) return;
+    if (!text) return false;
     const oldList = loadTasks(oldCtx);
     const task = oldList.find((t) => t.id === editId);
-    if (!task) return;
+    if (!task) return false;
 
     const updated = buildTaskFromDialogFields(
       withTaskNotes({ ...task, text, tier, photos }, noteEntries)
@@ -11455,11 +11591,11 @@ function saveTaskFromDialog() {
       );
       saveTasks(newCtx, [...loadTasks(newCtx), updated]);
     }
-    return;
+    return true;
   }
 
   const parsed = parseTasksFromText(raw);
-  if (!parsed.length) return;
+  if (!parsed.length) return false;
   const created = parsed.map((text, index) =>
     buildTaskFromDialogFields(
       withTaskNotes(
@@ -11475,6 +11611,7 @@ function saveTaskFromDialog() {
     )
   );
   saveTasks(newCtx, [...loadTasks(newCtx), ...created]);
+  return true;
 }
 
 function setupTaskDialog() {
@@ -11496,9 +11633,21 @@ function setupTaskDialog() {
     btn.addEventListener("click", () => openTierExpand(Number(btn.dataset.tier)));
   });
 
+  const modeSwitch = document.getElementById("dialog-mode-switch");
+  if (modeSwitch && !modeSwitch.dataset.bound) {
+    modeSwitch.dataset.bound = "1";
+    modeSwitch.addEventListener("click", (e) => {
+      const btn = e.target.closest(".dialog-mode-btn");
+      if (!btn || !modeSwitch.contains(btn)) return;
+      setDialogCaptureMode(btn.dataset.mode, { showSwitcher: true });
+      document.getElementById("dialog-input")?.focus();
+    });
+  }
+
   document.getElementById("dialog-cancel").addEventListener("click", () => {
     clearDialogBrainFields();
     resetDialogMediaFields();
+    setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
     setTaskDialogDeleteVisible(false);
     dialog.close();
   });
@@ -11517,6 +11666,7 @@ function setupTaskDialog() {
   dialog.addEventListener("close", () => {
     clearDialogBrainFields();
     resetDialogMediaFields();
+    setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
     setTaskDialogSubmitLabel("Save");
     setTaskDialogDeleteVisible(false);
     syncDialogParsePreview();
@@ -11540,7 +11690,8 @@ function setupTaskDialog() {
 
   document.getElementById("task-dialog-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    saveTaskFromDialog();
+    if (!saveTaskFromDialog()) return;
+    consumeClaimedDialogNotes();
     dialog.close();
     renderAll();
   });
@@ -11918,6 +12069,96 @@ function historyAnxietyCardHtml(history) {
     </article>`;
 }
 
+function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
+  const when = formatNoteTimestamp(note.createdAt);
+  const linked = note.source === "task";
+  return `
+    <li class="history-note-item${linked ? " history-note-item--linked" : ""}" data-note-id="${escapeHtml(note.id)}"${
+      linked
+        ? ` data-task-id="${escapeHtml(note.taskId)}" data-context="${escapeHtml(note.context)}"`
+        : ""
+    }>
+      <div class="history-note-copy">
+        <p class="history-note-text">${escapeHtml(note.text)}</p>
+        ${when ? `<p class="history-note-meta">${escapeHtml(when)}</p>` : ""}
+        ${
+          linked
+            ? `<button type="button" class="history-note-task-link">On “${escapeHtml(
+                truncateReflectionLabel(note.taskText || "task", 42)
+              )}”</button>`
+            : hasTasks
+              ? `<div class="history-note-attach-row">
+          <select class="history-note-attach" aria-label="Attach to a task">
+            ${taskOptionsHtml}
+          </select>
+          <button type="button" class="history-note-attach-btn">Attach</button>
+        </div>`
+              : `<p class="history-note-attach-empty">Add a task to attach this note.</p>`
+        }
+      </div>
+      <button
+        type="button"
+        class="history-note-delete"
+        aria-label="Delete note"
+        title="Delete note"
+      >
+        <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+      </button>
+    </li>`;
+}
+
+function historyNotesCardHtml(notes) {
+  if (!notes.length) return "";
+  const openTasks = getOpenTasksForNoteLink();
+  const taskOptionsHtml = notesPanelTaskOptionsHtml("");
+  const linkedCount = notes.filter((note) => note.source === "task").length;
+  const subtitle = linkedCount
+    ? `${notes.length} note${notes.length === 1 ? "" : "s"} · ${linkedCount} on tasks`
+    : `${notes.length} note${notes.length === 1 ? "" : "s"}`;
+  return `
+    <article class="plan-card history-notes-card" aria-labelledby="history-notes-heading">
+      <div class="plan-card-inner">
+        <div class="completed-wins-card-header">
+          <div class="completed-wins-card-heading">
+            <h3 class="plan-card-title plan-card-title--featured" id="history-notes-heading">Notes</h3>
+            <p class="plan-card-subtitle">${subtitle}</p>
+          </div>
+        </div>
+        <ul class="history-notes-list">
+          ${notes.map((note) => historyNoteItemHtml(note, taskOptionsHtml, openTasks.length > 0)).join("")}
+        </ul>
+      </div>
+    </article>`;
+}
+
+function bindHistoryNotesCard(root) {
+  if (!root) return;
+  root.querySelectorAll(".history-note-item").forEach((el) => {
+    const noteId = el.dataset.noteId;
+    const taskId = el.dataset.taskId;
+    const context = el.dataset.context;
+    el.querySelector(".history-note-delete")?.addEventListener("click", () => {
+      if (taskId && context) {
+        deleteTaskNote(taskId, context, noteId);
+      } else {
+        deleteStandaloneNote(noteId);
+      }
+      renderAll();
+    });
+    el.querySelector(".history-note-task-link")?.addEventListener("click", () => {
+      const task = loadTasks(context).find((t) => t.id === taskId);
+      if (task) openEditTaskDialog(task, context);
+    });
+    el.querySelector(".history-note-attach-btn")?.addEventListener("click", () => {
+      const select = el.querySelector(".history-note-attach");
+      const [targetContext, targetTaskId] = (select?.value || "").split(":");
+      if (!targetContext || !targetTaskId) return;
+      linkStandaloneNoteToTask(noteId, targetTaskId, targetContext);
+      renderAll();
+    });
+  });
+}
+
 function renderHistory() {
   const content = document.getElementById("history-content");
   const empty = document.getElementById("history-empty");
@@ -11928,16 +12169,22 @@ function renderHistory() {
   const tasks = getCompletedTasksForHistory().filter(
     (t) => archiveDayKey(t.completedAt) >= startedDay
   );
+  const notes = collectAllNotesForPanel();
 
   if (subtitle) {
     const startedLabel = formatArchiveDayHeading(startedDay);
-    subtitle.textContent =
+    const taskPart =
       tasks.length === 0
-        ? `Completed tasks since ${startedLabel} will appear here.`
-        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}.`;
+        ? `Completed tasks since ${startedLabel} will appear here`
+        : `${tasks.length} completed task${tasks.length === 1 ? "" : "s"} since ${startedLabel}`;
+    const notePart =
+      notes.length === 0
+        ? ""
+        : ` · ${notes.length} note${notes.length === 1 ? "" : "s"}`;
+    subtitle.textContent = `${taskPart}${notePart}.`;
   }
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && notes.length === 0) {
     content.innerHTML = "";
     empty.classList.remove("hidden");
     return;
@@ -11958,9 +12205,11 @@ function renderHistory() {
     return b.localeCompare(a);
   });
 
-  content.innerHTML = sortedKeys
+  const winsHtml = sortedKeys
     .map((dayKey) => historyDayCardHtml(dayKey, groups.get(dayKey)))
     .join("");
+  content.innerHTML = `${historyNotesCardHtml(notes)}${winsHtml}`;
+  bindHistoryNotesCard(content);
 
   content.querySelectorAll(".history-wins-item").forEach((row) => {
     bindAttachmentIndicator(row, row.dataset.id, row.dataset.context);
