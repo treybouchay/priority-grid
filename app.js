@@ -468,8 +468,8 @@ const HOME_HERO_WALLPAPERS = {
     desktop: "assets/home-hero-morning-wide.png?v=2",
   },
   day: {
-    mobile: "assets/home-hero-day.png?v=1",
-    desktop: "assets/home-hero-day-wide.png?v=1",
+    mobile: "assets/home-hero-day.png?v=3",
+    desktop: "assets/home-hero-day-wide.png?v=3",
   },
   dusk: {
     mobile: "assets/home-hero-afternoon.png?v=1",
