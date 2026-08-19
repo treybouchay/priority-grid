@@ -107,6 +107,9 @@ def merge_payload(existing, incoming):
         for key in custom_brain_keys
     }
 
+    merged_anxiety_history = merge_lists(older.get("anxietyHistory"), newer.get("anxietyHistory"))
+    resolved_anxiety_ids = {item.get("id") for item in merged_anxiety_history if item.get("id")}
+
     merged = {
         "version": max(existing.get("version", 1), incoming.get("version", 1)),
         "updatedAt": max(existing["updatedAt"], incoming["updatedAt"]),
@@ -126,8 +129,12 @@ def merge_payload(existing, incoming):
         ),
         "displayName": newer.get("displayName", older.get("displayName")),
         "profileAvatar": newer.get("profileAvatar", older.get("profileAvatar")),
-        "anxietyBox": merge_lists(older.get("anxietyBox"), newer.get("anxietyBox")),
-        "anxietyHistory": merge_lists(older.get("anxietyHistory"), newer.get("anxietyHistory")),
+        "anxietyHistory": merged_anxiety_history,
+        "anxietyBox": [
+            item
+            for item in merge_lists(older.get("anxietyBox"), newer.get("anxietyBox"))
+            if item.get("id") not in resolved_anxiety_ids
+        ],
         "standaloneNotes": merge_lists(older.get("standaloneNotes"), newer.get("standaloneNotes")),
         "weekStart": newer.get("weekStart", older.get("weekStart")),
     }

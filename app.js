@@ -1646,6 +1646,16 @@ function migrateAnxietyTossedToHistory(options = {}) {
   }
 }
 
+function anxietyHistoryIdSet() {
+  return new Set(loadAnxietyHistory().map((item) => item?.id).filter(Boolean));
+}
+
+/** Checked-off / tossed thoughts keep their id in history, so id-union sync must not resurrect them in the box. */
+function dropResolvedAnxietyItems(list) {
+  const resolved = anxietyHistoryIdSet();
+  return (Array.isArray(list) ? list : []).filter((item) => item?.id && !resolved.has(item.id));
+}
+
 function loadAnxietyBox({ includeTossed = false } = {}) {
   migrateAnxietyTossedToHistory({ skipSync: true });
   try {
@@ -1655,8 +1665,9 @@ function loadAnxietyBox({ includeTossed = false } = {}) {
       .map(normalizeAnxietyBoxItem)
       .filter(Boolean)
       .map(({ tossedAt: _t, ...rest }) => rest);
+    const active = dropResolvedAnxietyItems(items);
     // includeTossed kept for sync/export callers; tossed now live in history
-    return includeTossed ? items : items;
+    return includeTossed ? active : active;
   } catch {
     return [];
   }
@@ -1666,11 +1677,13 @@ function saveAnxietyBox(items, options = {}) {
   localStorage.setItem(
     ANXIETY_BOX_KEY,
     JSON.stringify(
-      (Array.isArray(items) ? items : [])
-        .map(normalizeAnxietyBoxItem)
-        .filter(Boolean)
-        .filter((item) => !item.tossedAt)
-        .map(({ tossedAt: _t, ...rest }) => rest)
+      dropResolvedAnxietyItems(
+        (Array.isArray(items) ? items : [])
+          .map(normalizeAnxietyBoxItem)
+          .filter(Boolean)
+          .filter((item) => !item.tossedAt)
+          .map(({ tossedAt: _t, ...rest }) => rest)
+      )
     )
   );
   if (!options.skipSync) markSyncDirty();
@@ -1969,6 +1982,9 @@ function mergeSyncPayloads(existing, incoming) {
     mergedCustomBrain[key] = mergeLists(olderCustomBrain[key], newerCustomBrain[key]);
   });
 
+  const mergedAnxietyHistory = mergeLists(older.anxietyHistory, newer.anxietyHistory);
+  const mergedAnxietyIds = new Set(mergedAnxietyHistory.map((item) => item?.id).filter(Boolean));
+
   return {
     version: Math.max(existing.version || 1, incoming.version || 1),
     updatedAt: incoming.updatedAt >= existing.updatedAt ? incoming.updatedAt : existing.updatedAt,
@@ -1985,8 +2001,8 @@ function mergeSyncPayloads(existing, incoming) {
     forgetIt: mergeDictsForSync(older.forgetIt || older.nextWeek, newer.forgetIt || newer.nextWeek),
     displayName: newer.displayName ?? older.displayName,
     profileAvatar: newer.profileAvatar !== undefined ? newer.profileAvatar : older.profileAvatar,
-    anxietyBox: mergeLists(older.anxietyBox, newer.anxietyBox),
-    anxietyHistory: mergeLists(older.anxietyHistory, newer.anxietyHistory),
+    anxietyHistory: mergedAnxietyHistory,
+    anxietyBox: dropDeletedFromList(mergeLists(older.anxietyBox, newer.anxietyBox), mergedAnxietyIds),
     standaloneNotes: mergeLists(older.standaloneNotes, newer.standaloneNotes),
     weekStart: newer.weekStart ?? older.weekStart,
   };
@@ -2635,16 +2651,16 @@ function applySyncPayload(payload, options = {}) {
     if (preferRemote) setWeekStartPreference(payload.weekStart, { skipSync: true });
   }
 
-  if (Array.isArray(payload.anxietyBox) || loadAnxietyBox().length > 0) {
-    saveAnxietyBox(
-      mergeTaskLists(loadAnxietyBox(), payload.anxietyBox || [], preferRemote),
+  if (Array.isArray(payload.anxietyHistory) || loadAnxietyHistory().length > 0) {
+    saveAnxietyHistory(
+      mergeTaskLists(loadAnxietyHistory(), payload.anxietyHistory || [], preferRemote),
       skipSync
     );
   }
 
-  if (Array.isArray(payload.anxietyHistory) || loadAnxietyHistory().length > 0) {
-    saveAnxietyHistory(
-      mergeTaskLists(loadAnxietyHistory(), payload.anxietyHistory || [], preferRemote),
+  if (Array.isArray(payload.anxietyBox) || loadAnxietyBox().length > 0) {
+    saveAnxietyBox(
+      mergeTaskLists(loadAnxietyBox(), payload.anxietyBox || [], preferRemote),
       skipSync
     );
   }
@@ -4134,6 +4150,14 @@ function bindAnxietyListClicks(root) {
   });
 
   root?.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
+    const item = input.closest("[data-anxiety-id]");
+    if (!item?.dataset.anxietyId) return;
+    if (input.checked) checkAnxietyBoxItem(item.dataset.anxietyId);
+  });
+
+  root?.addEventListener("click", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
     const item = input.closest("[data-anxiety-id]");
