@@ -393,12 +393,106 @@ body[data-page="history"] .history-notes-list {
 
 body[data-page="history"] .history-note-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: start;
   padding: 0.85rem 0.9rem;
   border-radius: 1rem;
   background: rgba(253, 249, 244, 0.75);
+}
+
+body[data-page="history"] .history-note-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+body[data-page="history"] .history-note-edit-btn,
+body[data-page="history"] .history-note-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  cursor: pointer;
+}
+
+body[data-page="history"] .history-note-edit-btn .icon,
+body[data-page="history"] .history-note-delete .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+body[data-page="history"] .history-note-edit-btn:hover,
+body[data-page="history"] .history-note-delete:hover {
+  color: #11302c;
+}
+
+body[data-page="history"] .history-note-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+body[data-page="history"] .history-note-edit.hidden {
+  display: none;
+}
+
+body[data-page="history"] .history-note-edit-input {
+  width: 100%;
+  min-height: 4.5rem;
+  box-sizing: border-box;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  border-radius: 0.75rem;
+  background: #fdf9f4;
+  color: #11302c;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+body[data-page="history"] .history-note-edit-input:focus {
+  outline: 2px solid rgba(14, 48, 48, 0.35);
+  outline-offset: 1px;
+}
+
+body[data-page="history"] .history-note-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+body[data-page="history"] .history-note-edit-cancel,
+body[data-page="history"] .history-note-edit-save {
+  height: 2rem;
+  padding: 0 0.8rem;
+  border: none;
+  border-radius: 0.65rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body[data-page="history"] .history-note-edit-cancel {
+  background: transparent;
+  color: rgba(17, 48, 44, 0.65);
+}
+
+body[data-page="history"] .history-note-edit-save {
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+body[data-page="history"] .history-note-item.is-editing .history-note-actions {
+  visibility: hidden;
 }
 
 body[data-page="history"] .history-note-text {
@@ -481,28 +575,6 @@ body[data-page="history"] .history-note-attach-empty {
   margin: 0.55rem 0 0;
   font-size: 0.75rem;
   color: rgba(17, 48, 44, 0.5);
-}
-
-body[data-page="history"] .history-note-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border: none;
-  padding: 0;
-  background: transparent;
-  color: rgba(17, 48, 44, 0.4);
-  cursor: pointer;
-}
-
-body[data-page="history"] .history-note-delete .icon {
-  width: 1rem;
-  height: 1rem;
-}
-
-body[data-page="history"] .history-note-delete:hover {
-  color: #11302c;
 }
 
 @media (min-width: 769px) {

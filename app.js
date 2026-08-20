@@ -3360,6 +3360,17 @@ function deleteStandaloneNote(id) {
   saveStandaloneNotes(loadStandaloneNotes().filter((n) => n.id !== id));
 }
 
+function updateStandaloneNote(id, text) {
+  const trimmed = String(text || "").trim().slice(0, 1000);
+  if (!id || !trimmed) return false;
+  const notes = loadStandaloneNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return false;
+  notes[index] = { ...notes[index], text: trimmed };
+  saveStandaloneNotes(notes);
+  return true;
+}
+
 function linkStandaloneNoteToTask(noteId, taskId, context) {
   const notes = loadStandaloneNotes();
   const note = notes.find((n) => n.id === noteId);
@@ -10023,6 +10034,19 @@ function deleteTaskNote(id, ctx, noteId) {
   persistTaskNotes(id, ctx, entries);
 }
 
+function updateTaskNote(id, ctx, noteId, text) {
+  const trimmed = String(text || "").trim().slice(0, 1000);
+  if (!trimmed) return false;
+  const task = loadTasks(ctx).find((t) => t.id === id);
+  if (!task) return false;
+  const entries = getTaskNoteEntries(task);
+  const index = entries.findIndex((n) => n.id === noteId);
+  if (index === -1) return false;
+  entries[index] = { ...entries[index], text: trimmed };
+  persistTaskNotes(id, ctx, entries);
+  return true;
+}
+
 function closeTaskMediaViewer() {
   const dialog = document.getElementById("media-viewer-dialog");
   revokePhotoUrls(mediaViewerUrls);
@@ -12103,31 +12127,52 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
         : ""
     }>
       <div class="history-note-copy">
-        <p class="history-note-text">${escapeHtml(note.text)}</p>
-        ${when ? `<p class="history-note-meta">${escapeHtml(when)}</p>` : ""}
-        ${
-          linked
-            ? `<button type="button" class="history-note-task-link">On “${escapeHtml(
-                truncateReflectionLabel(note.taskText || "task", 42)
-              )}”</button>`
-            : hasTasks
-              ? `<div class="history-note-attach-row">
-          <select class="history-note-attach" aria-label="Attach to a task">
-            ${taskOptionsHtml}
-          </select>
-          <button type="button" class="history-note-attach-btn">Attach</button>
-        </div>`
-              : `<p class="history-note-attach-empty">Add a task to attach this note.</p>`
-        }
+        <div class="history-note-view">
+          <p class="history-note-text">${escapeHtml(note.text)}</p>
+          ${when ? `<p class="history-note-meta">${escapeHtml(when)}</p>` : ""}
+          ${
+            linked
+              ? `<button type="button" class="history-note-task-link">On “${escapeHtml(
+                  truncateReflectionLabel(note.taskText || "task", 42)
+                )}”</button>`
+              : hasTasks
+                ? `<div class="history-note-attach-row">
+            <select class="history-note-attach" aria-label="Attach to a task">
+              ${taskOptionsHtml}
+            </select>
+            <button type="button" class="history-note-attach-btn">Attach</button>
+          </div>`
+                : `<p class="history-note-attach-empty">Add a task to attach this note.</p>`
+          }
+        </div>
+        <form class="history-note-edit hidden">
+          <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit note">${escapeHtml(
+            note.text
+          )}</textarea>
+          <div class="history-note-edit-actions">
+            <button type="button" class="history-note-edit-cancel">Cancel</button>
+            <button type="submit" class="history-note-edit-save">Save</button>
+          </div>
+        </form>
       </div>
-      <button
-        type="button"
-        class="history-note-delete"
-        aria-label="Delete note"
-        title="Delete note"
-      >
-        <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
-      </button>
+      <div class="history-note-actions">
+        <button
+          type="button"
+          class="history-note-edit-btn"
+          aria-label="Edit note"
+          title="Edit note"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#icon-pencil"></use></svg>
+        </button>
+        <button
+          type="button"
+          class="history-note-delete"
+          aria-label="Delete note"
+          title="Delete note"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+        </button>
+      </div>
     </li>`;
 }
 
@@ -12155,12 +12200,53 @@ function historyNotesCardHtml(notes) {
     </article>`;
 }
 
+function setHistoryNoteEditing(el, editing) {
+  if (!el) return;
+  el.classList.toggle("is-editing", editing);
+  el.querySelector(".history-note-view")?.classList.toggle("hidden", editing);
+  el.querySelector(".history-note-edit")?.classList.toggle("hidden", !editing);
+  el.querySelector(".history-note-edit-btn")?.classList.toggle("hidden", editing);
+  el.querySelector(".history-note-delete")?.classList.toggle("hidden", editing);
+  if (editing) {
+    const input = el.querySelector(".history-note-edit-input");
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+  }
+}
+
 function bindHistoryNotesCard(root) {
   if (!root) return;
   root.querySelectorAll(".history-note-item").forEach((el) => {
     const noteId = el.dataset.noteId;
     const taskId = el.dataset.taskId;
     const context = el.dataset.context;
+    const editForm = el.querySelector(".history-note-edit");
+    const editInput = el.querySelector(".history-note-edit-input");
+
+    el.querySelector(".history-note-edit-btn")?.addEventListener("click", () => {
+      setHistoryNoteEditing(el, true);
+    });
+    el.querySelector(".history-note-edit-cancel")?.addEventListener("click", () => {
+      if (editInput) editInput.value = el.querySelector(".history-note-text")?.textContent || "";
+      setHistoryNoteEditing(el, false);
+    });
+    editForm?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nextText = editInput?.value || "";
+      const saved =
+        taskId && context
+          ? updateTaskNote(taskId, context, noteId, nextText)
+          : updateStandaloneNote(noteId, nextText);
+      if (!saved) return;
+      renderAll();
+    });
+    editInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        el.querySelector(".history-note-edit-cancel")?.click();
+      }
+    });
+
     el.querySelector(".history-note-delete")?.addEventListener("click", () => {
       if (taskId && context) {
         deleteTaskNote(taskId, context, noteId);
