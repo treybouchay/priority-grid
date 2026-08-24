@@ -43,6 +43,18 @@ Sync stores one JSON blob per user (`app_state` table). Local `./serve.sh` sync 
 
 If you already ran the original schema, also run `supabase/schema-history.sql` to enable sync history + restore.
 
+### Shared spaces (you + Kate)
+
+Personal accounts stay separate. Share only the lists you choose.
+
+1. **Run** `supabase/schema-sharing.sql` in the Supabase SQL Editor (after `schema.sql`).
+2. **Both of you** sign in with your own magic-link emails (Settings → Data & sync).
+3. One person opens **Settings → Sharing**, creates a shared space (e.g. “Ours”), and invites the other by email.
+4. The invitee signs in with that same email, accepts the invite under Sharing, then shared lists appear in the task filters (marked Shared).
+5. Add a new shared list, or **Share copy** of an existing personal/built-in list into the space. The personal copy stays private.
+
+Shared list data lives in `space_state` (not in your personal `app_state` blob). Optional: uncomment the realtime line at the bottom of `schema-sharing.sql` and enable replication for `space_state` for live updates.
+
 ### Sync history
 
 Signed-in devices keep the last ~20 cloud snapshots (Sync now always saves one; auto-saves are throttled). In Settings → Data & sync you can restore any snapshot.

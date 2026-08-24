@@ -1147,6 +1147,27 @@ body.sidebar-collapsed .sidebar-menu-btn,
   font-weight: var(--font-weight-medium);
 }
 
+.filter-pill--shared {
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.filter-pill-shared-tag {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  color: inherit;
+  opacity: 0.9;
+}
+
+.filter-pill--shared.active .filter-pill-shared-tag {
+  background: color-mix(in srgb, var(--on-primary) 22%, transparent);
+}
+
 .mode-135-toggle {
   padding: 0.35rem 0.85rem;
   border: 1px solid var(--border);
@@ -5118,7 +5139,7 @@ dialog {
 
 .dialog-notes-existing-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.4rem;
   margin-top: 0.4rem;
 }
@@ -5130,14 +5151,33 @@ dialog {
 .dialog-notes-existing {
   flex: 1 1 auto;
   min-width: 0;
-  height: 2.25rem;
-  padding: 0 0.6rem;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  height: auto;
+  padding: 0.55rem 2rem 0.55rem 0.7rem;
   border: 1px solid rgba(14, 48, 48, 0.14);
   border-radius: 0.65rem;
   background: #fdf9f4;
   color: #11302c;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%230e3030' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 0.7rem;
+}
+
+#task-dialog .dialog-notes-existing-row .dialog-notes-add-btn {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 #task-dialog .dialog-actions {

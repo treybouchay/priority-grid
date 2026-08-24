@@ -23,6 +23,9 @@ const ANXIETY_BOX_KEY = "priority-grid-anxiety-box";
 const ANXIETY_HISTORY_KEY = "priority-grid-anxiety-history";
 const STANDALONE_NOTES_KEY = "priority-grid-standalone-notes";
 const NOTIFY_SEEN_KEY = "priority-grid-notify-seen-at";
+const SPACES_META_KEY = "priority-grid-spaces-meta";
+const SPACE_PAYLOAD_PREFIX = "priority-grid-space-payload-";
+const SPACE_DIRTY_PREFIX = "priority-grid-space-dirty-";
 const NOTIFY_BELL_SELECTOR = "#tasks-page-notify, #page-header-actions .header-icon-btn-bell";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
@@ -144,7 +147,7 @@ function saveCustomContexts(list, options = {}) {
 }
 
 function getContexts() {
-  return [...BUILTIN_CONTEXTS, ...getCustomContexts().map((c) => c.id)];
+  return [...BUILTIN_CONTEXTS, ...getCustomContexts().map((c) => c.id), ...getSharedContextIds()];
 }
 
 function isValidContext(ctx) {
@@ -229,7 +232,7 @@ function deleteCustomContext(id) {
 }
 
 function getExtraContextIds() {
-  return getContexts().filter((ctx) => ctx !== "work" && ctx !== "home");
+  return getContexts().filter((ctx) => ctx !== "work" && ctx !== "home" && !isSharedContext(ctx));
 }
 
 function collectCustomTasksPayload() {
@@ -669,6 +672,10 @@ let syncPollTimer = null;
 let syncListenersBound = false;
 let supabaseSyncStarted = false;
 let lastHistorySavedAt = 0;
+let spacesMetaCache = null;
+let spacePushTimers = {};
+let spaceRealtimeChannels = [];
+let sharingUiBound = false;
 const SYNC_HISTORY_KEEP = 20;
 const SYNC_HISTORY_THROTTLE_MS = 5 * 60 * 1000;
 let touchDragGhost = null;
@@ -1460,6 +1467,11 @@ function migrateLegacyData() {
 }
 
 function loadTasks(ctx) {
+  const shared = findSharedContext(ctx);
+  if (shared) {
+    const payload = loadSpacePayload(shared.spaceId);
+    return Array.isArray(payload.tasks?.[ctx]) ? payload.tasks[ctx] : [];
+  }
   try {
     const saved = localStorage.getItem(tasksKey(ctx));
     if (saved) return JSON.parse(saved);
@@ -1475,11 +1487,20 @@ function markSyncDirty() {
 }
 
 function saveTasks(ctx, list, options = {}) {
+  const shared = findSharedContext(ctx);
+  if (shared) {
+    const payload = loadSpacePayload(shared.spaceId);
+    payload.tasks = { ...(payload.tasks || {}), [ctx]: Array.isArray(list) ? list : [] };
+    payload.updatedAt = new Date().toISOString();
+    saveSpacePayload(shared.spaceId, payload, { skipSync: options.skipSync });
+    return;
+  }
   localStorage.setItem(tasksKey(ctx), JSON.stringify(list));
   if (!options.skipSync) markSyncDirty();
 }
 
 function loadBrainDump(ctx) {
+  if (isSharedContext(ctx)) return [];
   try {
     const saved = localStorage.getItem(brainDumpKey(ctx));
     if (saved) return JSON.parse(saved);
@@ -1490,6 +1511,7 @@ function loadBrainDump(ctx) {
 }
 
 function saveBrainDump(ctx, list, options = {}) {
+  if (isSharedContext(ctx)) return;
   localStorage.setItem(brainDumpKey(ctx), JSON.stringify(list));
   if (!options.skipSync) markSyncDirty();
 }
@@ -1720,14 +1742,36 @@ function scheduleThoughtsBellCheck(now = Date.now()) {
 }
 
 function syncThoughtsBellAnimation() {
+  const count = loadAnxietyBox().length;
   const stale = hasStaleThoughts();
+  const label =
+    count === 0
+      ? "View Thoughts"
+      : count === 1
+        ? "View Thoughts — 1 anxious thought"
+        : `View Thoughts — ${count} anxious thoughts`;
+  const title = stale
+    ? "A thought has been waiting over 2 hours"
+    : count > 0
+      ? `${count} thought${count === 1 ? "" : "s"} in the Anxiety Box`
+      : "";
+
   document.querySelectorAll(THOUGHTS_BELL_SELECTOR).forEach((btn) => {
     btn.classList.toggle("is-ringing", stale);
-    if (stale) {
-      btn.setAttribute("title", "A thought has been waiting over 2 hours");
-    } else {
-      btn.removeAttribute("title");
+    btn.classList.toggle("has-thoughts", count > 0);
+    btn.setAttribute("aria-label", label);
+    if (title) btn.setAttribute("title", title);
+    else btn.removeAttribute("title");
+
+    let badge = btn.querySelector(".presence-thoughts-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "presence-thoughts-badge";
+      badge.setAttribute("aria-hidden", "true");
+      btn.appendChild(badge);
     }
+    badge.textContent = count > 99 ? "99+" : String(count);
+    badge.classList.toggle("hidden", count === 0);
   });
   scheduleThoughtsBellCheck();
 }
@@ -1874,6 +1918,655 @@ function importAllData(file) {
   reader.readAsText(file);
 }
 
+function emptySpacePayload() {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    deleted: {},
+    contexts: [],
+    tasks: {},
+  };
+}
+
+function normalizeSpaceContext(item) {
+  if (!item || typeof item.id !== "string" || typeof item.name !== "string") return null;
+  if (BUILTIN_CONTEXTS.includes(item.id)) return null;
+  const normalized = {
+    id: item.id,
+    name: item.name.trim().slice(0, 64) || "Shared list",
+    icon: isValidCustomListIcon(item.icon) ? item.icon : DEFAULT_CUSTOM_LIST_ICON,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+  };
+  if (isValidIconImage(item.iconImage)) normalized.iconImage = item.iconImage;
+  return normalized;
+}
+
+function normalizeSpacePayload(payload) {
+  const base = emptySpacePayload();
+  if (!payload || typeof payload !== "object") return base;
+  const contexts = Array.isArray(payload.contexts)
+    ? payload.contexts.map(normalizeSpaceContext).filter(Boolean)
+    : [];
+  const tasks = {};
+  const rawTasks = payload.tasks && typeof payload.tasks === "object" ? payload.tasks : {};
+  contexts.forEach((ctx) => {
+    tasks[ctx.id] = Array.isArray(rawTasks[ctx.id]) ? rawTasks[ctx.id] : [];
+  });
+  Object.keys(rawTasks).forEach((key) => {
+    if (!tasks[key] && Array.isArray(rawTasks[key])) tasks[key] = rawTasks[key];
+  });
+  return {
+    version: Number(payload.version) || 1,
+    updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : base.updatedAt,
+    deleted: payload.deleted && typeof payload.deleted === "object" ? payload.deleted : {},
+    contexts,
+    tasks,
+  };
+}
+
+function loadSpacesMeta() {
+  if (Array.isArray(spacesMetaCache)) return spacesMetaCache;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SPACES_META_KEY) || "[]");
+    spacesMetaCache = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    spacesMetaCache = [];
+  }
+  return spacesMetaCache;
+}
+
+function saveSpacesMeta(list) {
+  spacesMetaCache = Array.isArray(list) ? list : [];
+  try {
+    localStorage.setItem(SPACES_META_KEY, JSON.stringify(spacesMetaCache));
+  } catch {
+    /* ignore */
+  }
+}
+
+function spacePayloadKey(spaceId) {
+  return `${SPACE_PAYLOAD_PREFIX}${spaceId}`;
+}
+
+function loadSpacePayload(spaceId) {
+  if (!spaceId) return emptySpacePayload();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(spacePayloadKey(spaceId)) || "null");
+    return normalizeSpacePayload(parsed);
+  } catch {
+    return emptySpacePayload();
+  }
+}
+
+function saveSpacePayload(spaceId, payload, options = {}) {
+  if (!spaceId) return;
+  const next = normalizeSpacePayload(payload);
+  try {
+    localStorage.setItem(spacePayloadKey(spaceId), JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  if (!options.skipSync) markSpaceDirty(spaceId);
+}
+
+function markSpaceDirty(spaceId) {
+  if (!spaceId) return;
+  try {
+    localStorage.setItem(`${SPACE_DIRTY_PREFIX}${spaceId}`, "1");
+  } catch {
+    /* ignore */
+  }
+  scheduleSpacePush(spaceId);
+}
+
+function clearSpaceDirty(spaceId) {
+  try {
+    localStorage.removeItem(`${SPACE_DIRTY_PREFIX}${spaceId}`);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isSpaceDirty(spaceId) {
+  try {
+    return localStorage.getItem(`${SPACE_DIRTY_PREFIX}${spaceId}`) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function listSharedContexts() {
+  const out = [];
+  loadSpacesMeta().forEach((space) => {
+    const payload = loadSpacePayload(space.id);
+    (payload.contexts || []).forEach((ctx) => {
+      out.push({ ...ctx, spaceId: space.id, spaceName: space.name, shared: true });
+    });
+  });
+  return out;
+}
+
+function getSharedContextIds() {
+  return listSharedContexts().map((c) => c.id);
+}
+
+function findSharedContext(ctx) {
+  if (!ctx) return null;
+  return listSharedContexts().find((c) => c.id === ctx) || null;
+}
+
+function isSharedContext(ctx) {
+  return Boolean(findSharedContext(ctx));
+}
+
+function slugifySharedContextName(name, spaceId) {
+  const base =
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "list";
+  let id = `shared-${base}`;
+  const existing = new Set([
+    ...getContexts().filter((c) => c !== id),
+    ...getSharedContextIds(),
+  ]);
+  const payload = loadSpacePayload(spaceId);
+  (payload.contexts || []).forEach((c) => existing.add(c.id));
+  if (!existing.has(id) && !BUILTIN_CONTEXTS.includes(id)) return id;
+  let n = 2;
+  while (existing.has(`${id}-${n}`) || BUILTIN_CONTEXTS.includes(`${id}-${n}`)) n += 1;
+  return `${id}-${n}`;
+}
+
+function mergeSpacePayloads(existing, incoming) {
+  if (!existing?.updatedAt) return normalizeSpacePayload(incoming);
+  if (!incoming?.updatedAt) return normalizeSpacePayload(existing);
+  const a = normalizeSpacePayload(existing);
+  const b = normalizeSpacePayload(incoming);
+  const newer = b.updatedAt >= a.updatedAt ? b : a;
+  const older = newer === b ? a : b;
+  const deleted = pruneDeletedIdMap({ ...(older.deleted || {}), ...(newer.deleted || {}) });
+  const deletedSet = collectDeletedIdSet(deleted);
+  const byId = new Map();
+  [...older.contexts, ...newer.contexts].forEach((ctx) => {
+    if (!ctx?.id || deletedSet.has(ctx.id)) return;
+    byId.set(ctx.id, ctx);
+  });
+  const contexts = [...byId.values()];
+  const tasks = {};
+  contexts.forEach((ctx) => {
+    tasks[ctx.id] = dropDeletedFromList(
+      mergeListsByIdForSync(older.tasks?.[ctx.id], newer.tasks?.[ctx.id]),
+      deletedSet
+    );
+  });
+  return {
+    version: Math.max(a.version || 1, b.version || 1),
+    updatedAt: newer.updatedAt,
+    deleted,
+    contexts,
+    tasks,
+  };
+}
+
+async function fetchSpacePayload(spaceId) {
+  if (!supabaseClient || !supabaseUserId || !spaceId) return emptySpacePayload();
+  const { data, error } = await supabaseClient
+    .from("space_state")
+    .select("payload, updated_at")
+    .eq("space_id", spaceId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload) return emptySpacePayload();
+  const payload = normalizeSpacePayload(data.payload);
+  if (data.updated_at) payload.updatedAt = data.updated_at;
+  return payload;
+}
+
+async function pushSpacePayload(spaceId, options = {}) {
+  if (!supabaseClient || !supabaseUserId || !spaceId) return;
+  const local = loadSpacePayload(spaceId);
+  let remote = emptySpacePayload();
+  try {
+    remote = await fetchSpacePayload(spaceId);
+  } catch {
+    /* first push may have empty remote */
+  }
+  const merged = options.forceLocal
+    ? { ...local, updatedAt: new Date().toISOString() }
+    : mergeSpacePayloads(remote, { ...local, updatedAt: new Date().toISOString() });
+  const { error } = await supabaseClient.from("space_state").upsert(
+    {
+      space_id: spaceId,
+      payload: merged,
+      updated_at: merged.updatedAt,
+    },
+    { onConflict: "space_id" }
+  );
+  if (error) throw error;
+  saveSpacePayload(spaceId, merged, { skipSync: true });
+  clearSpaceDirty(spaceId);
+}
+
+function scheduleSpacePush(spaceId) {
+  if (!spaceId || syncBackend !== "supabase" || !supabaseUserId) return;
+  window.clearTimeout(spacePushTimers[spaceId]);
+  spacePushTimers[spaceId] = window.setTimeout(() => {
+    pushSpacePayload(spaceId).catch(() => {
+      /* keep dirty for retry */
+    });
+  }, 600);
+}
+
+async function pullSpacePayload(spaceId) {
+  if (!spaceId) return;
+  const remote = await fetchSpacePayload(spaceId);
+  const local = loadSpacePayload(spaceId);
+  const merged = isSpaceDirty(spaceId) ? mergeSpacePayloads(remote, local) : mergeSpacePayloads(local, remote);
+  saveSpacePayload(spaceId, merged, { skipSync: true });
+  if (isSpaceDirty(spaceId)) scheduleSpacePush(spaceId);
+}
+
+async function refreshSpacesFromServer() {
+  if (!supabaseClient || !supabaseUserId) {
+    saveSpacesMeta([]);
+    updateSharingUi();
+    rebuildContextUi();
+    return;
+  }
+
+  const { data: memberRows, error: memberError } = await supabaseClient
+    .from("space_members")
+    .select("space_id, role, spaces(id, name, created_at)");
+  if (memberError) throw memberError;
+
+  const meta = (memberRows || [])
+    .map((row) => {
+      const space = row.spaces;
+      if (!space?.id) return null;
+      return {
+        id: space.id,
+        name: space.name || "Shared",
+        role: row.role || "member",
+        createdAt: space.created_at || null,
+      };
+    })
+    .filter(Boolean);
+
+  saveSpacesMeta(meta);
+  await Promise.all(meta.map((space) => pullSpacePayload(space.id)));
+  setupSpaceRealtime(meta.map((s) => s.id));
+  updateSharingUi();
+  rebuildContextUi();
+  if (typeof renderAll === "function") renderAll();
+}
+
+async function fetchPendingSpaceInvites() {
+  if (!supabaseClient || !supabaseUserId || !supabaseAuthEmail) return [];
+  const { data, error } = await supabaseClient
+    .from("space_invites")
+    .select("id, email, status, created_at, space_id, spaces(name)")
+    .eq("status", "pending")
+    .ilike("email", supabaseAuthEmail);
+  if (error) throw error;
+  return data || [];
+}
+
+async function createSharedSpace(name) {
+  if (!supabaseClient || !supabaseUserId) throw new Error("Sign in first");
+  const { data, error } = await supabaseClient.rpc("create_space", {
+    space_name: name || "Shared",
+  });
+  if (error) throw error;
+  await refreshSpacesFromServer();
+  return data;
+}
+
+async function inviteToSharedSpace(spaceId, email) {
+  if (!supabaseClient || !supabaseUserId) throw new Error("Sign in first");
+  const { data, error } = await supabaseClient.rpc("invite_to_space", {
+    sid: spaceId,
+    invite_email: email,
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function acceptSharedInvite(inviteId) {
+  if (!supabaseClient || !supabaseUserId) throw new Error("Sign in first");
+  const { data, error } = await supabaseClient.rpc("accept_space_invite", {
+    invite_id: inviteId,
+  });
+  if (error) throw error;
+  await refreshSpacesFromServer();
+  return data;
+}
+
+async function fetchSpaceInvitesForSpace(spaceId) {
+  if (!supabaseClient || !spaceId) return [];
+  const { data, error } = await supabaseClient
+    .from("space_invites")
+    .select("id, email, status, created_at")
+    .eq("space_id", spaceId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+function addSharedListToSpace(spaceId, name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed || !spaceId) return null;
+  const payload = loadSpacePayload(spaceId);
+  const id = slugifySharedContextName(trimmed, spaceId);
+  const ctx = normalizeSpaceContext({
+    id,
+    name: trimmed,
+    icon: DEFAULT_CUSTOM_LIST_ICON,
+    createdAt: new Date().toISOString(),
+  });
+  payload.contexts = [...(payload.contexts || []), ctx];
+  payload.tasks = { ...(payload.tasks || {}), [id]: [] };
+  payload.updatedAt = new Date().toISOString();
+  saveSpacePayload(spaceId, payload);
+  rebuildContextUi();
+  if (typeof renderAll === "function") renderAll();
+  return ctx;
+}
+
+function sharePersonalListToSpace(spaceId, contextId) {
+  if (!spaceId || !contextId || isSharedContext(contextId)) return null;
+  const sourceName = contextLabel(contextId);
+  const payload = loadSpacePayload(spaceId);
+  const id = slugifySharedContextName(sourceName, spaceId);
+  const custom = getCustomContexts().find((c) => c.id === contextId);
+  const ctx = normalizeSpaceContext({
+    id,
+    name: sourceName,
+    icon: custom?.icon || CONTEXT_ICON_IDS[contextId] || DEFAULT_CUSTOM_LIST_ICON,
+    iconImage: custom?.iconImage || null,
+    createdAt: new Date().toISOString(),
+  });
+  const tasks = loadTasks(contextId).map((task) => ({
+    ...task,
+    id: createId(),
+  }));
+  payload.contexts = [...(payload.contexts || []), ctx];
+  payload.tasks = { ...(payload.tasks || {}), [id]: tasks };
+  payload.updatedAt = new Date().toISOString();
+  saveSpacePayload(spaceId, payload);
+  rebuildContextUi();
+  if (typeof renderAll === "function") renderAll();
+  return ctx;
+}
+
+function teardownSpaceRealtime() {
+  spaceRealtimeChannels.forEach((channel) => {
+    try {
+      supabaseClient?.removeChannel(channel);
+    } catch {
+      /* ignore */
+    }
+  });
+  spaceRealtimeChannels = [];
+}
+
+function setupSpaceRealtime(spaceIds) {
+  teardownSpaceRealtime();
+  if (!supabaseClient || !Array.isArray(spaceIds) || !spaceIds.length) return;
+  spaceIds.forEach((spaceId) => {
+    const channel = supabaseClient
+      .channel(`space_state:${spaceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "space_state",
+          filter: `space_id=eq.${spaceId}`,
+        },
+        () => {
+          pullSpacePayload(spaceId)
+            .then(() => {
+              rebuildContextUi();
+              if (typeof renderAll === "function") renderAll();
+            })
+            .catch(() => {});
+        }
+      )
+      .subscribe();
+    spaceRealtimeChannels.push(channel);
+  });
+}
+
+function clearLocalSharingState() {
+  teardownSpaceRealtime();
+  const meta = loadSpacesMeta();
+  meta.forEach((space) => {
+    try {
+      localStorage.removeItem(spacePayloadKey(space.id));
+      localStorage.removeItem(`${SPACE_DIRTY_PREFIX}${space.id}`);
+    } catch {
+      /* ignore */
+    }
+  });
+  saveSpacesMeta([]);
+  updateSharingUi();
+  rebuildContextUi();
+}
+
+async function updateSharingUi() {
+  const signedOut = document.getElementById("sharing-signed-out-hint");
+  const panel = document.getElementById("sharing-panel");
+  const invitesEl = document.getElementById("sharing-invites");
+  const spacesEl = document.getElementById("sharing-spaces");
+  if (!panel || !spacesEl) return;
+
+  const signedIn = Boolean(isSupabaseConfigured() && supabaseUserId);
+  signedOut?.classList.toggle("hidden", signedIn);
+  panel.classList.toggle("hidden", !signedIn);
+  if (!signedIn) {
+    if (invitesEl) {
+      invitesEl.innerHTML = "";
+      invitesEl.classList.add("hidden");
+    }
+    spacesEl.innerHTML = "";
+    return;
+  }
+
+  let pending = [];
+  try {
+    pending = await fetchPendingSpaceInvites();
+  } catch {
+    pending = [];
+  }
+
+  if (invitesEl) {
+    if (!pending.length) {
+      invitesEl.innerHTML = "";
+      invitesEl.classList.add("hidden");
+    } else {
+      invitesEl.classList.remove("hidden");
+      invitesEl.innerHTML = `
+        <p class="settings-field-label">Invites for you</p>
+        <ul class="sharing-invite-list">
+          ${pending
+            .map((inv) => {
+              const spaceName = inv.spaces?.name || "Shared space";
+              return `<li class="sharing-invite-item" data-invite-id="${escapeHtml(inv.id)}">
+                <div>
+                  <p class="sharing-invite-title">${escapeHtml(spaceName)}</p>
+                  <p class="sharing-invite-meta">Invited as ${escapeHtml(inv.email)}</p>
+                </div>
+                <button type="button" class="btn-secondary sharing-accept-btn" data-accept-invite="${escapeHtml(inv.id)}">Accept</button>
+              </li>`;
+            })
+            .join("")}
+        </ul>`;
+    }
+  }
+
+  const spaces = loadSpacesMeta();
+  if (!spaces.length) {
+    spacesEl.innerHTML = `<p class="settings-hint">No shared spaces yet. Create one below and invite Kate.</p>`;
+    return;
+  }
+
+  const inviteBlocks = await Promise.all(
+    spaces.map(async (space) => {
+      let invites = [];
+      try {
+        invites = await fetchSpaceInvitesForSpace(space.id);
+      } catch {
+        invites = [];
+      }
+      const sharedLists = listSharedContexts().filter((c) => c.spaceId === space.id);
+      const personalOptions = getCustomContexts()
+        .map(
+          (c) =>
+            `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
+        )
+        .join("");
+      const builtinOptions = BUILTIN_CONTEXTS.map(
+        (ctx) => `<option value="${escapeHtml(ctx)}">${escapeHtml(contextLabel(ctx))}</option>`
+      ).join("");
+
+      return `
+        <article class="sharing-space-card" data-space-id="${escapeHtml(space.id)}">
+          <header class="sharing-space-header">
+            <div>
+              <h3 class="sharing-space-title">${escapeHtml(space.name)}</h3>
+              <p class="sharing-space-meta">${escapeHtml(space.role === "owner" ? "Owner" : "Member")}</p>
+            </div>
+          </header>
+          <ul class="sharing-list-summary">
+            ${
+              sharedLists.length
+                ? sharedLists
+                    .map(
+                      (list) =>
+                        `<li><span class="sharing-list-pill">Shared</span> ${escapeHtml(list.name)}</li>`
+                    )
+                    .join("")
+                : `<li class="settings-hint">No shared lists yet.</li>`
+            }
+          </ul>
+          <form class="sharing-invite-form" data-space-id="${escapeHtml(space.id)}">
+            <label class="settings-field-label" for="sharing-invite-email-${escapeHtml(space.id)}">Invite by email</label>
+            <div class="sharing-create-row">
+              <input type="email" id="sharing-invite-email-${escapeHtml(space.id)}" class="sharing-invite-email" placeholder="kate@example.com" required />
+              <button type="submit" class="btn-secondary">Invite</button>
+            </div>
+          </form>
+          ${
+            invites.length
+              ? `<ul class="sharing-pending-list">${invites
+                  .map(
+                    (inv) =>
+                      `<li>${escapeHtml(inv.email)} · ${escapeHtml(inv.status)}</li>`
+                  )
+                  .join("")}</ul>`
+              : ""
+          }
+          <form class="sharing-add-list-form" data-space-id="${escapeHtml(space.id)}">
+            <label class="settings-field-label" for="sharing-new-list-${escapeHtml(space.id)}">New shared list</label>
+            <div class="sharing-create-row">
+              <input type="text" id="sharing-new-list-${escapeHtml(space.id)}" maxlength="64" placeholder="e.g. Groceries" required />
+              <button type="submit" class="btn-secondary">Add list</button>
+            </div>
+          </form>
+          <form class="sharing-share-existing-form" data-space-id="${escapeHtml(space.id)}">
+            <label class="settings-field-label" for="sharing-existing-${escapeHtml(space.id)}">Share an existing list</label>
+            <div class="sharing-create-row">
+              <select id="sharing-existing-${escapeHtml(space.id)}" required>
+                <option value="">Choose a list…</option>
+                ${builtinOptions}
+                ${personalOptions}
+              </select>
+              <button type="submit" class="btn-secondary">Share copy</button>
+            </div>
+          </form>
+          <p class="settings-hint">Sharing copies the list into this space. Your personal copy stays private unless you delete it.</p>
+        </article>`;
+    })
+  );
+
+  spacesEl.innerHTML = inviteBlocks.join("");
+}
+
+function setupSharingUi() {
+  if (sharingUiBound) return;
+  sharingUiBound = true;
+
+  document.getElementById("sharing-create-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("sharing-space-name");
+    const name = input?.value?.trim() || "Shared";
+    try {
+      await createSharedSpace(name);
+      if (input) input.value = "";
+      alert(`Created shared space “${name}”. Invite Kate with her email next.`);
+    } catch (err) {
+      alert(err?.message || "Could not create shared space. Run supabase/schema-sharing.sql if you haven’t yet.");
+    }
+  });
+
+  document.getElementById("sharing-panel")?.addEventListener("click", async (e) => {
+    const acceptBtn = e.target.closest("[data-accept-invite]");
+    if (!acceptBtn) return;
+    try {
+      await acceptSharedInvite(acceptBtn.getAttribute("data-accept-invite"));
+      alert("Invite accepted. Shared lists will show up in your filters.");
+    } catch (err) {
+      alert(err?.message || "Could not accept invite.");
+    }
+  });
+
+  document.getElementById("sharing-panel")?.addEventListener("submit", async (e) => {
+    const inviteForm = e.target.closest(".sharing-invite-form");
+    if (inviteForm) {
+      e.preventDefault();
+      const spaceId = inviteForm.getAttribute("data-space-id");
+      const email = inviteForm.querySelector(".sharing-invite-email")?.value?.trim();
+      if (!spaceId || !email) return;
+      try {
+        await inviteToSharedSpace(spaceId, email);
+        inviteForm.querySelector(".sharing-invite-email").value = "";
+        await updateSharingUi();
+        alert(`Invite sent to ${email}. They’ll see it after signing in with that email.`);
+      } catch (err) {
+        alert(err?.message || "Could not send invite.");
+      }
+      return;
+    }
+
+    const addForm = e.target.closest(".sharing-add-list-form");
+    if (addForm) {
+      e.preventDefault();
+      const spaceId = addForm.getAttribute("data-space-id");
+      const input = addForm.querySelector("input");
+      const name = input?.value?.trim();
+      if (!spaceId || !name) return;
+      addSharedListToSpace(spaceId, name);
+      if (input) input.value = "";
+      await updateSharingUi();
+      return;
+    }
+
+    const shareForm = e.target.closest(".sharing-share-existing-form");
+    if (shareForm) {
+      e.preventDefault();
+      const spaceId = shareForm.getAttribute("data-space-id");
+      const select = shareForm.querySelector("select");
+      const contextId = select?.value;
+      if (!spaceId || !contextId) return;
+      sharePersonalListToSpace(spaceId, contextId);
+      if (select) select.value = "";
+      await updateSharingUi();
+    }
+  });
+}
+
 function setupDataSync() {
   document.getElementById("export-data-btn").addEventListener("click", exportAllData);
   document.getElementById("import-data-input").addEventListener("change", (e) => {
@@ -1897,7 +2590,9 @@ function setupDataSync() {
   });
 
   setupSupabaseAuthUi();
+  setupSharingUi();
   initRemoteSync();
+  updateSharingUi();
 }
 
 function isSupabaseConfigured() {
@@ -2316,6 +3011,7 @@ function setupSupabaseAuthUi() {
   signOutBtn?.addEventListener("click", async () => {
     stopSyncPolling();
     teardownSupabaseRealtime();
+    clearLocalSharingState();
     syncAvailable = false;
     supabaseSyncStarted = false;
     supabaseUserId = null;
@@ -2323,6 +3019,7 @@ function setupSupabaseAuthUi() {
     await client.auth.signOut();
     updateAuthUi();
     updateSyncUi();
+    updateSharingUi();
   });
 
   client.auth.onAuthStateChange((_event, session) => {
@@ -2336,8 +3033,10 @@ function setupSupabaseAuthUi() {
     } else if (!supabaseUserId && wasSignedIn) {
       stopSyncPolling();
       teardownSupabaseRealtime();
+      clearLocalSharingState();
       syncAvailable = false;
       updateSyncUi();
+      updateSharingUi();
     }
   });
 
@@ -2396,6 +3095,8 @@ async function startSupabaseSync() {
     const remote = await fetchRemotePayload();
     await bootstrapRemoteSync(remote);
     await refreshSyncHistory({ quiet: true });
+    await refreshSpacesFromServer();
+    updateSharingUi();
   } catch {
     syncAvailable = false;
     supabaseSyncStarted = false;
@@ -2594,7 +3295,9 @@ function countPayloadTasks(payload) {
 }
 
 function countLocalTasks() {
-  return getContexts().reduce((sum, ctx) => sum + loadTasks(ctx).length, 0);
+  return getContexts()
+    .filter((ctx) => !isSharedContext(ctx))
+    .reduce((sum, ctx) => sum + loadTasks(ctx).length, 0);
 }
 
 function applySyncPayload(payload, options = {}) {
@@ -2759,7 +3462,10 @@ async function pullRemoteSync(options = {}) {
     const remote = await fetchRemotePayload();
     if (!remote?.updatedAt) {
       const hasLocal =
-        getContexts().some((ctx) => loadTasks(ctx).length > 0 || loadBrainDump(ctx).length > 0);
+        getContexts().some(
+          (ctx) =>
+            !isSharedContext(ctx) && (loadTasks(ctx).length > 0 || loadBrainDump(ctx).length > 0)
+        );
       if (hasLocal || syncDirty) {
         await pushRemoteSync({ force: true });
       }
@@ -2785,6 +3491,10 @@ async function pullRemoteSync(options = {}) {
       runDailyMaintenance({ render: false });
       renderAll();
       updateSyncUi();
+    }
+    if (syncBackend === "supabase" && supabaseUserId) {
+      await Promise.all(loadSpacesMeta().map((space) => pullSpacePayload(space.id).catch(() => {})));
+      rebuildContextUi();
     }
   } catch {
     if (syncBackend !== "supabase") syncAvailable = false;
@@ -3103,17 +3813,23 @@ function escapeHtml(text) {
 
 function contextLabel(ctx) {
   if (BUILTIN_CONTEXT_LABELS[ctx]) return BUILTIN_CONTEXT_LABELS[ctx];
+  const shared = findSharedContext(ctx);
+  if (shared) return shared.name || ctx;
   return getCustomContexts().find((c) => c.id === ctx)?.name || ctx;
 }
 
 function contextIconId(ctx) {
   if (CONTEXT_ICON_IDS[ctx]) return CONTEXT_ICON_IDS[ctx];
+  const shared = findSharedContext(ctx);
+  if (shared?.icon && isValidCustomListIcon(shared.icon)) return shared.icon;
   const custom = getCustomContexts().find((c) => c.id === ctx);
   if (custom?.icon && isValidCustomListIcon(custom.icon)) return custom.icon;
   return DEFAULT_CUSTOM_LIST_ICON;
 }
 
 function contextIconImage(ctx) {
+  const shared = findSharedContext(ctx);
+  if (isValidIconImage(shared?.iconImage)) return shared.iconImage;
   const custom = getCustomContexts().find((c) => c.id === ctx);
   return isValidIconImage(custom?.iconImage) ? custom.iconImage : null;
 }
@@ -5693,7 +6409,9 @@ const NEW_LIST_SELECT_VALUE = "__new_list__";
 function contextSelectOptionsHtml(selected = "work") {
   const options = getContexts()
     .map((ctx) => {
-      const label = contextLabel(ctx);
+      const label = isSharedContext(ctx)
+        ? `${contextLabel(ctx)} (shared)`
+        : contextLabel(ctx);
       return `<option value="${escapeHtml(ctx)}"${ctx === selected ? " selected" : ""}>${escapeHtml(label)}</option>`;
     })
     .join("");
@@ -5773,14 +6491,18 @@ function rebuildContextUi() {
     }
     getContexts().forEach((ctx) => {
       const btn = document.createElement("button");
+      const shared = isSharedContext(ctx);
       btn.type = "button";
-      btn.className = `filter-pill${filter === ctx ? " active" : ""}`;
+      btn.className = `filter-pill${filter === ctx ? " active" : ""}${shared ? " filter-pill--shared" : ""}`;
       btn.dataset.filter = ctx;
       if (!BUILTIN_CONTEXTS.includes(ctx) || !["work", "home"].includes(ctx)) {
         btn.dataset.extra = "true";
       }
+      if (shared) btn.dataset.shared = "true";
       btn.setAttribute("role", "tab");
-      btn.innerHTML = `${contextIconHtml(ctx, "filter-pill-icon")}<span>${escapeHtml(contextLabel(ctx))}</span>`;
+      btn.innerHTML = `${contextIconHtml(ctx, "filter-pill-icon")}<span>${escapeHtml(contextLabel(ctx))}</span>${
+        shared ? `<span class="filter-pill-shared-tag">Shared</span>` : ""
+      }`;
       pills.appendChild(btn);
     });
   }
@@ -5811,6 +6533,7 @@ function rebuildContextUi() {
       </li>`
     ).join("");
     const customs = getCustomContexts();
+    const sharedLists = listSharedContexts();
     const customHtml =
       customs.length === 0
         ? `<li class="lists-manager-empty">No custom categories yet — add one below.</li>`
@@ -5830,7 +6553,19 @@ function rebuildContextUi() {
         </li>`
             )
             .join("");
-    manager.innerHTML = builtins + customHtml;
+    const sharedHtml = sharedLists.length
+      ? sharedLists
+          .map(
+            (c) => `
+        <li class="lists-manager-item lists-manager-item--shared" data-id="${escapeHtml(c.id)}">
+          ${contextIconHtml(c.id, "lists-manager-icon")}
+          <span class="lists-manager-name">${escapeHtml(c.name)}</span>
+          <span class="lists-manager-badge">Shared · ${escapeHtml(c.spaceName || "Space")}</span>
+        </li>`
+          )
+          .join("")
+      : "";
+    manager.innerHTML = builtins + customHtml + sharedHtml;
   }
 
   if (!isValidFilter(filter)) {

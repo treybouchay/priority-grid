@@ -534,6 +534,103 @@ body[data-page="settings"] .capture-clip-fab {
   display: none !important;
 }
 
+body[data-page="settings"] .sharing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+body[data-page="settings"] .sharing-create-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-top: 0.35rem;
+}
+
+body[data-page="settings"] .sharing-create-row input,
+body[data-page="settings"] .sharing-create-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(14, 48, 48, 0.14);
+  border-radius: 0.75rem;
+  background: #fdf9f4;
+  color: #11302c;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+}
+
+body[data-page="settings"] .sharing-space-card {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: rgba(253, 249, 244, 0.85);
+  border: 1px solid rgba(14, 48, 48, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+body[data-page="settings"] .sharing-space-title {
+  margin: 0;
+  font-family: var(--font-heading, Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0e3030;
+}
+
+body[data-page="settings"] .sharing-space-meta,
+body[data-page="settings"] .sharing-invite-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+body[data-page="settings"] .sharing-list-summary,
+body[data-page="settings"] .sharing-invite-list,
+body[data-page="settings"] .sharing-pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+body[data-page="settings"] .sharing-list-pill {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #0e3030;
+  color: #ffdbd2;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body[data-page="settings"] .sharing-invite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.85rem;
+  background: rgba(14, 48, 48, 0.06);
+}
+
+body[data-page="settings"] .sharing-invite-title {
+  margin: 0;
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="settings"] .lists-manager-item--shared .lists-manager-badge {
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
 @media (min-width: 900px) {
   body[data-page="settings"] #settings-page.page-panel {
     padding-top: 1.75rem;

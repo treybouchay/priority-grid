@@ -67,12 +67,12 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=181" />
+    <link rel="stylesheet" href="styles.css?v=183" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=130" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=46" />
+    <link rel="stylesheet" href="design/home-presence.css?v=131" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=47" />
     <link rel="stylesheet" href="design/history-wins.css?v=16" />
-    <link rel="stylesheet" href="design/settings-page.css?v=10" />
+    <link rel="stylesheet" href="design/settings-page.css?v=11" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -374,6 +374,7 @@
               </button>
               <button type="button" class="presence-toolbar-btn presence-toolbar-btn-thoughts" id="presence-toolbar-thoughts-btn" aria-label="View Thoughts">
                 <svg class="icon icon-header icon-thoughts-bell" aria-hidden="true"><use href="#icon-box"></use></svg>
+                <span class="presence-thoughts-badge hidden" id="presence-toolbar-thoughts-badge" aria-hidden="true"></span>
               </button>
               <span class="presence-toolbar-divider" aria-hidden="true"></span>
               <button type="button" class="presence-toolbar-add" id="presence-hero-add-task">Add Task</button>
@@ -387,6 +388,7 @@
                 </div>
                 <button type="button" class="presence-thoughts-btn" id="presence-thoughts-btn" aria-label="View Thoughts">
                   <svg class="icon icon-header icon-thoughts-bell" aria-hidden="true"><use href="#icon-box"></use></svg>
+                  <span class="presence-thoughts-badge hidden" id="presence-thoughts-badge" aria-hidden="true"></span>
                 </button>
               </div>
               <div class="presence-focus">
@@ -1090,6 +1092,39 @@
                 </p>
               </div>
             </article>
+
+            <article class="settings-card" aria-labelledby="settings-sharing-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-sharing-heading">Sharing</h2>
+                <p class="settings-card-desc">
+                  You and Kate each keep your own account. Share specific lists so both of you can edit them.
+                </p>
+              </header>
+              <p class="settings-hint" id="sharing-signed-out-hint">
+                Sign in under Data &amp; sync first, then create a shared space and invite by email.
+              </p>
+              <div class="sharing-panel hidden" id="sharing-panel">
+                <div class="sharing-invites hidden" id="sharing-invites" aria-live="polite"></div>
+                <div class="sharing-spaces" id="sharing-spaces"></div>
+                <form class="sharing-create-form" id="sharing-create-form">
+                  <label class="settings-field-label" for="sharing-space-name">New shared space</label>
+                  <div class="sharing-create-row">
+                    <input
+                      type="text"
+                      id="sharing-space-name"
+                      class="sharing-space-name"
+                      placeholder="e.g. Ours / Home"
+                      maxlength="64"
+                      autocomplete="off"
+                    />
+                    <button type="submit" class="btn-secondary" id="sharing-create-btn">Create</button>
+                  </div>
+                </form>
+                <p class="settings-hint">
+                  After you create a space, invite Kate’s email. She signs in with her own magic link, accepts the invite, then you can share lists into that space.
+                </p>
+              </div>
+            </article>
           </section>
         </div>
       </div>
@@ -1530,6 +1565,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=332"></script>
+    <script src="app.js?v=334"></script>
   </body>
 </html>
