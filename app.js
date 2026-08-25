@@ -3988,21 +3988,6 @@ function addDialogNoteFromInput() {
 /* Standalone notes claimed by the dialog draft — removed from History once saved. */
 let dialogClaimedNoteIds = [];
 
-function renderDialogExistingNotes() {
-  const row = document.getElementById("dialog-notes-existing-row");
-  const select = document.getElementById("dialog-notes-existing");
-  if (!row || !select) return;
-  const attached = new Set(dialogNoteEntries.map((n) => n.id));
-  const available = loadStandaloneNotes().filter((note) => !attached.has(note.id));
-  row.classList.toggle("hidden", available.length === 0);
-  select.innerHTML = available
-    .map(
-      (note) =>
-        `<option value="${escapeHtml(note.id)}">${escapeHtml(truncateReflectionLabel(note.text, 48))}</option>`
-    )
-    .join("");
-}
-
 function consumeClaimedDialogNotes() {
   if (!dialogClaimedNoteIds.length) return;
   const claimed = new Set(dialogClaimedNoteIds);
@@ -4026,6 +4011,7 @@ function setupDialogNotes() {
   const addBtn = document.getElementById("dialog-notes-add");
   const input = document.getElementById("dialog-notes-input");
   const attachBtn = document.getElementById("dialog-notes-attach");
+  const existingSelect = document.getElementById("dialog-notes-existing");
   if (addBtn && !addBtn.dataset.bound) {
     addBtn.dataset.bound = "1";
     addBtn.addEventListener("click", (e) => {
@@ -4039,6 +4025,11 @@ function setupDialogNotes() {
       e.preventDefault();
       attachExistingNoteToDialog();
     });
+  }
+  if (existingSelect && !existingSelect.dataset.bound) {
+    existingSelect.dataset.bound = "1";
+    existingSelect.addEventListener("focus", () => renderDialogExistingNotes());
+    existingSelect.addEventListener("pointerdown", () => renderDialogExistingNotes());
   }
   if (input && !input.dataset.bound) {
     input.dataset.bound = "1";
@@ -4122,12 +4113,32 @@ function getOpenTasksForNoteLink() {
   const tasks = [];
   getContexts().forEach((ctx) => {
     loadTasks(ctx).forEach((t) => {
-      if (t.archived || t.done || isTaskDeferred(t)) return;
+      if (t.archived || t.done) return;
       tasks.push({ ...t, context: ctx });
     });
   });
-  tasks.sort((a, b) => a.tier - b.tier || a.text.localeCompare(b.text));
-  return tasks.slice(0, 80);
+  tasks.sort((a, b) => {
+    const aDeferred = isTaskDeferred(a) ? 1 : 0;
+    const bDeferred = isTaskDeferred(b) ? 1 : 0;
+    if (aDeferred !== bDeferred) return aDeferred - bDeferred;
+    return a.tier - b.tier || a.text.localeCompare(b.text);
+  });
+  return tasks.slice(0, 120);
+}
+
+function noteLinkTaskValue(context, taskId) {
+  return `${context}::${taskId}`;
+}
+
+function parseNoteLinkTaskValue(value) {
+  const raw = String(value || "");
+  const sep = raw.includes("::") ? "::" : ":";
+  const index = raw.indexOf(sep);
+  if (index <= 0) return { context: "", taskId: "" };
+  return {
+    context: raw.slice(0, index),
+    taskId: raw.slice(index + sep.length),
+  };
 }
 
 function collectAllNotesForPanel() {
@@ -4166,9 +4177,15 @@ function collectAllNotesForPanel() {
 
 function notesPanelTaskOptionsHtml(selectedValue = "") {
   const options = [`<option value="">Choose a task…</option>`];
-  getOpenTasksForNoteLink().forEach((task) => {
-    const value = `${task.context}:${task.id}`;
-    const label = truncateReflectionLabel(task.text, 42);
+  const openTasks = getOpenTasksForNoteLink();
+  if (!openTasks.length) {
+    options.push(`<option value="" disabled>No open tasks yet</option>`);
+    return options.join("");
+  }
+  openTasks.forEach((task) => {
+    const value = noteLinkTaskValue(task.context, task.id);
+    const deferredTag = isTaskDeferred(task) ? " · later" : "";
+    const label = `${truncateReflectionLabel(task.text, 42)}${deferredTag}`;
     options.push(
       `<option value="${escapeHtml(value)}"${value === selectedValue ? " selected" : ""}>${escapeHtml(label)}</option>`
     );
@@ -4205,6 +4222,45 @@ function fillNotesPanelTaskSelect() {
   if (!select) return;
   const current = select.value;
   select.innerHTML = notesPanelTaskOptionsHtml(current);
+  if (current && ![...select.options].some((opt) => opt.value === current)) {
+    select.value = "";
+  } else if (current) {
+    select.value = current;
+  }
+}
+
+function refreshHistoryNoteAttachSelects(root = document) {
+  root.querySelectorAll?.(".history-note-attach")?.forEach((select) => {
+    const current = select.value;
+    select.innerHTML = notesPanelTaskOptionsHtml(current);
+    if (current && [...select.options].some((opt) => opt.value === current)) {
+      select.value = current;
+    }
+  });
+}
+
+function renderDialogExistingNotes() {
+  const row = document.getElementById("dialog-notes-existing-row");
+  const select = document.getElementById("dialog-notes-existing");
+  if (!row || !select) return;
+  const attached = new Set(dialogNoteEntries.map((n) => n.id));
+  const available = loadStandaloneNotes().filter((note) => !attached.has(note.id));
+  row.classList.toggle("hidden", available.length === 0);
+  if (!available.length) {
+    select.innerHTML = "";
+    return;
+  }
+  const current = select.value;
+  select.innerHTML = [
+    `<option value="">Choose a History note…</option>`,
+    ...available.map(
+      (note) =>
+        `<option value="${escapeHtml(note.id)}">${escapeHtml(truncateReflectionLabel(note.text, 48))}</option>`
+    ),
+  ].join("");
+  if (current && [...select.options].some((opt) => opt.value === current)) {
+    select.value = current;
+  }
 }
 
 function renderNotesPanel() {
@@ -4260,7 +4316,7 @@ function saveNotesPanelNote() {
   const text = input?.value.trim() || "";
   const linkValue = select?.value || "";
   if (!text || !linkValue) return;
-  const [context, taskId] = linkValue.split(":");
+  const { context, taskId } = parseNoteLinkTaskValue(linkValue);
   if (!context || !taskId) return;
   addTaskNote(taskId, context, text);
   if (input) input.value = "";
@@ -4270,6 +4326,28 @@ function saveNotesPanelNote() {
 
 function setupNotesPanel() {
   const form = document.getElementById("notes-panel-form");
+  const select = document.getElementById("notes-panel-task");
+  if (select && !select.dataset.liveBound) {
+    select.dataset.liveBound = "1";
+    select.addEventListener("focus", () => fillNotesPanelTaskSelect());
+    select.addEventListener("pointerdown", () => fillNotesPanelTaskSelect());
+  }
+  if (!window.__noteLinkLiveBound) {
+    window.__noteLinkLiveBound = true;
+    window.addEventListener("storage", (event) => {
+      if (!event.key) return;
+      const touchesNotes =
+        event.key === STANDALONE_NOTES_KEY ||
+        event.key.startsWith("priority-grid-tasks-") ||
+        event.key === SPACES_META_KEY ||
+        event.key.startsWith(SPACE_PAYLOAD_PREFIX);
+      if (!touchesNotes) return;
+      if (page === "history") renderHistory();
+      else refreshHistoryNoteAttachSelects();
+      fillNotesPanelTaskSelect();
+      if (document.getElementById("task-dialog")?.open) renderDialogExistingNotes();
+    });
+  }
   if (!form || form.dataset.bound) return;
   form.dataset.bound = "1";
   form.addEventListener("submit", (e) => {
@@ -5033,6 +5111,7 @@ function setSidebarTab(tab) {
   sidebarTab = tab;
   localStorage.setItem(SIDEBAR_TAB_KEY, tab);
   syncSidebarTabs();
+  if (tab === "notes") fillNotesPanelTaskSelect();
 }
 
 function syncSidebarTabs() {
@@ -13013,11 +13092,18 @@ function bindHistoryNotesCard(root) {
     });
     el.querySelector(".history-note-attach-btn")?.addEventListener("click", () => {
       const select = el.querySelector(".history-note-attach");
-      const [targetContext, targetTaskId] = (select?.value || "").split(":");
+      const { context: targetContext, taskId: targetTaskId } = parseNoteLinkTaskValue(select?.value);
       if (!targetContext || !targetTaskId) return;
       linkStandaloneNoteToTask(noteId, targetTaskId, targetContext);
       renderAll();
     });
+    const attachSelect = el.querySelector(".history-note-attach");
+    if (attachSelect && !attachSelect.dataset.liveBound) {
+      attachSelect.dataset.liveBound = "1";
+      const refresh = () => refreshHistoryNoteAttachSelects(el);
+      attachSelect.addEventListener("focus", refresh);
+      attachSelect.addEventListener("pointerdown", refresh);
+    }
   });
 }
 
