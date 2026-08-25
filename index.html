@@ -907,7 +907,7 @@
             </header>
 
             <div id="history-content"></div>
-            <p class="history-empty hidden" id="history-empty">No completed tasks or notes yet. Check something off — or swipe to capture a note.</p>
+            <p class="history-empty hidden" id="history-empty">No completed tasks or stickies yet. Check something off — or capture a sticky.</p>
           </section>
         </div>
 
@@ -1214,7 +1214,7 @@
               Task
             </button>
             <button type="button" class="dialog-mode-btn" data-mode="note" role="tab" aria-selected="false">
-              Note
+              Sticky
             </button>
           </div>
         </header>
@@ -1318,8 +1318,8 @@
             <button type="button" class="dialog-notes-add-btn" id="dialog-notes-add">Add note</button>
           </div>
           <div class="dialog-notes-existing-row hidden" id="dialog-notes-existing-row">
-            <select id="dialog-notes-existing" class="dialog-notes-existing" aria-label="Attach a note from History"></select>
-            <button type="button" class="dialog-notes-add-btn" id="dialog-notes-attach">Attach</button>
+            <select id="dialog-notes-existing" class="dialog-notes-existing" aria-label="Attach a sticky from History"></select>
+            <button type="button" class="dialog-notes-add-btn" id="dialog-notes-attach">Attach sticky</button>
           </div>
           <input type="hidden" id="dialog-notes" value="" />
         </div>
@@ -1335,7 +1335,7 @@
         </div>
         </div>
         <p class="dialog-note-hint hidden" id="dialog-note-hint">
-          Notes land in History. You can attach them to a task later.
+          Stickies land in History. You can attach them to a task later as notes.
         </p>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
@@ -1565,6 +1565,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=337"></script>
+    <script src="app.js?v=338"></script>
   </body>
 </html>

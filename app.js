@@ -4253,7 +4253,7 @@ function renderDialogExistingNotes() {
   }
   const current = select.value;
   select.innerHTML = [
-    `<option value="">Choose a History note…</option>`,
+    `<option value="">Choose a sticky…</option>`,
     ...available.map(
       (note) =>
         `<option value="${escapeHtml(note.id)}">${escapeHtml(truncateReflectionLabel(note.text, 48))}</option>`
@@ -11964,13 +11964,13 @@ function setDialogCaptureMode(mode, options = {}) {
   noteHint?.classList.toggle("hidden", next !== "note");
 
   if (next === "note") {
-    if (title && options.updateTitle !== false) title.textContent = "Add Note";
+    if (title && options.updateTitle !== false) title.textContent = "Add Sticky";
     if (input) {
-      input.placeholder = "Jot something down…";
+      input.placeholder = "Jot a sticky…";
       input.maxLength = 1000;
       input.rows = 4;
     }
-    setTaskDialogSubmitLabel("Save note");
+    setTaskDialogSubmitLabel("Save sticky");
     const hint = document.getElementById("dialog-parse-hint");
     const preview = document.getElementById("dialog-parse-preview");
     hint?.classList.add("hidden");
@@ -12978,7 +12978,7 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
           }
         </div>
         <form class="history-note-edit hidden">
-          <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit note">${escapeHtml(
+          <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit sticky">${escapeHtml(
             note.text
           )}</textarea>
           <div class="history-note-edit-actions">
@@ -12991,16 +12991,16 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
         <button
           type="button"
           class="history-note-edit-btn"
-          aria-label="Edit note"
-          title="Edit note"
+          aria-label="Edit sticky"
+          title="Edit sticky"
         >
           <svg class="icon" aria-hidden="true"><use href="#icon-pencil"></use></svg>
         </button>
         <button
           type="button"
           class="history-note-delete"
-          aria-label="Delete note"
-          title="Delete note"
+          aria-label="Delete sticky"
+          title="Delete sticky"
         >
           <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
         </button>
@@ -13013,15 +13013,16 @@ function historyNotesCardHtml(notes) {
   const openTasks = getOpenTasksForNoteLink();
   const taskOptionsHtml = notesPanelTaskOptionsHtml("");
   const linkedCount = notes.filter((note) => note.source === "task").length;
+  const stickyCount = notes.length - linkedCount;
   const subtitle = linkedCount
-    ? `${notes.length} note${notes.length === 1 ? "" : "s"} · ${linkedCount} on tasks`
-    : `${notes.length} note${notes.length === 1 ? "" : "s"}`;
+    ? `${stickyCount} ${stickyCount === 1 ? "sticky" : "stickies"} · ${linkedCount} note${linkedCount === 1 ? "" : "s"} on tasks`
+    : `${notes.length} ${notes.length === 1 ? "sticky" : "stickies"}`;
   return `
     <article class="plan-card history-notes-card" aria-labelledby="history-notes-heading">
       <div class="plan-card-inner">
         <div class="completed-wins-card-header">
           <div class="completed-wins-card-heading">
-            <h3 class="plan-card-title plan-card-title--featured" id="history-notes-heading">Notes</h3>
+            <h3 class="plan-card-title plan-card-title--featured" id="history-notes-heading">Stickies</h3>
             <p class="plan-card-subtitle">${subtitle}</p>
           </div>
         </div>
@@ -13129,7 +13130,7 @@ function renderHistory() {
     const notePart =
       notes.length === 0
         ? ""
-        : ` · ${notes.length} note${notes.length === 1 ? "" : "s"}`;
+        : ` · ${notes.length} ${notes.length === 1 ? "sticky/note" : "stickies & notes"}`;
     subtitle.textContent = `${taskPart}${notePart}.`;
   }
 
