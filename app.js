@@ -12952,14 +12952,17 @@ function historyAnxietyCardHtml(history) {
 function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
   const when = formatNoteTimestamp(note.createdAt);
   const linked = note.source === "task";
+  const kind = linked ? "Note" : "Sticky";
+  const kindClass = linked ? "history-note-kind--note" : "history-note-kind--sticky";
   return `
-    <li class="history-note-item${linked ? " history-note-item--linked" : ""}" data-note-id="${escapeHtml(note.id)}"${
+    <li class="history-note-item${linked ? " history-note-item--linked" : " history-note-item--sticky"}" data-note-id="${escapeHtml(note.id)}" data-note-kind="${linked ? "note" : "sticky"}"${
       linked
         ? ` data-task-id="${escapeHtml(note.taskId)}" data-context="${escapeHtml(note.context)}"`
         : ""
     }>
       <div class="history-note-copy">
         <div class="history-note-view">
+          <span class="history-note-kind ${kindClass}">${kind}</span>
           <p class="history-note-text">${escapeHtml(note.text)}</p>
           ${when ? `<p class="history-note-meta">${escapeHtml(when)}</p>` : ""}
           ${
@@ -12969,16 +12972,16 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
                 )}”</button>`
               : hasTasks
                 ? `<div class="history-note-attach-row">
-            <select class="history-note-attach" aria-label="Attach to a task">
+            <select class="history-note-attach" aria-label="Attach sticky to a task">
               ${taskOptionsHtml}
             </select>
             <button type="button" class="history-note-attach-btn">Attach</button>
           </div>`
-                : `<p class="history-note-attach-empty">Add a task to attach this note.</p>`
+                : `<p class="history-note-attach-empty">Add a task to attach this sticky.</p>`
           }
         </div>
         <form class="history-note-edit hidden">
-          <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit sticky">${escapeHtml(
+          <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit ${kind.toLowerCase()}">${escapeHtml(
             note.text
           )}</textarea>
           <div class="history-note-edit-actions">
@@ -12991,16 +12994,16 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
         <button
           type="button"
           class="history-note-edit-btn"
-          aria-label="Edit sticky"
-          title="Edit sticky"
+          aria-label="Edit ${kind.toLowerCase()}"
+          title="Edit ${kind.toLowerCase()}"
         >
           <svg class="icon" aria-hidden="true"><use href="#icon-pencil"></use></svg>
         </button>
         <button
           type="button"
           class="history-note-delete"
-          aria-label="Delete sticky"
-          title="Delete sticky"
+          aria-label="Delete ${kind.toLowerCase()}"
+          title="Delete ${kind.toLowerCase()}"
         >
           <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
         </button>
@@ -13012,23 +13015,43 @@ function historyNotesCardHtml(notes) {
   if (!notes.length) return "";
   const openTasks = getOpenTasksForNoteLink();
   const taskOptionsHtml = notesPanelTaskOptionsHtml("");
-  const linkedCount = notes.filter((note) => note.source === "task").length;
-  const stickyCount = notes.length - linkedCount;
-  const subtitle = linkedCount
-    ? `${stickyCount} ${stickyCount === 1 ? "sticky" : "stickies"} · ${linkedCount} note${linkedCount === 1 ? "" : "s"} on tasks`
-    : `${notes.length} ${notes.length === 1 ? "sticky" : "stickies"}`;
+  const stickies = notes.filter((note) => note.source !== "task");
+  const taskNotes = notes.filter((note) => note.source === "task");
+  const stickyCount = stickies.length;
+  const linkedCount = taskNotes.length;
+  const subtitleParts = [];
+  if (stickyCount) subtitleParts.push(`${stickyCount} ${stickyCount === 1 ? "sticky" : "stickies"}`);
+  if (linkedCount) subtitleParts.push(`${linkedCount} note${linkedCount === 1 ? "" : "s"} on tasks`);
+  const subtitle = subtitleParts.join(" · ") || "Nothing here yet";
+
+  const stickiesHtml = stickies.length
+    ? `<div class="history-notes-group">
+        <h4 class="history-notes-group-title">Stickies</h4>
+        <ul class="history-notes-list">
+          ${stickies.map((note) => historyNoteItemHtml(note, taskOptionsHtml, openTasks.length > 0)).join("")}
+        </ul>
+      </div>`
+    : "";
+  const notesHtml = taskNotes.length
+    ? `<div class="history-notes-group">
+        <h4 class="history-notes-group-title">Notes on tasks</h4>
+        <ul class="history-notes-list">
+          ${taskNotes.map((note) => historyNoteItemHtml(note, taskOptionsHtml, openTasks.length > 0)).join("")}
+        </ul>
+      </div>`
+    : "";
+
   return `
     <article class="plan-card history-notes-card" aria-labelledby="history-notes-heading">
       <div class="plan-card-inner">
         <div class="completed-wins-card-header">
           <div class="completed-wins-card-heading">
-            <h3 class="plan-card-title plan-card-title--featured" id="history-notes-heading">Stickies</h3>
+            <h3 class="plan-card-title plan-card-title--featured" id="history-notes-heading">Stickies &amp; notes</h3>
             <p class="plan-card-subtitle">${subtitle}</p>
           </div>
         </div>
-        <ul class="history-notes-list">
-          ${notes.map((note) => historyNoteItemHtml(note, taskOptionsHtml, openTasks.length > 0)).join("")}
-        </ul>
+        ${stickiesHtml}
+        ${notesHtml}
       </div>
     </article>`;
 }

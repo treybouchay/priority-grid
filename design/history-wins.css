@@ -382,9 +382,23 @@ body[data-page="history"] .history-notes-card {
   margin-bottom: 0.25rem;
 }
 
+body[data-page="history"] .history-notes-group + .history-notes-group {
+  margin-top: 1.15rem;
+}
+
+body[data-page="history"] .history-notes-group-title {
+  margin: 0.85rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(17, 48, 44, 0.5);
+}
+
 body[data-page="history"] .history-notes-list {
   list-style: none;
-  margin: 0.85rem 0 0;
+  margin: 0.55rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -398,7 +412,29 @@ body[data-page="history"] .history-note-item {
   align-items: start;
   padding: 0.85rem 0.9rem;
   border-radius: 1rem;
-  background: rgba(253, 249, 244, 0.75);
+  background: #fff;
+  border: 1px solid rgba(14, 48, 48, 0.08);
+}
+
+body[data-page="history"] .history-note-kind {
+  display: inline-block;
+  margin: 0 0 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body[data-page="history"] .history-note-kind--sticky {
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+body[data-page="history"] .history-note-kind--note {
+  background: rgba(14, 48, 48, 0.12);
+  color: #0e3030;
 }
 
 body[data-page="history"] .history-note-actions {
@@ -550,6 +586,11 @@ body[data-page="history"] .history-note-attach-btn {
 
 body[data-page="history"] .history-note-item--linked {
   background: rgba(14, 48, 48, 0.06);
+  border-color: transparent;
+}
+
+body[data-page="history"] .history-note-item--sticky {
+  background: #fff;
 }
 
 body[data-page="history"] .history-note-task-link {
