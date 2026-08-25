@@ -677,6 +677,7 @@ let spacePushTimers = {};
 let spaceRealtimeChannels = [];
 let sharingUiBound = false;
 const SYNC_HISTORY_KEEP = 20;
+const SYNC_HISTORY_SHOW = 3;
 const SYNC_HISTORY_THROTTLE_MS = 5 * 60 * 1000;
 let touchDragGhost = null;
 let dragGrabOffset = { x: 0, y: 0 };
@@ -2813,7 +2814,7 @@ async function fetchSyncHistoryRows() {
     .select("id, created_at, task_count, reason")
     .eq("user_id", supabaseUserId)
     .order("created_at", { ascending: false })
-    .limit(SYNC_HISTORY_KEEP);
+    .limit(SYNC_HISTORY_SHOW);
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
