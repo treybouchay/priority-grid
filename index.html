@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=183" />
+    <link rel="stylesheet" href="styles.css?v=184" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
     <link rel="stylesheet" href="design/home-presence.css?v=133" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=47" />
@@ -1346,11 +1346,55 @@
         <footer class="task-dialog-footer">
           <div class="dialog-actions dialog-actions--edit">
             <button type="button" class="btn-danger-ghost hidden" id="dialog-delete">Delete</button>
+            <button type="button" class="btn-ghost hidden" id="dialog-combine">Combine…</button>
             <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
             <button type="submit" class="btn-primary" id="dialog-submit">Save</button>
           </div>
         </footer>
       </form>
+    </dialog>
+
+    <dialog class="plan-135-picker-dialog combine-tasks-dialog" id="combine-tasks-dialog">
+      <div class="plan-135-picker-inner">
+        <header class="plan-135-picker-header">
+          <div>
+            <h3 class="plan-135-picker-title" id="combine-tasks-title">Combine tasks</h3>
+            <p class="plan-135-picker-sub" id="combine-tasks-sub">
+              Pick other tasks to merge into this one. Notes and photos come along; the extras are deleted.
+            </p>
+          </div>
+          <button type="button" class="plan-135-picker-close" id="combine-tasks-close" aria-label="Close">×</button>
+        </header>
+        <p class="combine-tasks-primary" id="combine-tasks-primary"></p>
+        <ul class="plan-135-picker-list" id="combine-tasks-list"></ul>
+        <fieldset class="combine-tasks-title-options">
+          <legend class="combine-tasks-legend">Title for the combined task</legend>
+          <label class="combine-tasks-option">
+            <input type="radio" name="combine-title-mode" value="keep" checked />
+            Keep this task’s title
+          </label>
+          <label class="combine-tasks-option">
+            <input type="radio" name="combine-title-mode" value="join" />
+            Join all titles
+          </label>
+          <label class="combine-tasks-option">
+            <input type="radio" name="combine-title-mode" value="custom" />
+            New title
+          </label>
+          <input
+            type="text"
+            id="combine-tasks-custom-title"
+            class="combine-tasks-custom-title hidden"
+            maxlength="200"
+            placeholder="Type a new title…"
+            autocomplete="off"
+          />
+        </fieldset>
+        <footer class="plan-135-picker-footer combine-tasks-footer">
+          <button type="button" class="btn-ghost" id="combine-tasks-cancel">Cancel</button>
+          <button type="button" class="btn-primary" id="combine-tasks-confirm" disabled>Combine</button>
+        </footer>
+      </div>
     </dialog>
 
     <dialog class="task-dialog" id="list-dialog">
@@ -1565,6 +1609,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=339"></script>
+    <script src="app.js?v=340"></script>
   </body>
 </html>

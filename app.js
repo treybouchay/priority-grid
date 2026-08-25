@@ -7324,6 +7324,275 @@ function confirmDeleteTask(id, ctx) {
   return true;
 }
 
+function getCombineCandidateTasks(primaryId, primaryCtx) {
+  const tasks = [];
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((t) => {
+      if (t.archived || t.done) return;
+      if (t.id === primaryId && ctx === primaryCtx) return;
+      tasks.push({ ...t, context: ctx });
+    });
+  });
+  tasks.sort((a, b) => a.tier - b.tier || a.text.localeCompare(b.text));
+  return tasks.slice(0, 100);
+}
+
+function mergeTaskPhotoLists(primaryPhotos, otherPhotos) {
+  const seen = new Set();
+  const out = [];
+  [...(Array.isArray(primaryPhotos) ? primaryPhotos : []), ...(Array.isArray(otherPhotos) ? otherPhotos : [])].forEach(
+    (photo) => {
+      if (!photo?.id || seen.has(photo.id)) return;
+      seen.add(photo.id);
+      out.push({ ...photo });
+    }
+  );
+  return out.slice(0, MAX_TASK_PHOTOS);
+}
+
+function mergeTaskNoteLists(primaryNotes, otherNotes) {
+  const seen = new Set();
+  const out = [];
+  [...(Array.isArray(primaryNotes) ? primaryNotes : []), ...(Array.isArray(otherNotes) ? otherNotes : [])].forEach(
+    (note) => {
+      const normalized = normalizeNoteEntry(note);
+      if (!normalized || seen.has(normalized.id)) return;
+      seen.add(normalized.id);
+      out.push(normalized);
+    }
+  );
+  return out;
+}
+
+/**
+ * Merge other tasks into primary. Notes + photos combine; others are permanently deleted.
+ * titleMode: "keep" | "join" | "custom"
+ */
+function combineTasksIntoPrimary(primaryRef, otherRefs, options = {}) {
+  if (!primaryRef?.id || !primaryRef?.context || !Array.isArray(otherRefs) || !otherRefs.length) {
+    return null;
+  }
+  const primary = findTaskByRef(primaryRef);
+  if (!primary) return null;
+
+  const others = otherRefs
+    .map((ref) => findTaskByRef(ref))
+    .filter((task) => task && !(task.id === primary.id && task.context === primary.context));
+  if (!others.length) return null;
+
+  const titleMode = options.titleMode || "keep";
+  let nextText = String(primary.text || "").trim();
+  if (titleMode === "join") {
+    nextText = [primary.text, ...others.map((t) => t.text)]
+      .map((t) => String(t || "").trim())
+      .filter(Boolean)
+      .join(" · ");
+  } else if (titleMode === "custom") {
+    nextText = String(options.customTitle || "").trim() || nextText;
+  }
+  nextText = nextText.slice(0, 2000);
+
+  let notes = getTaskNoteEntries(primary);
+  let photos = Array.isArray(primary.photos) ? primary.photos.map((p) => ({ ...p })) : [];
+  let photoOverflow = false;
+  others.forEach((task) => {
+    notes = mergeTaskNoteLists(notes, getTaskNoteEntries(task));
+    const before = photos.length;
+    photos = mergeTaskPhotoLists(photos, task.photos);
+    if (
+      before + (Array.isArray(task.photos) ? task.photos.length : 0) > photos.length &&
+      photos.length >= MAX_TASK_PHOTOS
+    ) {
+      photoOverflow = true;
+    }
+    if (titleMode !== "join") {
+      const leftover = String(task.text || "").trim();
+      if (leftover && leftover !== nextText) {
+        notes = mergeTaskNoteLists(notes, [
+          {
+            id: createId(),
+            text: leftover,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      }
+    }
+  });
+
+  const updated = withTaskNotes(
+    {
+      ...primary,
+      text: nextText,
+      photos,
+    },
+    notes
+  );
+
+  updateTaskInContext(primary.context, (list) =>
+    list.map((t) => (t.id === primary.id ? updated : t))
+  );
+
+  others.forEach((task) => {
+    recordDeletedId(task.id);
+    clearTaskRefs(task.id, task.context);
+    focusTimerAttached = focusTimerAttached.filter(
+      (ref) => !(ref.id === task.id && ref.context === task.context)
+    );
+    updateTaskInContext(task.context, (list) => list.filter((t) => t.id !== task.id));
+  });
+  saveFocusTimerAttached();
+  markSyncDirty();
+  renderAll();
+  if (photoOverflow) {
+    alert(`Combined into one task. Only the first ${MAX_TASK_PHOTOS} photos could be kept.`);
+  }
+  return { ...updated, context: primary.context };
+}
+
+let combinePrimaryRef = null;
+let combineSelectedKeys = new Set();
+
+function combineTaskKey(ctx, id) {
+  return `${ctx}::${id}`;
+}
+
+function syncCombineTasksConfirmState() {
+  const confirmBtn = document.getElementById("combine-tasks-confirm");
+  const customInput = document.getElementById("combine-tasks-custom-title");
+  const mode = document.querySelector('input[name="combine-title-mode"]:checked')?.value || "keep";
+  customInput?.classList.toggle("hidden", mode !== "custom");
+  const hasSelection = combineSelectedKeys.size > 0;
+  const customOk = mode !== "custom" || Boolean(customInput?.value.trim());
+  if (confirmBtn) confirmBtn.disabled = !(hasSelection && customOk);
+}
+
+function renderCombineTasksPickerList() {
+  const list = document.getElementById("combine-tasks-list");
+  if (!list || !combinePrimaryRef) return;
+  const candidates = getCombineCandidateTasks(combinePrimaryRef.id, combinePrimaryRef.context);
+  if (!candidates.length) {
+    list.innerHTML = `<li class="plan-135-picker-empty">No other open tasks to combine with.</li>`;
+    syncCombineTasksConfirmState();
+    return;
+  }
+
+  const byTier = new Map();
+  candidates.forEach((task) => {
+    const tier = Number(task.tier) || 1;
+    if (!byTier.has(tier)) byTier.set(tier, []);
+    byTier.get(tier).push(task);
+  });
+
+  list.innerHTML = [...byTier.keys()]
+    .sort((a, b) => a - b)
+    .map((tier) => {
+      const items = byTier
+        .get(tier)
+        .map((task) => {
+          const key = combineTaskKey(task.context, task.id);
+          const selected = combineSelectedKeys.has(key);
+          const noteCount = getTaskNoteEntries(task).length;
+          const photoCount = Array.isArray(task.photos) ? task.photos.length : 0;
+          const bits = [];
+          if (noteCount) bits.push(`${noteCount} note${noteCount === 1 ? "" : "s"}`);
+          if (photoCount) bits.push(`${photoCount} photo${photoCount === 1 ? "" : "s"}`);
+          const meta = bits.length ? bits.join(" · ") : contextLabel(task.context);
+          return `<li>
+            <button type="button" class="plan-135-picker-item combine-tasks-item${selected ? " is-selected" : ""}" data-id="${escapeHtml(task.id)}" data-context="${escapeHtml(task.context)}" aria-pressed="${selected ? "true" : "false"}">
+              <span class="plan-135-picker-item-text">${escapeHtml(task.text)}</span>
+              <span class="plan-135-picker-item-meta">${escapeHtml(meta)}</span>
+            </button>
+          </li>`;
+        })
+        .join("");
+      return `<li class="plan-135-picker-tier-heading">${escapeHtml(TIER_NAMES[tier - 1] || `Priority ${tier}`)}</li>${items}`;
+    })
+    .join("");
+
+  list.querySelectorAll(".combine-tasks-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = combineTaskKey(btn.dataset.context, btn.dataset.id);
+      if (combineSelectedKeys.has(key)) combineSelectedKeys.delete(key);
+      else combineSelectedKeys.add(key);
+      btn.classList.toggle("is-selected", combineSelectedKeys.has(key));
+      btn.setAttribute("aria-pressed", combineSelectedKeys.has(key) ? "true" : "false");
+      syncCombineTasksConfirmState();
+    });
+  });
+  syncCombineTasksConfirmState();
+}
+
+function openCombineTasksDialog(primaryId, primaryCtx) {
+  const primary = findTaskByRef({ id: primaryId, context: primaryCtx });
+  if (!primary) return;
+  combinePrimaryRef = { id: primaryId, context: primaryCtx };
+  combineSelectedKeys = new Set();
+  const primaryEl = document.getElementById("combine-tasks-primary");
+  if (primaryEl) {
+    primaryEl.textContent = `Keeping: ${truncateReflectionLabel(primary.text, 72)}`;
+  }
+  const keepRadio = document.querySelector('input[name="combine-title-mode"][value="keep"]');
+  if (keepRadio) keepRadio.checked = true;
+  const customInput = document.getElementById("combine-tasks-custom-title");
+  if (customInput) {
+    customInput.value = "";
+    customInput.classList.add("hidden");
+  }
+  renderCombineTasksPickerList();
+  document.getElementById("combine-tasks-dialog")?.showModal();
+}
+
+function closeCombineTasksDialog() {
+  document.getElementById("combine-tasks-dialog")?.close();
+  combinePrimaryRef = null;
+  combineSelectedKeys = new Set();
+}
+
+function confirmCombineTasks() {
+  if (!combinePrimaryRef || !combineSelectedKeys.size) return;
+  const mode = document.querySelector('input[name="combine-title-mode"]:checked')?.value || "keep";
+  const customTitle = document.getElementById("combine-tasks-custom-title")?.value || "";
+  if (mode === "custom" && !customTitle.trim()) {
+    alert("Enter a new title, or pick Keep / Join.");
+    return;
+  }
+  const otherRefs = [...combineSelectedKeys].map((key) => {
+    const { context, taskId } = parseNoteLinkTaskValue(key);
+    return { id: taskId, context };
+  });
+  const count = otherRefs.length;
+  if (
+    !confirm(
+      `Combine ${count} other task${count === 1 ? "" : "s"} into this one? Their notes and photos move over; the extras are deleted.`
+    )
+  ) {
+    return;
+  }
+  const primaryRef = { ...combinePrimaryRef };
+  const result = combineTasksIntoPrimary(primaryRef, otherRefs, {
+    titleMode: mode,
+    customTitle,
+  });
+  closeCombineTasksDialog();
+  document.getElementById("task-dialog")?.close();
+  if (result) {
+    openEditTaskDialog(result, result.context);
+  }
+}
+
+function setupCombineTasksDialog() {
+  const dialog = document.getElementById("combine-tasks-dialog");
+  if (!dialog || dialog.dataset.bound) return;
+  dialog.dataset.bound = "1";
+  document.getElementById("combine-tasks-close")?.addEventListener("click", closeCombineTasksDialog);
+  document.getElementById("combine-tasks-cancel")?.addEventListener("click", closeCombineTasksDialog);
+  document.getElementById("combine-tasks-confirm")?.addEventListener("click", confirmCombineTasks);
+  document.querySelectorAll('input[name="combine-title-mode"]').forEach((input) => {
+    input.addEventListener("change", syncCombineTasksConfirmState);
+  });
+  document.getElementById("combine-tasks-custom-title")?.addEventListener("input", syncCombineTasksConfirmState);
+}
+
 function isTaskInPlan135(id, ctx) {
   const plan = loadPlan135();
   if (plan.big?.id === id && plan.big?.context === ctx) return true;
@@ -12012,6 +12281,12 @@ function setTaskDialogDeleteVisible(visible) {
   btn.classList.toggle("hidden", !visible);
 }
 
+function setTaskDialogCombineVisible(visible) {
+  const btn = document.getElementById("dialog-combine");
+  if (!btn) return;
+  btn.classList.toggle("hidden", !visible);
+}
+
 function stripTaskBulletPrefix(line) {
   return line
     .replace(/^(?:[-*•·▪︎◦]|\d+[\.\)])\s+/, "")
@@ -12342,6 +12617,7 @@ async function openTaskDialog(tier = 1) {
   setDialogRepeatFields(null);
   setTaskDialogSubmitLabel("Save");
   setTaskDialogDeleteVisible(false);
+  setTaskDialogCombineVisible(false);
   syncDialogParsePreview();
 
   dialog.showModal();
@@ -12366,6 +12642,7 @@ async function openEditTaskDialog(task, ctx) {
   setDialogRepeatFields(task);
   setTaskDialogSubmitLabel("Save");
   setTaskDialogDeleteVisible(true);
+  setTaskDialogCombineVisible(true);
   syncDialogParsePreview();
   await renderPhotoGrid(
     document.getElementById("dialog-photo-grid"),
@@ -12395,6 +12672,7 @@ function openBrainDumpSendDialog(item, ctx) {
   setDialogRepeatFields(null);
   setTaskDialogSubmitLabel("Send");
   setTaskDialogDeleteVisible(false);
+  setTaskDialogCombineVisible(false);
   syncDialogParsePreview();
 
   dialog.showModal();
@@ -12529,6 +12807,7 @@ function setupTaskDialog() {
     resetDialogMediaFields();
     setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
     setTaskDialogDeleteVisible(false);
+    setTaskDialogCombineVisible(false);
     dialog.close();
   });
 
@@ -12540,7 +12819,17 @@ function setupTaskDialog() {
     clearDialogBrainFields();
     resetDialogMediaFields();
     setTaskDialogDeleteVisible(false);
+    setTaskDialogCombineVisible(false);
     dialog.close();
+  });
+
+  document.getElementById("dialog-combine")?.addEventListener("click", () => {
+    const id = document.getElementById("dialog-edit-id")?.value;
+    const ctx = document.getElementById("dialog-original-context")?.value;
+    if (!id || !ctx) return;
+    // Persist current edit draft before combining so notes/photos/title aren't lost
+    if (!saveTaskFromDialog()) return;
+    openCombineTasksDialog(id, ctx);
   });
 
   dialog.addEventListener("close", () => {
@@ -12549,6 +12838,7 @@ function setupTaskDialog() {
     setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
     setTaskDialogSubmitLabel("Save");
     setTaskDialogDeleteVisible(false);
+    setTaskDialogCombineVisible(false);
     syncDialogParsePreview();
   });
 
@@ -13407,6 +13697,7 @@ setupTouchListDrag();
 setupSidebarTabs();
 setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
+setupCombineTasksDialog();
 setupMediaViewer();
 setupBrainDumpForms();
 setupNotesPanel();

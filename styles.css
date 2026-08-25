@@ -4022,6 +4022,78 @@ body.task-dragging-lock .app-main {
   line-height: 1.45;
 }
 
+.combine-tasks-primary {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.85rem;
+  background: rgba(14, 48, 48, 0.08);
+  color: #11302c;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.combine-tasks-item.is-selected {
+  outline: 2px solid #0e3030;
+  background: #ffdbd2;
+  color: #0e3030;
+}
+
+.combine-tasks-title-options {
+  margin: 0.85rem 0 0;
+  padding: 0.85rem 0 0;
+  border: none;
+  border-top: 1px solid rgba(14, 48, 48, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.combine-tasks-legend {
+  padding: 0;
+  margin: 0 0 0.15rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+.combine-tasks-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #11302c;
+  cursor: pointer;
+}
+
+.combine-tasks-custom-title {
+  margin-top: 0.15rem;
+  width: 100%;
+  box-sizing: border-box;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(14, 48, 48, 0.14);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #11302c;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.combine-tasks-custom-title.hidden {
+  display: none;
+}
+
+.combine-tasks-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 /* Brain dump sidebar panel */
 .brain-panel {
   background: var(--surface);
