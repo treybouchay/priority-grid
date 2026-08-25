@@ -2030,6 +2030,10 @@ body[data-page="home"] .home-timer-jump:focus-visible {
   outline-offset: 2px;
 }
 
+body[data-page="home"] .home-timer-jump.is-running {
+  animation: home-timer-jump-invert 8.5s ease-in-out infinite;
+}
+
 body[data-page="home"] .home-timer-jump.is-running .home-timer-jump-hand {
   animation: home-timer-jump-hand 8s linear infinite;
 }
@@ -2057,6 +2061,32 @@ body[data-page="home"] .home-timer-jump:not(.is-running) .home-timer-jump-hand {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes home-timer-jump-invert {
+  0%,
+  100% {
+    background: #0e3030;
+    color: #ffdbd2;
+    box-shadow: 0 4px 14px rgba(14, 48, 48, 0.18);
+  }
+  50% {
+    background: #ffdbd2;
+    color: #0e3030;
+    box-shadow: 0 4px 14px rgba(255, 219, 210, 0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="home"] .home-timer-jump.is-running {
+    animation: none;
+    background: #ffdbd2;
+    color: #0e3030;
+  }
+
+  body[data-page="home"] .home-timer-jump.is-running .home-timer-jump-hand {
+    animation: none;
   }
 }
 

@@ -3027,6 +3027,7 @@ function setupSupabaseAuthUi() {
     supabaseUserId = session?.user?.id || null;
     supabaseAuthEmail = session?.user?.email || null;
     updateAuthUi();
+    updateSharingUi();
 
     if (supabaseUserId && !wasSignedIn) {
       startSupabaseSync();
@@ -3036,7 +3037,6 @@ function setupSupabaseAuthUi() {
       clearLocalSharingState();
       syncAvailable = false;
       updateSyncUi();
-      updateSharingUi();
     }
   });
 
@@ -3044,6 +3044,7 @@ function setupSupabaseAuthUi() {
     supabaseUserId = data.session?.user?.id || null;
     supabaseAuthEmail = data.session?.user?.email || null;
     updateAuthUi();
+    updateSharingUi();
     if (supabaseUserId) startSupabaseSync();
     else updateSyncUi();
   });
@@ -3085,7 +3086,11 @@ function onSyncWindowFocus() {
 
 async function startSupabaseSync() {
   if (!supabaseUserId) return;
-  if (supabaseSyncStarted && syncAvailable) return;
+  if (supabaseSyncStarted && syncAvailable) {
+    updateSharingUi();
+    refreshSpacesFromServer().catch(() => updateSharingUi());
+    return;
+  }
   getSupabaseClient();
   syncBackend = "supabase";
   syncAvailable = true;
@@ -3095,13 +3100,25 @@ async function startSupabaseSync() {
     const remote = await fetchRemotePayload();
     await bootstrapRemoteSync(remote);
     await refreshSyncHistory({ quiet: true });
-    await refreshSpacesFromServer();
-    updateSharingUi();
   } catch {
     syncAvailable = false;
     supabaseSyncStarted = false;
     updateSyncUi();
+    updateSharingUi();
+    return;
   }
+  try {
+    await refreshSpacesFromServer();
+  } catch (err) {
+    console.warn("Shared spaces unavailable", err);
+    updateSharingUi();
+    const spacesEl = document.getElementById("sharing-spaces");
+    if (spacesEl) {
+      spacesEl.innerHTML = `<p class="settings-hint">Couldn’t load shared spaces. In Supabase SQL Editor, run <code>supabase/schema-sharing.sql</code>, then refresh this page.</p>`;
+    }
+    return;
+  }
+  updateSharingUi();
 }
 
 async function initLocalSync() {
