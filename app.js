@@ -1945,14 +1945,23 @@ function normalizeSpaceContext(item) {
   return normalized;
 }
 
+function sharedListNameKey(name) {
+  return String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’`]/g, "'")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 function sharedListDedupeKey(ctx) {
   if (!ctx) return "";
   if (typeof ctx.sourceContextId === "string" && ctx.sourceContextId.trim()) {
     return `src:${ctx.sourceContextId.trim()}`;
   }
-  return `name:${String(ctx.name || "")
-    .trim()
-    .toLowerCase()}`;
+  return `name:${sharedListNameKey(ctx.name)}`;
 }
 
 function mergeSharedTaskLists(a, b) {
@@ -2013,11 +2022,35 @@ function findSharedListInPayload(payload, { sourceContextId = "", name = "" } = 
     const bySource = contexts.find((c) => c.sourceContextId === source);
     if (bySource) return bySource;
   }
-  const key = String(name || "")
-    .trim()
-    .toLowerCase();
+  const key = sharedListNameKey(name);
   if (!key) return null;
-  return contexts.find((c) => String(c.name || "").trim().toLowerCase() === key) || null;
+  return contexts.find((c) => sharedListNameKey(c.name) === key) || null;
+}
+
+function removeSharedListFromSpace(spaceId, contextId) {
+  if (!spaceId || !contextId) return false;
+  const payload = loadSpacePayload(spaceId);
+  const exists = (payload.contexts || []).some((c) => c.id === contextId);
+  if (!exists) return false;
+  payload.contexts = (payload.contexts || []).filter((c) => c.id !== contextId);
+  if (payload.tasks && Object.prototype.hasOwnProperty.call(payload.tasks, contextId)) {
+    delete payload.tasks[contextId];
+  }
+  payload.deleted = pruneDeletedIdMap({
+    ...(payload.deleted || {}),
+    [contextId]: Date.now(),
+  });
+  payload.updatedAt = new Date().toISOString();
+  saveSpacePayload(spaceId, payload);
+  if (filter === contextId) {
+    filter = "all";
+    localStorage.setItem(FILTER_KEY, filter);
+  }
+  if (getHomeContextFilter() === contextId) setHomeContextFilter("all");
+  rebuildContextUi();
+  if (typeof renderAll === "function") renderAll();
+  updateSharingUi();
+  return true;
 }
 
 function normalizeSpacePayload(payload) {
@@ -2593,7 +2626,19 @@ async function updateSharingUi() {
                 ? sharedLists
                     .map(
                       (list) =>
-                        `<li><span class="sharing-list-pill">Shared</span> ${escapeHtml(list.name)}</li>`
+                        `<li class="sharing-list-row">
+                          <span class="sharing-list-row-main">
+                            <span class="sharing-list-pill">Shared</span>
+                            <span class="sharing-list-name">${escapeHtml(list.name)}</span>
+                          </span>
+                          <button
+                            type="button"
+                            class="btn-ghost sharing-list-remove"
+                            data-remove-shared-list="${escapeHtml(list.id)}"
+                            data-space-id="${escapeHtml(space.id)}"
+                            aria-label="Remove ${escapeHtml(list.name)} from this space"
+                          >Remove</button>
+                        </li>`
                     )
                     .join("")
                 : `<li class="settings-hint">No shared lists yet.</li>`
@@ -2720,6 +2765,19 @@ function setupSharingUi() {
       } catch (err) {
         alert(err?.message || "Could not cancel invite.");
       }
+      return;
+    }
+
+    const removeListBtn = e.target.closest("[data-remove-shared-list]");
+    if (removeListBtn) {
+      const listId = removeListBtn.getAttribute("data-remove-shared-list");
+      const spaceId = removeListBtn.getAttribute("data-space-id");
+      const shared = findSharedContext(listId);
+      const label = shared?.name || "this shared list";
+      if (!confirm(`Remove “${label}” from this shared space? Tasks in that shared copy will be deleted for everyone in the space. Your personal list stays.`)) {
+        return;
+      }
+      removeSharedListFromSpace(spaceId, listId);
     }
   });
 
@@ -6872,6 +6930,12 @@ function rebuildContextUi() {
           ${contextIconHtml(c.id, "lists-manager-icon")}
           <span class="lists-manager-name">${escapeHtml(c.name)}</span>
           <span class="lists-manager-badge">Shared · ${escapeHtml(c.spaceName || "Space")}</span>
+          <button
+            type="button"
+            class="lists-manager-delete"
+            data-remove-shared-list="${escapeHtml(c.id)}"
+            data-space-id="${escapeHtml(c.spaceId)}"
+          >Remove</button>
         </li>`
           )
           .join("")
@@ -7162,6 +7226,21 @@ function setupListsManager() {
       return;
     }
     if (deleteBtn) {
+      const sharedListId = deleteBtn.getAttribute("data-remove-shared-list");
+      const sharedSpaceId = deleteBtn.getAttribute("data-space-id");
+      if (sharedListId && sharedSpaceId) {
+        const shared = findSharedContext(sharedListId);
+        const label = shared?.name || "this shared list";
+        if (
+          !confirm(
+            `Remove “${label}” from this shared space? Tasks in that shared copy will be deleted for everyone in the space. Your personal list stays.`
+          )
+        ) {
+          return;
+        }
+        removeSharedListFromSpace(sharedSpaceId, sharedListId);
+        return;
+      }
       const id = deleteBtn.dataset.id;
       const current = getCustomContexts().find((c) => c.id === id);
       if (!confirm(`Delete category “${current?.name || id}”? Its tasks will be removed.`)) return;

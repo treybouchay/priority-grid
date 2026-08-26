@@ -597,6 +597,38 @@ body[data-page="settings"] .sharing-pending-list {
   gap: 0.35rem;
 }
 
+body[data-page="settings"] .sharing-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.75rem;
+  background: rgba(14, 48, 48, 0.05);
+}
+
+body[data-page="settings"] .sharing-list-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+body[data-page="settings"] .sharing-list-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #11302c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-page="settings"] .sharing-list-remove {
+  flex-shrink: 0;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+}
+
 body[data-page="settings"] .sharing-list-pill {
   display: inline-block;
   margin-right: 0.35rem;
