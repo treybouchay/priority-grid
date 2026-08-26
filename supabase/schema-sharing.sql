@@ -215,3 +215,6 @@ grant select on public.spaces to authenticated;
 grant select on public.space_members to authenticated;
 grant select, update on public.space_invites to authenticated;
 grant select, insert, update on public.space_state to authenticated;
+
+-- Refresh PostgREST so rpc('create_space') is visible immediately
+notify pgrst, 'reload schema';

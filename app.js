@@ -2234,6 +2234,32 @@ async function inviteToSharedSpace(spaceId, email) {
   return data;
 }
 
+async function revokeSpaceInvite(inviteId) {
+  if (!supabaseClient || !supabaseUserId) throw new Error("Sign in first");
+  const { error } = await supabaseClient
+    .from("space_invites")
+    .update({ status: "revoked" })
+    .eq("id", inviteId)
+    .eq("status", "pending");
+  if (error) throw error;
+}
+
+async function sendInviteSignInLink(email) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error("Sync not configured");
+  const trimmed = String(email || "").trim().toLowerCase();
+  if (!trimmed) throw new Error("Missing email");
+  // First open creates her account; does not change Trevor’s current session.
+  const { error } = await client.auth.signInWithOtp({
+    email: trimmed,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: window.location.origin + window.location.pathname,
+    },
+  });
+  if (error) throw error;
+}
+
 async function acceptSharedInvite(inviteId) {
   if (!supabaseClient || !supabaseUserId) throw new Error("Sign in first");
   const { data, error } = await supabaseClient.rpc("accept_space_invite", {
@@ -2250,6 +2276,7 @@ async function fetchSpaceInvitesForSpace(spaceId) {
     .from("space_invites")
     .select("id, email, status, created_at")
     .eq("space_id", spaceId)
+    .in("status", ["pending", "accepted"])
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data || [];
@@ -2462,10 +2489,27 @@ async function updateSharingUi() {
           ${
             invites.length
               ? `<ul class="sharing-pending-list">${invites
-                  .map(
-                    (inv) =>
-                      `<li>${escapeHtml(inv.email)} · ${escapeHtml(inv.status)}</li>`
-                  )
+                  .map((inv) => {
+                    const pending = inv.status === "pending";
+                    return `<li class="sharing-pending-item" data-invite-id="${escapeHtml(inv.id)}">
+                      <div class="sharing-pending-copy">
+                        <p class="sharing-pending-email">${escapeHtml(inv.email)}</p>
+                        <p class="sharing-pending-meta">${
+                          pending
+                            ? "Pending — invite didn’t email her. Email her a login link (first open creates her account), then she Accepts in Sharing."
+                            : escapeHtml(inv.status)
+                        }</p>
+                      </div>
+                      ${
+                        pending
+                          ? `<div class="sharing-pending-actions">
+                              <button type="button" class="btn-primary sharing-send-signin-btn" data-send-signin="${escapeHtml(inv.email)}">Email her a login link</button>
+                              <button type="button" class="btn-ghost" data-revoke-invite="${escapeHtml(inv.id)}">Cancel invite</button>
+                            </div>`
+                          : ""
+                      }
+                    </li>`;
+                  })
                   .join("")}</ul>`
               : ""
           }
@@ -2514,12 +2558,48 @@ function setupSharingUi() {
 
   document.getElementById("sharing-panel")?.addEventListener("click", async (e) => {
     const acceptBtn = e.target.closest("[data-accept-invite]");
-    if (!acceptBtn) return;
-    try {
-      await acceptSharedInvite(acceptBtn.getAttribute("data-accept-invite"));
-      alert("Invite accepted. Shared lists will show up in your filters.");
-    } catch (err) {
-      alert(err?.message || "Could not accept invite.");
+    if (acceptBtn) {
+      try {
+        await acceptSharedInvite(acceptBtn.getAttribute("data-accept-invite"));
+        alert("Invite accepted. Shared lists will show up in your filters.");
+      } catch (err) {
+        alert(err?.message || "Could not accept invite.");
+      }
+      return;
+    }
+
+    const sendBtn = e.target.closest("[data-send-signin]");
+    if (sendBtn) {
+      const email = sendBtn.getAttribute("data-send-signin");
+      sendBtn.disabled = true;
+      const prevLabel = sendBtn.textContent;
+      sendBtn.textContent = "Sending…";
+      try {
+        await sendInviteSignInLink(email);
+        sendBtn.textContent = "Link sent";
+        alert(
+          `Login link sent to ${email}.\n\nAsk her to check inbox and spam, open the link on her phone (that creates her account), then Settings → Sharing → Accept.`
+        );
+      } catch (err) {
+        sendBtn.textContent = prevLabel;
+        alert(err?.message || "Could not send login link.");
+      } finally {
+        sendBtn.disabled = false;
+        window.setTimeout(() => {
+          if (sendBtn.isConnected) sendBtn.textContent = prevLabel;
+        }, 4000);
+      }
+      return;
+    }
+
+    const revokeBtn = e.target.closest("[data-revoke-invite]");
+    if (revokeBtn) {
+      try {
+        await revokeSpaceInvite(revokeBtn.getAttribute("data-revoke-invite"));
+        await updateSharingUi();
+      } catch (err) {
+        alert(err?.message || "Could not cancel invite.");
+      }
     }
   });
 
@@ -2534,7 +2614,15 @@ function setupSharingUi() {
         await inviteToSharedSpace(spaceId, email);
         inviteForm.querySelector(".sharing-invite-email").value = "";
         await updateSharingUi();
-        alert(`Invite sent to ${email}. They’ll see it after signing in with that email.`);
+        const sendLink = confirm(
+          `Invite saved for ${email} (pending until she accepts).\n\nShe needs a magic-link login first — even if she has no account yet. Email her a login link now?`
+        );
+        if (sendLink) {
+          await sendInviteSignInLink(email);
+          alert(
+            `Login link sent to ${email}.\n\nShe opens it on her phone (first open creates her account), then Settings → Sharing → Accept. Check spam if it doesn’t arrive.`
+          );
+        }
       } catch (err) {
         alert(err?.message || "Could not send invite.");
       }
@@ -6236,6 +6324,12 @@ function setPage(nextPage, nextFilter = filter, options = {}) {
   localStorage.setItem(PAGE_KEY, page);
   localStorage.setItem(FILTER_KEY, filter);
 
+  if (page !== "tasks" && page !== "home" && tasksCombineMode) {
+    tasksCombineMode = false;
+    boardCombineKeys = new Set();
+    syncTasksCombineBar();
+  }
+
   document.getElementById("home-page").classList.toggle("hidden", page !== "home");
   document.getElementById("tasks-page").classList.toggle("hidden", page !== "tasks");
   document.getElementById("history-page").classList.toggle("hidden", page !== "history");
@@ -7451,9 +7545,81 @@ function combineTasksIntoPrimary(primaryRef, otherRefs, options = {}) {
 
 let combinePrimaryRef = null;
 let combineSelectedKeys = new Set();
+let tasksCombineMode = false;
+let boardCombineKeys = new Set();
 
 function combineTaskKey(ctx, id) {
   return `${ctx}::${id}`;
+}
+
+function syncTasksCombineBar() {
+  const bar = document.getElementById("tasks-combine-bar");
+  const countEl = document.getElementById("tasks-combine-bar-count");
+  const goBtn = document.getElementById("tasks-combine-go");
+  document.querySelectorAll(".tasks-combine-toggle").forEach((toggle) => {
+    toggle.classList.toggle("is-active", tasksCombineMode);
+    toggle.setAttribute("aria-pressed", tasksCombineMode ? "true" : "false");
+  });
+  document.body.classList.toggle("tasks-combine-mode", tasksCombineMode);
+  if (!bar) return;
+  bar.classList.toggle("hidden", !tasksCombineMode);
+  const n = boardCombineKeys.size;
+  if (countEl) {
+    countEl.textContent =
+      n === 0
+        ? "Tap tasks to select — first keeps the default title"
+        : n === 1
+          ? "1 selected — pick at least one more"
+          : `${n} selected — ready to combine`;
+  }
+  if (goBtn) goBtn.disabled = n < 2;
+}
+
+function refreshCombineModeViews() {
+  if (page === "tasks") renderGrid();
+  else if (page === "home") renderHome();
+}
+
+function setTasksCombineMode(enabled) {
+  tasksCombineMode = Boolean(enabled);
+  if (!tasksCombineMode) boardCombineKeys = new Set();
+  syncTasksCombineBar();
+  refreshCombineModeViews();
+}
+
+function toggleBoardCombineSelection(ctx, id) {
+  const key = combineTaskKey(ctx, id);
+  if (boardCombineKeys.has(key)) boardCombineKeys.delete(key);
+  else boardCombineKeys.add(key);
+  syncTasksCombineBar();
+  refreshCombineModeViews();
+}
+
+function openBoardCombineConfirm() {
+  const keys = [...boardCombineKeys];
+  if (keys.length < 2) {
+    alert("Select at least 2 tasks to combine.");
+    return;
+  }
+  const primary = parseNoteLinkTaskValue(keys[0]);
+  if (!primary.context || !primary.taskId) return;
+  openCombineTasksDialog(primary.taskId, primary.context, {
+    preselectedKeys: keys.slice(1),
+    skipPicker: true,
+  });
+}
+
+function setupTasksCombineMode() {
+  document.querySelectorAll(".tasks-combine-toggle").forEach((toggle) => {
+    if (toggle.dataset.bound) return;
+    toggle.dataset.bound = "1";
+    toggle.addEventListener("click", () => setTasksCombineMode(!tasksCombineMode));
+  });
+  document.getElementById("tasks-combine-cancel")?.addEventListener("click", () => {
+    setTasksCombineMode(false);
+  });
+  document.getElementById("tasks-combine-go")?.addEventListener("click", openBoardCombineConfirm);
+  syncTasksCombineBar();
 }
 
 function syncCombineTasksConfirmState() {
@@ -7522,14 +7688,22 @@ function renderCombineTasksPickerList() {
   syncCombineTasksConfirmState();
 }
 
-function openCombineTasksDialog(primaryId, primaryCtx) {
+function openCombineTasksDialog(primaryId, primaryCtx, options = {}) {
   const primary = findTaskByRef({ id: primaryId, context: primaryCtx });
   if (!primary) return;
   combinePrimaryRef = { id: primaryId, context: primaryCtx };
-  combineSelectedKeys = new Set();
+  combineSelectedKeys = new Set(
+    Array.isArray(options.preselectedKeys) ? options.preselectedKeys : []
+  );
   const primaryEl = document.getElementById("combine-tasks-primary");
   if (primaryEl) {
     primaryEl.textContent = `Keeping: ${truncateReflectionLabel(primary.text, 72)}`;
+  }
+  const sub = document.getElementById("combine-tasks-sub");
+  if (sub) {
+    sub.textContent = options.skipPicker
+      ? `${combineSelectedKeys.size + 1} tasks selected. Choose a title, then combine — notes and photos merge; extras are deleted.`
+      : "Pick other tasks to merge into this one. Notes and photos come along; the extras are deleted.";
   }
   const keepRadio = document.querySelector('input[name="combine-title-mode"][value="keep"]');
   if (keepRadio) keepRadio.checked = true;
@@ -7538,7 +7712,14 @@ function openCombineTasksDialog(primaryId, primaryCtx) {
     customInput.value = "";
     customInput.classList.add("hidden");
   }
-  renderCombineTasksPickerList();
+  const list = document.getElementById("combine-tasks-list");
+  if (options.skipPicker) {
+    list?.classList.add("hidden");
+  } else {
+    list?.classList.remove("hidden");
+    renderCombineTasksPickerList();
+  }
+  syncCombineTasksConfirmState();
   document.getElementById("combine-tasks-dialog")?.showModal();
 }
 
@@ -7575,6 +7756,7 @@ function confirmCombineTasks() {
   });
   closeCombineTasksDialog();
   document.getElementById("task-dialog")?.close();
+  setTasksCombineMode(false);
   if (result) {
     openEditTaskDialog(result, result.context);
   }
@@ -7681,8 +7863,12 @@ function taskCardHtml(task) {
   const inForgetIt = isTaskForgetIt(task);
   const contextBadge = contextIconHtml(task.context, "task-context-badge");
   const attachHtml = taskAttachmentIndicatorHtml(task);
+  const key = combineTaskKey(task.context, task.id);
+  const selected = tasksCombineMode && boardCombineKeys.has(key);
+  const isPrimary =
+    selected && boardCombineKeys.size > 0 && [...boardCombineKeys][0] === key;
   return `
-    <li class="task-card${task.done ? " done" : ""}" draggable="${isTouchDevice() ? "false" : "true"}"
+    <li class="task-card${task.done ? " done" : ""}${selected ? " is-combine-selected" : ""}${isPrimary ? " is-combine-primary" : ""}" draggable="${isTouchDevice() ? "false" : "true"}"
       data-id="${task.id}" data-context="${task.context}">
       <div class="task-card-main">
         <label class="task-check">
@@ -7690,6 +7876,7 @@ function taskCardHtml(task) {
         </label>
         <div class="task-card-body">
           <button type="button" class="task-text-btn">${escapeHtml(task.text)}</button>
+          ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
         </div>
         <div class="task-card-trailing">
           ${attachHtml}
@@ -10199,12 +10386,17 @@ function getTopPriorityTasks(limit = 5) {
 
 function planCardTaskHtml(task) {
   if (!task) return "";
+  const key = combineTaskKey(task.context, task.id);
+  const selected = tasksCombineMode && boardCombineKeys.has(key);
+  const isPrimary =
+    selected && boardCombineKeys.size > 0 && [...boardCombineKeys][0] === key;
   return `
-    <li class="plan-card-task${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}">
+    <li class="plan-card-task${task.done ? " done" : ""}${selected ? " is-combine-selected" : ""}${isPrimary ? " is-combine-primary" : ""}" data-id="${task.id}" data-context="${task.context}">
       <label class="plan-card-check">
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
+      ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
       <span class="plan-card-task-meta">
         ${taskAttachmentIndicatorHtml(task)}
         ${contextIconHtml(task.context, "plan-card-task-ctx")}
@@ -10270,13 +10462,18 @@ function figmaPlanCardHtml({ number, variant, title, subtitle, tasks = [], done 
 function homeCardTaskHtml(task, options = {}) {
   const { showTier = false, planGroup = "" } = options;
   const tierClass = tierTagClass(task.tier, planGroup);
+  const key = combineTaskKey(task.context, task.id);
+  const selected = tasksCombineMode && boardCombineKeys.has(key);
+  const isPrimary =
+    selected && boardCombineKeys.size > 0 && [...boardCombineKeys][0] === key;
   return `
-    <li class="home-card-task${task.done ? " done" : ""}" data-id="${task.id}" data-context="${task.context}"${planGroup ? ` data-plan-group="${planGroup}"` : ""}>
+    <li class="home-card-task${task.done ? " done" : ""}${selected ? " is-combine-selected" : ""}${isPrimary ? " is-combine-primary" : ""}" data-id="${task.id}" data-context="${task.context}"${planGroup ? ` data-plan-group="${planGroup}"` : ""}>
       <label class="task-check home-card-check">
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <div class="home-card-task-body">
         <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
+        ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
         ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
       </div>
       <span class="home-card-task-meta">
@@ -10979,6 +11176,19 @@ function bindHomeTaskEvents(row) {
   const ctx = row.dataset.context;
   const checkbox = row.querySelector('input[type="checkbox"]');
   if (!checkbox) return;
+
+  if (tasksCombineMode) {
+    if (row.classList.contains("done")) return;
+    const select = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleBoardCombineSelection(ctx, id);
+    };
+    row.addEventListener("click", select);
+    checkbox.addEventListener("click", select);
+    row.querySelector(".plan-card-task-text, .home-card-task-title, .home-task-title")?.addEventListener("click", select);
+    return;
+  }
 
   checkbox.addEventListener("change", (e) => {
     toggleTaskDone(id, ctx, e.target.checked);
@@ -12029,6 +12239,19 @@ function bindMouseGripDrag(card) {
 function bindTaskEvents(card) {
   const id = card.dataset.id;
   const ctx = card.dataset.context;
+
+  if (tasksCombineMode) {
+    card.draggable = false;
+    const select = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleBoardCombineSelection(ctx, id);
+    };
+    card.addEventListener("click", select);
+    card.querySelector('input[type="checkbox"]')?.addEventListener("click", select);
+    card.querySelector(".task-text-btn")?.addEventListener("click", select);
+    return;
+  }
 
   if (!isTouchDevice()) {
     card.draggable = false;
@@ -13698,6 +13921,7 @@ setupSidebarTabs();
 setSidebarCollapsed(getSidebarCollapsed());
 setupTaskDialog();
 setupCombineTasksDialog();
+setupTasksCombineMode();
 setupMediaViewer();
 setupBrainDumpForms();
 setupNotesPanel();

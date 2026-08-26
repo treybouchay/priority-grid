@@ -610,6 +610,52 @@ body[data-page="settings"] .sharing-list-pill {
   text-transform: uppercase;
 }
 
+body[data-page="settings"] .sharing-pending-list {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+body[data-page="settings"] .sharing-pending-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.85rem;
+  background: rgba(14, 48, 48, 0.06);
+}
+
+body[data-page="settings"] .sharing-pending-email {
+  margin: 0;
+  font-weight: 700;
+  color: #11302c;
+}
+
+body[data-page="settings"] .sharing-pending-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: rgba(17, 48, 44, 0.72);
+}
+
+body[data-page="settings"] .sharing-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+body[data-page="settings"] .sharing-send-signin-btn {
+  font-size: 0.8125rem;
+  padding: 0.45rem 0.85rem;
+  white-space: nowrap;
+}
+
 body[data-page="settings"] .sharing-invite-item {
   display: flex;
   align-items: center;

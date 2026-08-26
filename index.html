@@ -69,10 +69,10 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=184" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=133" />
-    <link rel="stylesheet" href="design/tasks-screen.css?v=47" />
+    <link rel="stylesheet" href="design/home-presence.css?v=134" />
+    <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
     <link rel="stylesheet" href="design/history-wins.css?v=17" />
-    <link rel="stylesheet" href="design/settings-page.css?v=11" />
+    <link rel="stylesheet" href="design/settings-page.css?v=13" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -205,6 +205,10 @@
           stroke-linejoin="round"
           opacity="0.35"
         />
+      </symbol>
+      <symbol id="icon-combine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3.5" y="3.5" width="10" height="10" rx="2"/>
+        <rect x="10.5" y="10.5" width="10" height="10" rx="2"/>
       </symbol>
       <symbol id="icon-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 20h9"/>
@@ -431,6 +435,16 @@
                   </button>
                   <button
                     type="button"
+                    class="tasks-combine-toggle"
+                    id="home-combine-toggle"
+                    aria-pressed="false"
+                    title="Combine tasks"
+                    aria-label="Combine tasks"
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-combine"></use></svg>
+                  </button>
+                  <button
+                    type="button"
                     class="weekly-view-toggle"
                     id="home-weekly-toggle"
                     aria-pressed="false"
@@ -593,15 +607,27 @@
                   <button type="button" class="priority-visibility-tag active" data-tier="3" aria-pressed="true">3rd</button>
                   <button type="button" class="priority-visibility-tag active" data-tier="4" aria-pressed="true">4th</button>
                 </div>
-                <button
-                  type="button"
-                  class="weekly-view-toggle"
-                  id="tasks-weekly-toggle"
-                  aria-pressed="false"
-                  title="Weekly view"
-                >
-                  Week
-                </button>
+                <div class="board-toolbar-actions">
+                  <button
+                    type="button"
+                    class="weekly-view-toggle"
+                    id="tasks-weekly-toggle"
+                    aria-pressed="false"
+                    title="Weekly view"
+                  >
+                    Week
+                  </button>
+                  <button
+                    type="button"
+                    class="tasks-combine-toggle"
+                    id="tasks-combine-toggle"
+                    aria-pressed="false"
+                    title="Combine tasks"
+                    aria-label="Combine tasks"
+                  >
+                    <svg class="icon" aria-hidden="true"><use href="#icon-combine"></use></svg>
+                  </button>
+                </div>
               </div>
               <div id="tasks-weekly-view" class="tasks-weekly-view hidden" aria-label="Weekly tasks"></div>
               <div class="board" id="board">
@@ -1121,7 +1147,7 @@
                   </div>
                 </form>
                 <p class="settings-hint">
-                  After you create a space, invite Kate’s email. She signs in with her own magic link, accepts the invite, then you can share lists into that space.
+                  Invite Kate by email → tap <strong>Email her a login link</strong> on the pending invite (first open creates her account) → she opens the link on her phone → Settings → Sharing → <strong>Accept</strong>. The invite alone does not email her.
                 </p>
               </div>
             </article>
@@ -1353,6 +1379,14 @@
         </footer>
       </form>
     </dialog>
+
+    <div class="tasks-combine-bar hidden" id="tasks-combine-bar" role="status" aria-live="polite">
+      <p class="tasks-combine-bar-count" id="tasks-combine-bar-count">Select tasks to combine</p>
+      <div class="tasks-combine-bar-actions">
+        <button type="button" class="btn-ghost" id="tasks-combine-cancel">Cancel</button>
+        <button type="button" class="btn-primary" id="tasks-combine-go" disabled>Combine</button>
+      </div>
+    </div>
 
     <dialog class="plan-135-picker-dialog combine-tasks-dialog" id="combine-tasks-dialog">
       <div class="plan-135-picker-inner">
@@ -1609,6 +1643,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=340"></script>
+    <script src="app.js?v=344"></script>
   </body>
 </html>
