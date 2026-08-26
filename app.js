@@ -1958,9 +1958,8 @@ function sharedListNameKey(name) {
 
 function sharedListDedupeKey(ctx) {
   if (!ctx) return "";
-  if (typeof ctx.sourceContextId === "string" && ctx.sourceContextId.trim()) {
-    return `src:${ctx.sourceContextId.trim()}`;
-  }
+  // Always key by normalized name so "same list twice" collapses even when
+  // one copy has sourceContextId and the other does not.
   return `name:${sharedListNameKey(ctx.name)}`;
 }
 
@@ -1980,31 +1979,55 @@ function mergeSharedTaskLists(a, b) {
   return out;
 }
 
+function clearDeletedSpaceIds(deleted, ids) {
+  const next = { ...(deleted || {}) };
+  (Array.isArray(ids) ? ids : [ids]).forEach((id) => {
+    if (id && Object.prototype.hasOwnProperty.call(next, id)) delete next[id];
+  });
+  return next;
+}
+
 function dedupeSpacePayloadLists(payload) {
   const normalized = normalizeSpacePayload(payload);
-  const keepByKey = new Map();
+  const byId = new Map();
+  (normalized.contexts || []).forEach((ctx) => {
+    if (!ctx?.id) return;
+    if (byId.has(ctx.id)) {
+      const keep = byId.get(ctx.id);
+      if (!keep.sourceContextId && ctx.sourceContextId) keep.sourceContextId = ctx.sourceContextId;
+      return;
+    }
+    byId.set(ctx.id, { ...ctx });
+  });
+
+  const keepByName = new Map();
   const contexts = [];
   const tasks = {};
   const deleted = { ...(normalized.deleted || {}) };
 
-  (normalized.contexts || []).forEach((ctx) => {
+  [...byId.values()].forEach((ctx) => {
     const key = sharedListDedupeKey(ctx);
-    if (!key) return;
-    if (keepByKey.has(key)) {
-      const keep = keepByKey.get(key);
-      tasks[keep.id] = mergeSharedTaskLists(tasks[keep.id], normalized.tasks?.[ctx.id]);
-      deleted[ctx.id] = Date.now();
-      if (!keep.sourceContextId && ctx.sourceContextId) {
-        keep.sourceContextId = ctx.sourceContextId;
+    if (!key || key === "name:") return;
+    if (keepByName.has(key)) {
+      const keep = keepByName.get(key);
+      tasks[keep.id] = mergeSharedTaskLists(
+        tasks[keep.id],
+        normalized.tasks?.[ctx.id] || normalized.tasks?.[keep.id]
+      );
+      if (ctx.id !== keep.id) deleted[ctx.id] = Date.now();
+      if (!keep.sourceContextId && ctx.sourceContextId) keep.sourceContextId = ctx.sourceContextId;
+      if (ctx.sourceContextId && keep.sourceContextId && ctx.sourceContextId === keep.sourceContextId) {
+        /* same source — keep existing */
       }
       return;
     }
     const next = { ...ctx };
-    keepByKey.set(key, next);
+    keepByName.set(key, next);
     contexts.push(next);
-    tasks[next.id] = Array.isArray(normalized.tasks?.[next.id])
-      ? [...normalized.tasks[next.id]]
-      : [];
+    tasks[next.id] = mergeSharedTaskLists(
+      normalized.tasks?.[next.id],
+      []
+    );
   });
 
   return {
@@ -2030,23 +2053,30 @@ function findSharedListInPayload(payload, { sourceContextId = "", name = "" } = 
 function removeSharedListFromSpace(spaceId, contextId) {
   if (!spaceId || !contextId) return false;
   const payload = loadSpacePayload(spaceId);
-  const exists = (payload.contexts || []).some((c) => c.id === contextId);
-  if (!exists) return false;
-  payload.contexts = (payload.contexts || []).filter((c) => c.id !== contextId);
-  if (payload.tasks && Object.prototype.hasOwnProperty.call(payload.tasks, contextId)) {
-    delete payload.tasks[contextId];
-  }
+  const target = (payload.contexts || []).find((c) => c.id === contextId);
+  if (!target) return false;
+  const nameKey = sharedListNameKey(target.name);
+  const removedIds = (payload.contexts || [])
+    .filter((c) => c.id === contextId || sharedListNameKey(c.name) === nameKey)
+    .map((c) => c.id);
+  payload.contexts = (payload.contexts || []).filter((c) => !removedIds.includes(c.id));
+  removedIds.forEach((id) => {
+    if (payload.tasks && Object.prototype.hasOwnProperty.call(payload.tasks, id)) {
+      delete payload.tasks[id];
+    }
+  });
+  const deletedStamp = Date.now();
   payload.deleted = pruneDeletedIdMap({
     ...(payload.deleted || {}),
-    [contextId]: Date.now(),
+    ...Object.fromEntries(removedIds.map((id) => [id, deletedStamp])),
   });
   payload.updatedAt = new Date().toISOString();
   saveSpacePayload(spaceId, payload);
-  if (filter === contextId) {
+  if (removedIds.includes(filter)) {
     filter = "all";
     localStorage.setItem(FILTER_KEY, filter);
   }
-  if (getHomeContextFilter() === contextId) setHomeContextFilter("all");
+  if (removedIds.includes(getHomeContextFilter())) setHomeContextFilter("all");
   rebuildContextUi();
   if (typeof renderAll === "function") renderAll();
   updateSharingUi();
@@ -2088,7 +2118,12 @@ function loadSpacesMeta() {
 }
 
 function saveSpacesMeta(list) {
-  spacesMetaCache = Array.isArray(list) ? list : [];
+  const byId = new Map();
+  (Array.isArray(list) ? list : []).forEach((space) => {
+    if (!space?.id) return;
+    byId.set(space.id, space);
+  });
+  spacesMetaCache = [...byId.values()];
   try {
     localStorage.setItem(SPACES_META_KEY, JSON.stringify(spacesMetaCache));
   } catch {
@@ -2159,9 +2194,21 @@ function isSpaceDirty(spaceId) {
 
 function listSharedContexts() {
   const out = [];
+  const seen = new Set();
+  const spaces = [];
+  const spaceIds = new Set();
   loadSpacesMeta().forEach((space) => {
+    if (!space?.id || spaceIds.has(space.id)) return;
+    spaceIds.add(space.id);
+    spaces.push(space);
+  });
+  spaces.forEach((space) => {
     const payload = loadSpacePayload(space.id);
     (payload.contexts || []).forEach((ctx) => {
+      if (!ctx?.id) return;
+      const key = `${space.id}::${ctx.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
       out.push({ ...ctx, spaceId: space.id, spaceName: space.name, shared: true });
     });
   });
@@ -2169,7 +2216,14 @@ function listSharedContexts() {
 }
 
 function getSharedContextIds() {
-  return listSharedContexts().map((c) => c.id);
+  const ids = [];
+  const seen = new Set();
+  listSharedContexts().forEach((c) => {
+    if (!c?.id || seen.has(c.id)) return;
+    seen.add(c.id);
+    ids.push(c.id);
+  });
+  return ids;
 }
 
 function findSharedContext(ctx) {
@@ -2413,6 +2467,7 @@ function addSharedListToSpace(spaceId, name) {
   const existing = findSharedListInPayload(payload, { name: trimmed });
   if (existing) {
     existing.name = trimmed;
+    payload.deleted = clearDeletedSpaceIds(payload.deleted, existing.id);
     payload.updatedAt = new Date().toISOString();
     saveSpacePayload(spaceId, payload);
     rebuildContextUi();
@@ -2428,6 +2483,7 @@ function addSharedListToSpace(spaceId, name) {
   });
   payload.contexts = [...(payload.contexts || []), ctx];
   payload.tasks = { ...(payload.tasks || {}), [id]: [] };
+  payload.deleted = clearDeletedSpaceIds(payload.deleted, id);
   payload.updatedAt = new Date().toISOString();
   saveSpacePayload(spaceId, payload);
   rebuildContextUi();
@@ -2453,10 +2509,15 @@ function sharePersonalListToSpace(spaceId, contextId) {
     existing.sourceContextId = contextId;
     existing.icon = custom?.icon || CONTEXT_ICON_IDS[contextId] || existing.icon || DEFAULT_CUSTOM_LIST_ICON;
     if (isValidIconImage(custom?.iconImage)) existing.iconImage = custom.iconImage;
+    // Drop any other same-name copies before saving.
+    payload.contexts = (payload.contexts || []).filter(
+      (c) => c.id === existing.id || sharedListNameKey(c.name) !== sharedListNameKey(sourceName)
+    );
     payload.tasks = {
       ...(payload.tasks || {}),
       [existing.id]: mergeSharedTaskLists(payload.tasks?.[existing.id], tasks),
     };
+    payload.deleted = clearDeletedSpaceIds(payload.deleted, existing.id);
     payload.updatedAt = new Date().toISOString();
     saveSpacePayload(spaceId, payload);
     rebuildContextUi();
@@ -2472,8 +2533,14 @@ function sharePersonalListToSpace(spaceId, contextId) {
     sourceContextId: contextId,
     createdAt: new Date().toISOString(),
   });
-  payload.contexts = [...(payload.contexts || []), ctx];
+  payload.contexts = [
+    ...(payload.contexts || []).filter(
+      (c) => sharedListNameKey(c.name) !== sharedListNameKey(sourceName)
+    ),
+    ctx,
+  ];
   payload.tasks = { ...(payload.tasks || {}), [id]: tasks };
+  payload.deleted = clearDeletedSpaceIds(payload.deleted, id);
   payload.updatedAt = new Date().toISOString();
   saveSpacePayload(spaceId, payload);
   rebuildContextUi();
@@ -2601,7 +2668,17 @@ async function updateSharingUi() {
       } catch {
         invites = [];
       }
-      const sharedLists = listSharedContexts().filter((c) => c.spaceId === space.id);
+      const sharedLists = [];
+      const seenListKeys = new Set();
+      listSharedContexts()
+        .filter((c) => c.spaceId === space.id)
+        .forEach((list) => {
+          const key = `${list.id}::${sharedListNameKey(list.name)}`;
+          if (seenListKeys.has(key) || seenListKeys.has(sharedListNameKey(list.name))) return;
+          seenListKeys.add(key);
+          seenListKeys.add(sharedListNameKey(list.name));
+          sharedLists.push(list);
+        });
       const personalOptions = getCustomContexts()
         .map(
           (c) =>
