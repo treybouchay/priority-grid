@@ -67,12 +67,12 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=184" />
+    <link rel="stylesheet" href="styles.css?v=185" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
     <link rel="stylesheet" href="design/home-presence.css?v=134" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
     <link rel="stylesheet" href="design/history-wins.css?v=17" />
-    <link rel="stylesheet" href="design/settings-page.css?v=14" />
+    <link rel="stylesheet" href="design/settings-page.css?v=15" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1149,6 +1149,11 @@
                 <p class="settings-hint">
                   Invite Kate by email → tap <strong>Email her a login link</strong> on the pending invite (first open creates her account) → she opens the link on her phone → Settings → Sharing → <strong>Accept</strong>. The invite alone does not email her.
                 </p>
+                <label class="sharing-notify-toggle settings-field-label">
+                  <input type="checkbox" id="sharing-browser-notify" />
+                  Browser alerts when someone completes a shared task (bell always shows in-app)
+                </label>
+                <p class="settings-hint">Updates sync every few seconds. For instant alerts, enable Realtime on <code>space_state</code> in Supabase (see schema-sharing.sql).</p>
               </div>
             </article>
           </section>
@@ -1643,6 +1648,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=347"></script>
+    <script src="app.js?v=351"></script>
   </body>
 </html>

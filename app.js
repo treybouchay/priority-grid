@@ -27,6 +27,8 @@ const SPACES_META_KEY = "priority-grid-spaces-meta";
 const SPACE_PAYLOAD_PREFIX = "priority-grid-space-payload-";
 const SPACE_DIRTY_PREFIX = "priority-grid-space-dirty-";
 const NOTIFY_BELL_SELECTOR = "#tasks-page-notify, #page-header-actions .header-icon-btn-bell";
+const SHARED_NOTIFY_INBOX_KEY = "priority-grid-shared-notify-inbox";
+const SHARED_BROWSER_NOTIFY_KEY = "priority-grid-shared-browser-notify";
 const SYNC_API = "/api/sync";
 const SYNC_POLL_MS = 5000;
 
@@ -146,8 +148,41 @@ function saveCustomContexts(list, options = {}) {
   if (!options.skipSync) markSyncDirty();
 }
 
+function isPersonalListHiddenByShared(customOrId) {
+  const custom =
+    customOrId && typeof customOrId === "object"
+      ? customOrId
+      : getCustomContexts().find((c) => c.id === customOrId);
+  const id = custom?.id || String(customOrId || "");
+  if (!id) return false;
+  const shared = listSharedContexts();
+  if (shared.some((ctx) => ctx.sourceContextId === id)) return true;
+  const nameKeys = new Set(
+    [
+      sharedListNameKey(custom?.name),
+      sharedListNameKey(contextLabel(id)),
+      sharedListNameKey(String(id).replace(/^custom-/, "").replace(/-/g, " ")),
+    ].filter(Boolean)
+  );
+  if (!nameKeys.size) return false;
+  return shared.some((ctx) => nameKeys.has(sharedListNameKey(ctx.name)));
+}
+
 function getContexts() {
-  return [...BUILTIN_CONTEXTS, ...getCustomContexts().map((c) => c.id), ...getSharedContextIds()];
+  const sharedIds = getSharedContextIds();
+  const customIds = getCustomContexts()
+    .map((c) => c.id)
+    .filter((id) => !isPersonalListHiddenByShared(id));
+  // Prefer shared over personal when display names collide.
+  const ordered = [...BUILTIN_CONTEXTS, ...sharedIds, ...customIds];
+  const seenNames = new Set();
+  return ordered.filter((id) => {
+    const key = sharedListNameKey(contextLabel(id));
+    if (!key) return true;
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
 }
 
 function isValidContext(ctx) {
@@ -675,6 +710,8 @@ let lastHistorySavedAt = 0;
 let spacesMetaCache = null;
 let spacePushTimers = {};
 let spaceRealtimeChannels = [];
+const sharedSpaceBootstrapped = new Set();
+const sharedSpaceSnapshots = new Map();
 let sharingUiBound = false;
 const SYNC_HISTORY_KEEP = 20;
 const SYNC_HISTORY_SHOW = 3;
@@ -1968,15 +2005,50 @@ function mergeSharedTaskLists(a, b) {
   const out = [];
   [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])].forEach((task) => {
     if (!task || typeof task !== "object") return;
-    const text = String(task.text || "")
-      .trim()
-      .toLowerCase();
-    const key = `${text}::${Number(task.tier) || 1}::${task.done ? 1 : 0}`;
-    if (!text || seen.has(key)) return;
+    const key = sharedTaskMergeKey(task);
+    if (!key || seen.has(key)) return;
     seen.add(key);
     out.push(task);
   });
   return out;
+}
+
+function sharedTaskMergeKey(task) {
+  const text = String(task?.text || "")
+    .trim()
+    .toLowerCase();
+  if (!text) return "";
+  return `${text}::${Number(task.tier) || 1}::${task.done ? 1 : 0}`;
+}
+
+function sharedContextIdForSource(sourceContextId) {
+  const source = String(sourceContextId || "").trim();
+  if (!source) return null;
+  const slug = source
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!slug || BUILTIN_CONTEXTS.includes(slug)) return null;
+  return `shared-src-${slug}`.slice(0, 96);
+}
+
+function pickPreferredSharedContext(current, candidate) {
+  if (!current) return candidate;
+  if (!candidate) return current;
+  if (candidate.sourceContextId && !current.sourceContextId) return candidate;
+  if (current.sourceContextId && !candidate.sourceContextId) return current;
+  const preferredCurrent = current.id?.startsWith("shared-src-");
+  const preferredCandidate = candidate.id?.startsWith("shared-src-");
+  if (preferredCandidate && !preferredCurrent) return candidate;
+  if (preferredCurrent && !preferredCandidate) return current;
+  const currentAt = Date.parse(current.createdAt || "") || 0;
+  const candidateAt = Date.parse(candidate.createdAt || "") || 0;
+  if (candidateAt && (!currentAt || candidateAt < currentAt)) return candidate;
+  return current;
+}
+
+function syncPersonalTasksIntoShared(personalTasks, sharedTasks) {
+  return mergeSharedTaskLists(sharedTasks, personalTasks);
 }
 
 function clearDeletedSpaceIds(deleted, ids) {
@@ -2000,34 +2072,30 @@ function dedupeSpacePayloadLists(payload) {
     byId.set(ctx.id, { ...ctx });
   });
 
-  const keepByName = new Map();
+  const groups = new Map();
+  [...byId.values()].forEach((ctx) => {
+    const key = sharedListDedupeKey(ctx);
+    if (!key || key === "name:") return;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(ctx);
+  });
+
   const contexts = [];
   const tasks = {};
   const deleted = { ...(normalized.deleted || {}) };
 
-  [...byId.values()].forEach((ctx) => {
-    const key = sharedListDedupeKey(ctx);
-    if (!key || key === "name:") return;
-    if (keepByName.has(key)) {
-      const keep = keepByName.get(key);
-      tasks[keep.id] = mergeSharedTaskLists(
-        tasks[keep.id],
-        normalized.tasks?.[ctx.id] || normalized.tasks?.[keep.id]
-      );
-      if (ctx.id !== keep.id) deleted[ctx.id] = Date.now();
-      if (!keep.sourceContextId && ctx.sourceContextId) keep.sourceContextId = ctx.sourceContextId;
-      if (ctx.sourceContextId && keep.sourceContextId && ctx.sourceContextId === keep.sourceContextId) {
-        /* same source — keep existing */
-      }
-      return;
+  groups.forEach((dupes) => {
+    let keep = dupes[0];
+    for (let i = 1; i < dupes.length; i += 1) {
+      keep = pickPreferredSharedContext(keep, dupes[i]);
     }
-    const next = { ...ctx };
-    keepByName.set(key, next);
-    contexts.push(next);
-    tasks[next.id] = mergeSharedTaskLists(
-      normalized.tasks?.[next.id],
-      []
-    );
+    let mergedTasks = [];
+    dupes.forEach((ctx) => {
+      if (ctx.id !== keep.id) deleted[ctx.id] = Date.now();
+      mergedTasks = mergeSharedTaskLists(mergedTasks, normalized.tasks?.[ctx.id]);
+    });
+    contexts.push({ ...keep });
+    tasks[keep.id] = mergedTasks;
   });
 
   return {
@@ -2042,6 +2110,9 @@ function findSharedListInPayload(payload, { sourceContextId = "", name = "" } = 
   const contexts = Array.isArray(payload?.contexts) ? payload.contexts : [];
   const source = String(sourceContextId || "").trim();
   if (source) {
+    const preferredId = sharedContextIdForSource(source);
+    const byPreferred = preferredId ? contexts.find((c) => c.id === preferredId) : null;
+    if (byPreferred) return byPreferred;
     const bySource = contexts.find((c) => c.sourceContextId === source);
     if (bySource) return bySource;
   }
@@ -2194,7 +2265,6 @@ function isSpaceDirty(spaceId) {
 
 function listSharedContexts() {
   const out = [];
-  const seen = new Set();
   const spaces = [];
   const spaceIds = new Set();
   loadSpacesMeta().forEach((space) => {
@@ -2204,11 +2274,14 @@ function listSharedContexts() {
   });
   spaces.forEach((space) => {
     const payload = loadSpacePayload(space.id);
+    const seenIds = new Set();
+    const seenNames = new Set();
     (payload.contexts || []).forEach((ctx) => {
       if (!ctx?.id) return;
-      const key = `${space.id}::${ctx.id}`;
-      if (seen.has(key)) return;
-      seen.add(key);
+      const nameKey = sharedListNameKey(ctx.name);
+      if (seenIds.has(ctx.id) || (nameKey && seenNames.has(nameKey))) return;
+      seenIds.add(ctx.id);
+      if (nameKey) seenNames.add(nameKey);
       out.push({ ...ctx, spaceId: space.id, spaceName: space.name, shared: true });
     });
   });
@@ -2217,10 +2290,14 @@ function listSharedContexts() {
 
 function getSharedContextIds() {
   const ids = [];
-  const seen = new Set();
+  const seenIds = new Set();
+  const seenNames = new Set();
   listSharedContexts().forEach((c) => {
-    if (!c?.id || seen.has(c.id)) return;
-    seen.add(c.id);
+    if (!c?.id || seenIds.has(c.id)) return;
+    const nameKey = sharedListNameKey(c.name);
+    if (nameKey && seenNames.has(nameKey)) return;
+    seenIds.add(c.id);
+    if (nameKey) seenNames.add(nameKey);
     ids.push(c.id);
   });
   return ids;
@@ -2310,8 +2387,10 @@ async function pushSpacePayload(spaceId, options = {}) {
     /* first push may have empty remote */
   }
   const merged = options.forceLocal
-    ? { ...local, updatedAt: new Date().toISOString() }
-    : mergeSpacePayloads(remote, { ...local, updatedAt: new Date().toISOString() });
+    ? dedupeSpacePayloadLists({ ...local, updatedAt: new Date().toISOString() })
+    : dedupeSpacePayloadLists(
+        mergeSpacePayloads(remote, { ...local, updatedAt: new Date().toISOString() })
+      );
   const { error } = await supabaseClient.from("space_state").upsert(
     {
       space_id: spaceId,
@@ -2342,6 +2421,7 @@ async function pullSpacePayload(spaceId) {
   const remoteCount = Array.isArray(remote?.contexts) ? remote.contexts.length : 0;
   const merged = isSpaceDirty(spaceId) ? mergeSpacePayloads(remote, local) : mergeSpacePayloads(local, remote);
   const cleaned = dedupeSpacePayloadLists(merged);
+  processSharedSpacePayloadNotify(spaceId, cleaned);
   const removedDupes = remoteCount > cleaned.contexts.length || (local.contexts?.length || 0) > cleaned.contexts.length;
   saveSpacePayload(spaceId, cleaned, { skipSync: !removedDupes && !isSpaceDirty(spaceId) });
   if (removedDupes || isSpaceDirty(spaceId)) scheduleSpacePush(spaceId);
@@ -2375,6 +2455,21 @@ async function refreshSpacesFromServer() {
 
   saveSpacesMeta(meta);
   await Promise.all(meta.map((space) => pullSpacePayload(space.id)));
+  await Promise.all(
+    meta.map(async (space) => {
+      const before = loadSpacePayload(space.id);
+      const beforeCount = before.contexts?.length || 0;
+      const repaired = dedupeSpacePayloadLists(before);
+      if ((repaired.contexts?.length || 0) < beforeCount) {
+        saveSpacePayload(space.id, repaired);
+        try {
+          await pushSpacePayload(space.id, { forceLocal: true });
+        } catch {
+          /* retry on next sync */
+        }
+      }
+    })
+  );
   setupSpaceRealtime(meta.map((s) => s.id));
   updateSharingUi();
   rebuildContextUi();
@@ -2467,6 +2562,9 @@ function addSharedListToSpace(spaceId, name) {
   const existing = findSharedListInPayload(payload, { name: trimmed });
   if (existing) {
     existing.name = trimmed;
+    payload.contexts = (payload.contexts || []).filter(
+      (c) => c.id === existing.id || sharedListNameKey(c.name) !== sharedListNameKey(trimmed)
+    );
     payload.deleted = clearDeletedSpaceIds(payload.deleted, existing.id);
     payload.updatedAt = new Date().toISOString();
     saveSpacePayload(spaceId, payload);
@@ -2481,7 +2579,12 @@ function addSharedListToSpace(spaceId, name) {
     icon: DEFAULT_CUSTOM_LIST_ICON,
     createdAt: new Date().toISOString(),
   });
-  payload.contexts = [...(payload.contexts || []), ctx];
+  payload.contexts = [
+    ...(payload.contexts || []).filter(
+      (c) => sharedListNameKey(c.name) !== sharedListNameKey(trimmed)
+    ),
+    ctx,
+  ];
   payload.tasks = { ...(payload.tasks || {}), [id]: [] };
   payload.deleted = clearDeletedSpaceIds(payload.deleted, id);
   payload.updatedAt = new Date().toISOString();
@@ -2496,10 +2599,7 @@ function sharePersonalListToSpace(spaceId, contextId) {
   const sourceName = contextLabel(contextId);
   const payload = loadSpacePayload(spaceId);
   const custom = getCustomContexts().find((c) => c.id === contextId);
-  const tasks = loadTasks(contextId).map((task) => ({
-    ...task,
-    id: createId(),
-  }));
+  const personalTasks = loadTasks(contextId);
   const existing = findSharedListInPayload(payload, {
     sourceContextId: contextId,
     name: sourceName,
@@ -2509,13 +2609,12 @@ function sharePersonalListToSpace(spaceId, contextId) {
     existing.sourceContextId = contextId;
     existing.icon = custom?.icon || CONTEXT_ICON_IDS[contextId] || existing.icon || DEFAULT_CUSTOM_LIST_ICON;
     if (isValidIconImage(custom?.iconImage)) existing.iconImage = custom.iconImage;
-    // Drop any other same-name copies before saving.
     payload.contexts = (payload.contexts || []).filter(
       (c) => c.id === existing.id || sharedListNameKey(c.name) !== sharedListNameKey(sourceName)
     );
     payload.tasks = {
       ...(payload.tasks || {}),
-      [existing.id]: mergeSharedTaskLists(payload.tasks?.[existing.id], tasks),
+      [existing.id]: syncPersonalTasksIntoShared(personalTasks, payload.tasks?.[existing.id]),
     };
     payload.deleted = clearDeletedSpaceIds(payload.deleted, existing.id);
     payload.updatedAt = new Date().toISOString();
@@ -2524,7 +2623,11 @@ function sharePersonalListToSpace(spaceId, contextId) {
     if (typeof renderAll === "function") renderAll();
     return existing;
   }
-  const id = slugifySharedContextName(sourceName, spaceId);
+  const id = sharedContextIdForSource(contextId) || slugifySharedContextName(sourceName, spaceId);
+  const tasks = personalTasks.map((task) => ({
+    ...task,
+    id: createId(),
+  }));
   const ctx = normalizeSpaceContext({
     id,
     name: sourceName,
@@ -2577,6 +2680,7 @@ function setupSpaceRealtime(spaceIds) {
           pullSpacePayload(spaceId)
             .then(() => {
               rebuildContextUi();
+              syncNotifyDots();
               if (typeof renderAll === "function") renderAll();
             })
             .catch(() => {});
@@ -2589,6 +2693,8 @@ function setupSpaceRealtime(spaceIds) {
 
 function clearLocalSharingState() {
   teardownSpaceRealtime();
+  sharedSpaceBootstrapped.clear();
+  sharedSpaceSnapshots.clear();
   const meta = loadSpacesMeta();
   meta.forEach((space) => {
     try {
@@ -2909,6 +3015,45 @@ function setupSharingUi() {
       await updateSharingUi();
     }
   });
+
+  const browserNotify = document.getElementById("sharing-browser-notify");
+  if (browserNotify && !browserNotify.dataset.bound) {
+    browserNotify.dataset.bound = "1";
+    try {
+      browserNotify.checked = localStorage.getItem(SHARED_BROWSER_NOTIFY_KEY) === "1";
+    } catch {
+      browserNotify.checked = false;
+    }
+    browserNotify.addEventListener("change", async () => {
+      if (!browserNotify.checked) {
+        try {
+          localStorage.setItem(SHARED_BROWSER_NOTIFY_KEY, "0");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      if (!("Notification" in window)) {
+        browserNotify.checked = false;
+        alert("Browser alerts aren’t supported here. Use the bell icon in the app instead.");
+        return;
+      }
+      let permission = Notification.permission;
+      if (permission === "default") {
+        permission = await Notification.requestPermission();
+      }
+      if (permission !== "granted") {
+        browserNotify.checked = false;
+        alert("Allow notifications in your browser to get alerts when someone completes a shared task.");
+        return;
+      }
+      try {
+        localStorage.setItem(SHARED_BROWSER_NOTIFY_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    });
+  }
 }
 
 function setupDataSync() {
@@ -3856,6 +4001,7 @@ async function pullRemoteSync(options = {}) {
     if (syncBackend === "supabase" && supabaseUserId) {
       await Promise.all(loadSpacesMeta().map((space) => pullSpacePayload(space.id).catch(() => {})));
       rebuildContextUi();
+      syncNotifyDots();
     }
   } catch {
     if (syncBackend !== "supabase") syncAvailable = false;
@@ -6978,10 +7124,17 @@ function rebuildContextUi() {
         <span class="lists-manager-badge">Built-in</span>
       </li>`
     ).join("");
-    const customs = getCustomContexts();
-    const sharedLists = listSharedContexts();
+    const customs = getCustomContexts().filter((c) => !isPersonalListHiddenByShared(c));
+    const sharedLists = [];
+    const seenSharedNames = new Set();
+    listSharedContexts().forEach((c) => {
+      const key = sharedListNameKey(c.name);
+      if (key && seenSharedNames.has(key)) return;
+      if (key) seenSharedNames.add(key);
+      sharedLists.push(c);
+    });
     const customHtml =
-      customs.length === 0
+      customs.length === 0 && sharedLists.length === 0
         ? `<li class="lists-manager-empty">No custom categories yet — add one below.</li>`
         : customs
             .map(
@@ -8478,7 +8631,7 @@ function reflectionDayChipLabel(dayKey) {
 }
 
 function getDailySummaryForDay(dayKey) {
-  const completed = getCompletedTasksForDay(dayKey, { allowDemo: true });
+  const completed = getCompletedTasksForDay(dayKey);
   return {
     dayKey,
     completedCount: completed.length,
@@ -8752,7 +8905,7 @@ function getWeekSlotPersonaFill(dayKey) {
   };
 }
 
-function getCompletedTasksForDay(dayKey, { includeArchived = true, allowDemo = false } = {}) {
+function getCompletedTasksForDay(dayKey, { includeArchived = true } = {}) {
   const target = dayKey || reflectionTodayKey();
   const seen = new Set();
   const tasks = [];
@@ -8773,13 +8926,8 @@ function getCompletedTasksForDay(dayKey, { includeArchived = true, allowDemo = f
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
 
+  // Opt-in only via ?reflection-demo — never invent wins for empty days.
   if (wantsForcedReflectionDemoWins()) {
-    return buildDemoReflectionWins(target);
-  }
-
-  // Reflection-only: fill sparse past days with persona examples.
-  const isToday = target === reflectionTodayKey();
-  if (allowDemo && !isToday && sorted.length < 2) {
     return buildDemoReflectionWins(target);
   }
 
@@ -9403,7 +9551,7 @@ function buildDayAccomplishStory(completed, dayKey = reflectionTodayKey()) {
       priorityBars: [],
       thumbs: [],
       insights: { persona: null },
-      quietNote: "Nothing checked off — a quiet day worth keeping.",
+      quietNote: "It was a rest day — nothing checked off.",
       growingNote: "",
       restDay: true,
       inMotion: false,
@@ -10211,11 +10359,26 @@ function toggleTaskDone(id, ctx, markingDone) {
       if (t.id !== id) return t;
       tier = t.tier;
       const next = { ...t, done: markingDone };
-      if (markingDone) next.completedAt = new Date().toISOString();
-      else delete next.completedAt;
+      if (markingDone) {
+        next.completedAt = new Date().toISOString();
+        if (isSharedContext(ctx) && supabaseUserId) {
+          next.completedBy = supabaseUserId;
+          if (supabaseAuthEmail) next.completedByEmail = supabaseAuthEmail;
+        }
+      } else {
+        delete next.completedAt;
+        delete next.completedBy;
+        delete next.completedByEmail;
+      }
       return next;
     })
   );
+  if (isSharedContext(ctx)) {
+    const shared = findSharedContext(ctx);
+    if (shared) {
+      sharedSpaceSnapshots.set(shared.spaceId, snapshotSharedTasks(shared.spaceId, loadSpacePayload(shared.spaceId)));
+    }
+  }
   if (tier != null) persistTierOrderAfterToggle(tier);
   renderAll();
 }
@@ -11696,6 +11859,144 @@ function getNotifySeenAt() {
   }
 }
 
+function snapshotSharedTasks(spaceId, payload) {
+  const snap = new Map();
+  if (!payload) return snap;
+  (payload.contexts || []).forEach((ctx) => {
+    if (!ctx?.id) return;
+    (payload.tasks?.[ctx.id] || []).forEach((task) => {
+      if (!task?.id) return;
+      snap.set(`${ctx.id}::${task.id}`, {
+        done: Boolean(task.done),
+        completedAt: task.completedAt || null,
+        completedBy: task.completedBy || null,
+      });
+    });
+  });
+  return snap;
+}
+
+function diffSharedCompletions(spaceId, beforeSnap, payload) {
+  const events = [];
+  if (!payload) return events;
+  (payload.contexts || []).forEach((ctx) => {
+    if (!ctx?.id) return;
+    (payload.tasks?.[ctx.id] || []).forEach((task) => {
+      if (!task?.done || !task.completedAt) return;
+      if (task.completedBy && supabaseUserId && task.completedBy === supabaseUserId) return;
+      const key = `${ctx.id}::${task.id}`;
+      const prev = beforeSnap.get(key);
+      if (prev?.done && prev.completedAt === task.completedAt) return;
+      events.push({
+        spaceId,
+        contextId: ctx.id,
+        listName: ctx.name || contextLabel(ctx.id),
+        task,
+      });
+    });
+  });
+  return events;
+}
+
+function processSharedSpacePayloadNotify(spaceId, payload) {
+  if (!spaceId || !payload) return;
+  const beforeSnap = sharedSpaceSnapshots.get(spaceId) || new Map();
+  if (!sharedSpaceBootstrapped.has(spaceId)) {
+    sharedSpaceSnapshots.set(spaceId, snapshotSharedTasks(spaceId, payload));
+    sharedSpaceBootstrapped.add(spaceId);
+    return;
+  }
+  const events = diffSharedCompletions(spaceId, beforeSnap, payload);
+  sharedSpaceSnapshots.set(spaceId, snapshotSharedTasks(spaceId, payload));
+  if (events.length) enqueueSharedNotifications(events);
+}
+
+function loadSharedNotifyInbox() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SHARED_NOTIFY_INBOX_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSharedNotifyInbox(items) {
+  try {
+    localStorage.setItem(SHARED_NOTIFY_INBOX_KEY, JSON.stringify(items.slice(0, 50)));
+  } catch {
+    /* ignore */
+  }
+}
+
+function formatSharedCompleterLabel(item) {
+  const raw = String(item?.completedBy || "Someone").trim();
+  if (!raw || raw === "Someone") return "Someone";
+  if (raw.includes("@")) {
+    const name = raw.split("@")[0]?.replace(/[._+-]+/g, " ").trim();
+    return name ? name.charAt(0).toUpperCase() + name.slice(1) : raw;
+  }
+  return raw;
+}
+
+function maybePushSharedBrowserNotification(item) {
+  try {
+    if (localStorage.getItem(SHARED_BROWSER_NOTIFY_KEY) !== "1") return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    if (document.visibilityState === "visible") return;
+    const who = formatSharedCompleterLabel(item);
+    new Notification("Shared list update", {
+      body: `${who} completed “${item.taskText || "a task"}” in ${item.listName}`,
+      tag: item.id,
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+function enqueueSharedNotifications(events) {
+  if (!events.length) return;
+  const inbox = loadSharedNotifyInbox();
+  const seenIds = new Set(inbox.map((item) => item.id));
+  let changed = false;
+  events.forEach((ev) => {
+    const item = {
+      id: `${ev.contextId}::${ev.task.id}::${ev.task.completedAt}`,
+      taskText: ev.task.text || "Task",
+      listName: ev.listName || contextLabel(ev.contextId),
+      completedAt: ev.task.completedAt,
+      completedBy: ev.task.completedByEmail || ev.task.completedBy || "Someone",
+      spaceId: ev.spaceId,
+      contextId: ev.contextId,
+      read: false,
+    };
+    if (seenIds.has(item.id)) return;
+    seenIds.add(item.id);
+    inbox.unshift(item);
+    changed = true;
+    maybePushSharedBrowserNotification(item);
+  });
+  if (!changed) return;
+  saveSharedNotifyInbox(inbox);
+  syncNotifyDots();
+  if (isNotifyPanelOpen()) renderNotifyPanel();
+}
+
+function getUnreadSharedNotifications(limit = 8) {
+  return loadSharedNotifyInbox()
+    .filter((item) => !item.read)
+    .slice(0, limit);
+}
+
+function markSharedNotificationsRead() {
+  const inbox = loadSharedNotifyInbox();
+  if (!inbox.some((item) => !item.read)) return;
+  saveSharedNotifyInbox(inbox.map((item) => ({ ...item, read: true })));
+}
+
+function hasUnseenSharedNotifications() {
+  return loadSharedNotifyInbox().some((item) => !item.read);
+}
+
 function markNotifySeen() {
   try {
     localStorage.setItem(NOTIFY_SEEN_KEY, new Date().toISOString());
@@ -11814,6 +12115,7 @@ function buildCompletionPace(tasks) {
 }
 
 function hasUnseenCompletions() {
+  if (hasUnseenSharedNotifications()) return true;
   const recent = getRecentCompletedForNotify(12);
   if (!recent.length) return false;
   const seenAt = getNotifySeenAt();
@@ -11835,6 +12137,24 @@ function syncNotifyDots() {
 
 function isNotifyPanelOpen() {
   return Boolean(document.getElementById("notify-panel")?.classList.contains("is-open"));
+}
+
+function sharedNotifyPanelItemHtml(item) {
+  const who = formatSharedCompleterLabel(item);
+  const ago = formatTimeAgo(item.completedAt);
+  return `
+    <li class="notify-panel-item notify-panel-item--shared">
+      <span class="notify-panel-check notify-panel-check--shared" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+          <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </span>
+      <div class="notify-panel-item-body">
+        <p class="notify-panel-item-text">${escapeHtml(item.taskText || "Task")}</p>
+        <p class="notify-panel-item-meta">${escapeHtml(`${who} · ${item.listName || "Shared list"}`)}</p>
+      </div>
+      <span class="notify-panel-item-ago">${escapeHtml(ago)}</span>
+    </li>`;
 }
 
 function notifyPanelItemHtml(task) {
@@ -11860,6 +12180,10 @@ function notifyPanelItemHtml(task) {
 
 function ensureNotifyPanel() {
   let panel = document.getElementById("notify-panel");
+  if (panel && !panel.querySelector("#notify-panel-shared-list")) {
+    panel.remove();
+    panel = null;
+  }
   if (panel) return panel;
   panel = document.createElement("div");
   panel.id = "notify-panel";
@@ -11875,6 +12199,9 @@ function ensureNotifyPanel() {
       </div>
       <button type="button" class="notify-panel-close" aria-label="Close notifications">×</button>
     </header>
+    <p class="notify-panel-section-label hidden" id="notify-panel-shared-label">Shared lists</p>
+    <ul class="notify-panel-list" id="notify-panel-shared-list"></ul>
+    <p class="notify-panel-section-label hidden" id="notify-panel-yours-label">Your wins</p>
     <ul class="notify-panel-list" id="notify-panel-list"></ul>
     <p class="notify-panel-empty hidden" id="notify-panel-empty">Nothing completed yet — your first win will land here.</p>
   `;
@@ -11892,20 +12219,39 @@ function renderNotifyPanel() {
     return;
   }
 
+  const shared = getUnreadSharedNotifications(8);
   const recent = getRecentCompletedForNotify(8);
   const pace = buildCompletionPace(recent);
   const title = panel.querySelector("#notify-panel-title");
   const detail = panel.querySelector("#notify-panel-detail");
+  const sharedList = panel.querySelector("#notify-panel-shared-list");
+  const sharedLabel = panel.querySelector("#notify-panel-shared-label");
   const list = panel.querySelector("#notify-panel-list");
+  const yoursLabel = panel.querySelector("#notify-panel-yours-label");
   const empty = panel.querySelector("#notify-panel-empty");
 
-  if (title) title.textContent = pace.headline;
-  if (detail) detail.textContent = pace.detail;
+  if (title) {
+    title.textContent = shared.length
+      ? `${shared.length} shared update${shared.length === 1 ? "" : "s"}`
+      : pace.headline;
+  }
+  if (detail) {
+    detail.textContent = shared.length
+      ? "Someone checked something off a list you share."
+      : pace.detail;
+  }
+  if (sharedList) {
+    sharedList.innerHTML = shared.map(sharedNotifyPanelItemHtml).join("");
+    sharedList.classList.toggle("hidden", shared.length === 0);
+  }
+  sharedLabel?.classList.toggle("hidden", shared.length === 0);
   if (list) {
     list.innerHTML = recent.map(notifyPanelItemHtml).join("");
     list.classList.toggle("hidden", recent.length === 0);
   }
-  empty?.classList.toggle("hidden", recent.length > 0);
+  yoursLabel?.classList.toggle("hidden", recent.length === 0 || shared.length === 0);
+  empty?.classList.toggle("hidden", shared.length > 0 || recent.length > 0);
+  if (shared.length) markSharedNotificationsRead();
   if (recent[0]?.completedAt) {
     try {
       localStorage.setItem(NOTIFY_SEEN_KEY, recent[0].completedAt);

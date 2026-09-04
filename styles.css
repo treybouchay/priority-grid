@@ -6286,6 +6286,42 @@ dialog {
   color: rgba(14, 48, 48, 0.6);
 }
 
+.notify-panel-section-label {
+  margin: 0;
+  padding: 0.65rem 1rem 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(14, 48, 48, 0.5);
+}
+
+.notify-panel-item--shared {
+  background: rgba(14, 48, 48, 0.04);
+}
+
+.notify-panel-check--shared {
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+.sharing-notify-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #11302c;
+  cursor: pointer;
+}
+
+.sharing-notify-toggle input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
 .btn-add-list {
   border: 1px dashed rgba(14, 48, 48, 0.28);
   background: transparent;
