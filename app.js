@@ -89,6 +89,138 @@ const CUSTOM_LIST_ICONS = [
   "icon-calendar",
   "icon-tasks",
 ];
+const LIST_ICON_EMOJI_CATALOG = [
+  { emoji: "🎯", keys: "target goal bullseye aim focus" },
+  { emoji: "⭐", keys: "star favorite highlight" },
+  { emoji: "🌟", keys: "glow star sparkle shine" },
+  { emoji: "🔥", keys: "fire hot streak energy" },
+  { emoji: "💡", keys: "idea light bulb think" },
+  { emoji: "🚀", keys: "rocket launch ship start" },
+  { emoji: "📌", keys: "pin note remind sticky" },
+  { emoji: "✅", keys: "check done complete yes" },
+  { emoji: "📝", keys: "note write memo list" },
+  { emoji: "📋", keys: "clipboard checklist board" },
+  { emoji: "🏠", keys: "home house living" },
+  { emoji: "🏡", keys: "home garden house family" },
+  { emoji: "💼", keys: "work briefcase office job" },
+  { emoji: "🛒", keys: "cart shop grocery buy" },
+  { emoji: "🛍️", keys: "shopping bags retail" },
+  { emoji: "💪", keys: "strong fitness gym muscle" },
+  { emoji: "🧠", keys: "brain mind think mental" },
+  { emoji: "❤️", keys: "heart love care" },
+  { emoji: "💛", keys: "yellow heart love" },
+  { emoji: "💙", keys: "blue heart love" },
+  { emoji: "💚", keys: "green heart love health" },
+  { emoji: "🎨", keys: "art paint creative design" },
+  { emoji: "📚", keys: "books read study school" },
+  { emoji: "📖", keys: "book open read" },
+  { emoji: "🎵", keys: "music note song audio" },
+  { emoji: "🎶", keys: "music notes melody" },
+  { emoji: "🎸", keys: "guitar music instrument" },
+  { emoji: "🎹", keys: "piano keyboard music" },
+  { emoji: "✈️", keys: "plane travel flight trip" },
+  { emoji: "🚗", keys: "car drive travel road auto commute" },
+  { emoji: "🚲", keys: "bike bicycle ride" },
+  { emoji: "🏃", keys: "run jog fitness move" },
+  { emoji: "🚶", keys: "walk stroll" },
+  { emoji: "☕", keys: "coffee cafe morning drink" },
+  { emoji: "🍵", keys: "tea drink calm" },
+  { emoji: "🌱", keys: "plant grow seed nature" },
+  { emoji: "🌿", keys: "leaf herb nature calm" },
+  { emoji: "🌳", keys: "tree nature outdoors" },
+  { emoji: "🌸", keys: "flower blossom spring" },
+  { emoji: "🔑", keys: "key access password" },
+  { emoji: "🎁", keys: "gift present birthday" },
+  { emoji: "🎈", keys: "balloon party celebrate" },
+  { emoji: "🎉", keys: "party celebrate confetti" },
+  { emoji: "🎂", keys: "cake birthday celebrate" },
+  { emoji: "🐶", keys: "dog puppy pet animal" },
+  { emoji: "🐱", keys: "cat kitten pet animal" },
+  { emoji: "🐻", keys: "bear animal" },
+  { emoji: "🦊", keys: "fox animal" },
+  { emoji: "🐼", keys: "panda animal" },
+  { emoji: "🦄", keys: "unicorn magic fantasy" },
+  { emoji: "🌈", keys: "rainbow color weather" },
+  { emoji: "☀️", keys: "sun sunny weather day" },
+  { emoji: "🌙", keys: "moon night sleep" },
+  { emoji: "⚡", keys: "lightning bolt energy power" },
+  { emoji: "❄️", keys: "snow cold winter" },
+  { emoji: "🧩", keys: "puzzle piece fit" },
+  { emoji: "🛠️", keys: "tools fix build repair" },
+  { emoji: "🔧", keys: "wrench fix tool" },
+  { emoji: "🗓️", keys: "calendar date schedule plan" },
+  { emoji: "📅", keys: "calendar date agenda" },
+  { emoji: "📍", keys: "location pin map place" },
+  { emoji: "🗺️", keys: "map travel explore" },
+  { emoji: "🏫", keys: "school education building" },
+  { emoji: "🎒", keys: "backpack school bag" },
+  { emoji: "🧸", keys: "teddy bear kids toy" },
+  { emoji: "👶", keys: "baby child kids" },
+  { emoji: "🧒", keys: "child kids" },
+  { emoji: "⚽", keys: "soccer football sports" },
+  { emoji: "🏀", keys: "basketball sports" },
+  { emoji: "🏈", keys: "football sports" },
+  { emoji: "🎾", keys: "tennis sports" },
+  { emoji: "🏒", keys: "hockey sports puck" },
+  { emoji: "📷", keys: "camera photo picture" },
+  { emoji: "🎬", keys: "movie film clapper video" },
+  { emoji: "🎮", keys: "game controller play" },
+  { emoji: "💻", keys: "laptop computer work code" },
+  { emoji: "📱", keys: "phone mobile call" },
+  { emoji: "✉️", keys: "email letter mail envelope" },
+  { emoji: "💬", keys: "chat message talk" },
+  { emoji: "📞", keys: "phone call" },
+  { emoji: "💰", keys: "money bag cash finance" },
+  { emoji: "💵", keys: "dollar cash money" },
+  { emoji: "🧾", keys: "receipt bill expense" },
+  { emoji: "🏦", keys: "bank finance money" },
+  { emoji: "🩺", keys: "health doctor medical stethoscope checkup" },
+  { emoji: "💊", keys: "pill medicine health" },
+  { emoji: "🧘", keys: "yoga meditate calm wellness" },
+  { emoji: "😴", keys: "sleep rest tired" },
+  { emoji: "🙏", keys: "pray thanks grateful faith" },
+  { emoji: "⛪", keys: "church faith religion" },
+  { emoji: "🍽️", keys: "dinner plate food meal" },
+  { emoji: "🥗", keys: "salad food healthy" },
+  { emoji: "🍎", keys: "apple fruit food" },
+  { emoji: "🍕", keys: "pizza food" },
+  { emoji: "🧹", keys: "broom clean chore house" },
+  { emoji: "🧺", keys: "laundry basket clean" },
+  { emoji: "🧼", keys: "soap clean wash" },
+  { emoji: "🛏️", keys: "bed sleep rest" },
+  { emoji: "🚿", keys: "shower bath clean" },
+  { emoji: "⛽", keys: "gas fuel car" },
+  { emoji: "🏖️", keys: "beach vacation sand" },
+  { emoji: "🏔️", keys: "mountain hike outdoors" },
+  { emoji: "⛺", keys: "camp tent outdoors" },
+  { emoji: "🎃", keys: "halloween pumpkin fall" },
+  { emoji: "🎄", keys: "christmas tree holiday" },
+  { emoji: "🎅", keys: "santa christmas holiday" },
+  { emoji: "🕎", keys: "menorah holiday" },
+  { emoji: "🥂", keys: "cheers toast celebrate" },
+  { emoji: "🏆", keys: "trophy win award" },
+  { emoji: "🥇", keys: "gold medal first win" },
+  { emoji: "📣", keys: "megaphone announce cheer" },
+  { emoji: "🔔", keys: "bell alert notify" },
+  { emoji: "⏰", keys: "alarm clock time" },
+  { emoji: "⏳", keys: "hourglass time wait" },
+  { emoji: "🔒", keys: "lock secure private" },
+  { emoji: "🗂️", keys: "files folder organize" },
+  { emoji: "📦", keys: "box package ship" },
+  { emoji: "🧑‍💻", keys: "coder developer programmer" },
+  { emoji: "👨‍👩‍👧‍👦", keys: "family kids parents" },
+  { emoji: "💍", keys: "ring wedding marriage" },
+  { emoji: "💒", keys: "wedding chapel marriage" },
+  { emoji: "🦷", keys: "tooth dental dentist" },
+  { emoji: "👓", keys: "glasses vision eyes" },
+  { emoji: "🧲", keys: "magnet attract" },
+  { emoji: "🔬", keys: "science lab microscope" },
+  { emoji: "🔭", keys: "telescope space stars" },
+  { emoji: "🌍", keys: "earth world globe" },
+  { emoji: "🇺🇸", keys: "usa america flag" },
+  { emoji: "🇨🇦", keys: "canada flag" },
+];
+const LIST_ICON_EMOJIS = LIST_ICON_EMOJI_CATALOG.map((item) => item.emoji);
 const DEFAULT_CUSTOM_LIST_ICON = "icon-box";
 const LIST_ICON_EDGE = 96;
 const MAX_LIST_ICON_DATA_URL = 100000;
@@ -230,6 +362,71 @@ function renameCustomContext(id, name) {
   const next = getCustomContexts().map((c) => (c.id === id ? { ...c, name: trimmed } : c));
   saveCustomContexts(next);
   rebuildContextUi();
+  return true;
+}
+
+function updateCustomContext(id, { name, icon, iconImage } = {}) {
+  if (!id || BUILTIN_CONTEXTS.includes(id)) return false;
+  const trimmed = typeof name === "string" ? name.trim() : null;
+  if (trimmed === "") return false;
+  let changed = false;
+  const next = getCustomContexts().map((c) => {
+    if (c.id !== id) return c;
+    const updated = { ...c };
+    if (trimmed) {
+      updated.name = trimmed;
+      changed = true;
+    }
+    if (icon !== undefined) {
+      const nextIcon = isValidCustomListIcon(icon) ? icon : updated.icon || DEFAULT_CUSTOM_LIST_ICON;
+      updated.icon = nextIcon;
+      changed = true;
+      if (isValidIconImage(iconImage)) {
+        updated.iconImage = iconImage;
+      } else if (iconImage === null) {
+        delete updated.iconImage;
+      }
+    } else if (iconImage !== undefined) {
+      if (isValidIconImage(iconImage)) {
+        updated.iconImage = iconImage;
+        changed = true;
+      } else if (iconImage === null && updated.iconImage) {
+        delete updated.iconImage;
+        changed = true;
+      }
+    }
+    return updated;
+  });
+  if (!changed) return false;
+  saveCustomContexts(next);
+  rebuildContextUi();
+  return true;
+}
+
+function updateSharedListMeta(spaceId, contextId, { name, icon, iconImage } = {}) {
+  if (!spaceId || !contextId) return false;
+  const payload = loadSpacePayload(spaceId);
+  const target = (payload.contexts || []).find((c) => c.id === contextId);
+  if (!target) return false;
+  const trimmed = typeof name === "string" ? name.trim() : null;
+  if (trimmed === "") return false;
+  if (trimmed) target.name = trimmed;
+  if (icon !== undefined) {
+    target.icon = isValidCustomListIcon(icon) ? icon : target.icon || DEFAULT_CUSTOM_LIST_ICON;
+    if (isValidIconImage(iconImage)) {
+      target.iconImage = iconImage;
+    } else if (iconImage === null) {
+      delete target.iconImage;
+    }
+  } else if (iconImage !== undefined) {
+    if (isValidIconImage(iconImage)) target.iconImage = iconImage;
+    else if (iconImage === null) delete target.iconImage;
+  }
+  payload.updatedAt = new Date().toISOString();
+  saveSpacePayload(spaceId, payload);
+  rebuildContextUi();
+  if (typeof renderAll === "function") renderAll();
+  if (typeof updateSharingUi === "function") updateSharingUi();
   return true;
 }
 
@@ -7147,7 +7344,7 @@ function rebuildContextUi() {
             <svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg>
           </button>
           <span class="lists-manager-name">${escapeHtml(c.name)}</span>
-          <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Rename</button>
+          <button type="button" class="lists-manager-rename" data-id="${escapeHtml(c.id)}">Edit</button>
           <button type="button" class="lists-manager-delete" data-id="${escapeHtml(c.id)}">Delete</button>
         </li>`
             )
@@ -7160,6 +7357,13 @@ function rebuildContextUi() {
           ${contextIconHtml(c.id, "lists-manager-icon")}
           <span class="lists-manager-name">${escapeHtml(c.name)}</span>
           <span class="lists-manager-badge">Shared · ${escapeHtml(c.spaceName || "Space")}</span>
+          <button
+            type="button"
+            class="lists-manager-rename"
+            data-id="${escapeHtml(c.id)}"
+            data-space-id="${escapeHtml(c.spaceId)}"
+            data-shared="true"
+          >Edit</button>
           <button
             type="button"
             class="lists-manager-delete"
@@ -7250,35 +7454,209 @@ async function removePhotoFromDraft(draft, photoId, gridEl, urlsBucket, onRemove
   await renderPhotoGrid(gridEl, draft, urlsBucket, onRemove);
 }
 
+function emojiToListIconDataUrl(emoji) {
+  const glyph = String(emoji || "").trim();
+  if (!glyph) return null;
+  const size = LIST_ICON_EDGE;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.clearRect(0, 0, size, size);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `${Math.round(size * 0.72)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  ctx.fillText(glyph, size / 2, size / 2 + size * 0.04);
+  try {
+    const dataUrl = canvas.toDataURL("image/png");
+    return isValidIconImage(dataUrl) ? dataUrl : null;
+  } catch {
+    return null;
+  }
+}
+
+function filterListIconEmojis(query = "") {
+  const q = String(query || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  if (!q) return LIST_ICON_EMOJI_CATALOG;
+  return LIST_ICON_EMOJI_CATALOG.filter((item) => {
+    const haystack = `${item.emoji} ${item.keys}`.toLowerCase();
+    return q.split(" ").every((part) => haystack.includes(part));
+  });
+}
+
+function listEmojiPanelHtml(query = "") {
+  const matches = filterListIconEmojis(query);
+  const empty =
+    matches.length === 0
+      ? `<p class="list-emoji-empty">No emojis match “${escapeHtml(query)}”.</p>`
+      : "";
+  return `
+    <div class="list-emoji-panel" role="listbox" aria-label="Emoji icons">
+      <div class="list-emoji-search-row">
+        <input
+          type="search"
+          class="list-emoji-search"
+          placeholder="Search emojis…"
+          value="${escapeHtml(query)}"
+          aria-label="Search emojis"
+          autocomplete="off"
+        />
+        <button type="button" class="list-icon-option list-icon-option--emoji-random" data-action="random-emoji" title="Random emoji" aria-label="Pick a random emoji">🎲</button>
+      </div>
+      <div class="list-emoji-grid">
+        ${matches
+          .map(
+            (item) =>
+              `<button type="button" class="list-icon-option list-icon-option--emoji-pick" data-emoji="${item.emoji}" role="option" title="${escapeHtml(item.keys.split(" ")[0] || "emoji")}" aria-label="${escapeHtml(item.keys)}">${item.emoji}</button>`
+          )
+          .join("")}
+        ${empty}
+      </div>
+    </div>`;
+}
+
+function pickRandomListIconChoice() {
+  const useEmoji = Math.random() < 0.55 && LIST_ICON_EMOJI_CATALOG.length > 0;
+  if (useEmoji) {
+    const item = LIST_ICON_EMOJI_CATALOG[Math.floor(Math.random() * LIST_ICON_EMOJI_CATALOG.length)];
+    const image = emojiToListIconDataUrl(item.emoji);
+    if (image) {
+      return {
+        icon: DEFAULT_CUSTOM_LIST_ICON,
+        iconImage: image,
+        emoji: item.emoji,
+      };
+    }
+  }
+  const icon = CUSTOM_LIST_ICONS[Math.floor(Math.random() * CUSTOM_LIST_ICONS.length)];
+  return { icon, iconImage: null, emoji: null };
+}
+
+function pickRandomListEmojiChoice() {
+  const item = LIST_ICON_EMOJI_CATALOG[Math.floor(Math.random() * LIST_ICON_EMOJI_CATALOG.length)];
+  const image = emojiToListIconDataUrl(item.emoji);
+  if (!image) return pickRandomListIconChoice();
+  return {
+    icon: DEFAULT_CUSTOM_LIST_ICON,
+    iconImage: image,
+    emoji: item.emoji,
+  };
+}
+
 function renderListIconPicker(container, selected = DEFAULT_CUSTOM_LIST_ICON, selectedImage = null) {
   if (!container) return;
   const hasImage = isValidIconImage(selectedImage);
   const current = isValidCustomListIcon(selected) ? selected : DEFAULT_CUSTOM_LIST_ICON;
+  const emojiOpen = container.dataset.emojiPanel === "1";
+  const emojiQuery = container.dataset.emojiQuery || "";
   container.dataset.selectedIcon = current;
   container.dataset.selectedIconImage = hasImage ? selectedImage : "";
   const uploadPreview = hasImage
     ? `<img class="list-icon-custom-preview" src="${selectedImage}" alt="" />`
     : `<svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg>`;
   container.innerHTML = `
-    <label class="list-icon-option list-icon-option--upload${hasImage ? " is-selected" : ""}" title="Upload custom icon" aria-label="Upload custom icon">
-      <input type="file" accept="image/*" class="list-icon-upload-input" hidden />
-      ${uploadPreview}
-    </label>
-    ${CUSTOM_LIST_ICONS.map(
-      (iconId) => `
-    <button type="button" class="list-icon-option${!hasImage && iconId === current ? " is-selected" : ""}" data-icon="${iconId}" aria-pressed="${!hasImage && iconId === current ? "true" : "false"}" aria-label="${iconId.replace("icon-", "")}">
-      <svg class="icon" aria-hidden="true"><use href="#${iconId}"></use></svg>
-    </button>`
-    ).join("")}
+    <div class="list-icon-picker-row">
+      <label class="list-icon-option list-icon-option--upload${hasImage ? " is-selected" : ""}" title="Upload custom icon" aria-label="Upload custom icon">
+        <input type="file" accept="image/*" class="list-icon-upload-input" hidden />
+        ${uploadPreview}
+      </label>
+      <button type="button" class="list-icon-option list-icon-option--random" data-action="random-icon" title="Random icon or emoji" aria-label="Generate a random icon or emoji">
+        <span class="list-icon-random-glyph" aria-hidden="true">🎲</span>
+      </button>
+      <button type="button" class="list-icon-option list-icon-option--emoji${emojiOpen ? " is-selected" : ""}" data-action="toggle-emoji" title="Choose an emoji" aria-label="Choose an emoji" aria-expanded="${emojiOpen ? "true" : "false"}">
+        <span class="list-icon-random-glyph" aria-hidden="true">😊</span>
+      </button>
+      ${CUSTOM_LIST_ICONS.map(
+        (iconId) => `
+      <button type="button" class="list-icon-option${!hasImage && iconId === current ? " is-selected" : ""}" data-icon="${iconId}" aria-pressed="${!hasImage && iconId === current ? "true" : "false"}" aria-label="${iconId.replace("icon-", "")}">
+        <svg class="icon" aria-hidden="true"><use href="#${iconId}"></use></svg>
+      </button>`
+      ).join("")}
+    </div>
+    ${emojiOpen ? listEmojiPanelHtml(emojiQuery) : ""}
   `;
+  if (emojiOpen) {
+    const search = container.querySelector(".list-emoji-search");
+    if (search && document.activeElement === search) {
+      const end = search.value.length;
+      search.setSelectionRange(end, end);
+    }
+  }
   if (container.dataset.iconPickerBound) return;
   container.dataset.iconPickerBound = "1";
   container.addEventListener("click", (e) => {
+    const toggleEmoji = e.target.closest('[data-action="toggle-emoji"]');
+    if (toggleEmoji && container.contains(toggleEmoji)) {
+      e.preventDefault();
+      const opening = container.dataset.emojiPanel !== "1";
+      container.dataset.emojiPanel = opening ? "1" : "0";
+      if (!opening) container.dataset.emojiQuery = "";
+      renderListIconPicker(
+        container,
+        container.dataset.selectedIcon || DEFAULT_CUSTOM_LIST_ICON,
+        container.dataset.selectedIconImage || null
+      );
+      if (opening) {
+        requestAnimationFrame(() => container.querySelector(".list-emoji-search")?.focus());
+      }
+      return;
+    }
+    const randomEmoji = e.target.closest('[data-action="random-emoji"]');
+    if (randomEmoji && container.contains(randomEmoji)) {
+      e.preventDefault();
+      const pick = pickRandomListEmojiChoice();
+      container.dataset.emojiPanel = "1";
+      renderListIconPicker(container, pick.icon, pick.iconImage);
+      return;
+    }
+    const emojiPick = e.target.closest("[data-emoji]");
+    if (emojiPick && container.contains(emojiPick)) {
+      e.preventDefault();
+      const image = emojiToListIconDataUrl(emojiPick.dataset.emoji);
+      if (!image) return;
+      container.dataset.emojiPanel = "1";
+      renderListIconPicker(container, DEFAULT_CUSTOM_LIST_ICON, image);
+      return;
+    }
+    const randomBtn = e.target.closest("button.list-icon-option--random");
+    if (randomBtn && container.contains(randomBtn)) {
+      e.preventDefault();
+      const pick = pickRandomListIconChoice();
+      renderListIconPicker(container, pick.icon, pick.iconImage);
+      return;
+    }
     const btn = e.target.closest("button.list-icon-option");
-    if (!btn || !container.contains(btn)) return;
+    if (!btn || !container.contains(btn) || btn.dataset.action) return;
     const icon = btn.dataset.icon;
     if (!isValidCustomListIcon(icon)) return;
+    container.dataset.emojiPanel = "0";
+    container.dataset.emojiQuery = "";
     renderListIconPicker(container, icon, null);
+  });
+  container.addEventListener("input", (e) => {
+    const search = e.target.closest(".list-emoji-search");
+    if (!search || !container.contains(search)) return;
+    container.dataset.emojiQuery = search.value;
+    container.dataset.emojiPanel = "1";
+    const caret = search.selectionStart;
+    renderListIconPicker(
+      container,
+      container.dataset.selectedIcon || DEFAULT_CUSTOM_LIST_ICON,
+      container.dataset.selectedIconImage || null
+    );
+    const next = container.querySelector(".list-emoji-search");
+    if (next) {
+      next.focus();
+      try {
+        next.setSelectionRange(caret, caret);
+      } catch {
+        /* ignore */
+      }
+    }
   });
   container.addEventListener("change", async (e) => {
     const input = e.target.closest(".list-icon-upload-input");
@@ -7288,6 +7666,8 @@ function renderListIconPicker(container, selected = DEFAULT_CUSTOM_LIST_ICON, se
     if (!file) return;
     try {
       const dataUrl = await listIconDataUrlFromFile(file);
+      container.dataset.emojiPanel = "0";
+      container.dataset.emojiQuery = "";
       renderListIconPicker(
         container,
         container.dataset.selectedIcon || DEFAULT_CUSTOM_LIST_ICON,
@@ -7314,16 +7694,36 @@ let listDialogOptions = null;
 function openListDialog(options = {}) {
   const dialog = document.getElementById("list-dialog");
   const input = document.getElementById("list-dialog-input");
+  const title = dialog?.querySelector(".dialog-title");
+  const subtitle = dialog?.querySelector(".dialog-capture-task");
+  const submitBtn = dialog?.querySelector('button[type="submit"]');
   if (!dialog || !input) return;
   listDialogOptions = options;
-  input.value = "";
-  renderListIconPicker(document.getElementById("list-dialog-icons"), DEFAULT_CUSTOM_LIST_ICON, null);
+
+  const editing = Boolean(options.editId);
+  input.value = options.name || "";
+  renderListIconPicker(
+    document.getElementById("list-dialog-icons"),
+    options.icon || DEFAULT_CUSTOM_LIST_ICON,
+    options.iconImage || null
+  );
+  if (title) title.textContent = editing ? "Edit list" : "New list";
+  if (subtitle) {
+    subtitle.textContent = editing
+      ? "Update this category’s name or icon."
+      : "Create a custom category for your tasks.";
+  }
+  if (submitBtn) submitBtn.textContent = editing ? "Save" : "Create list";
+
   if (typeof dialog.showModal === "function") {
     if (!dialog.open) dialog.showModal();
   } else {
     dialog.setAttribute("open", "");
   }
-  requestAnimationFrame(() => input.focus());
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
 }
 
 function closeListDialog({ cancelled = false } = {}) {
@@ -7386,7 +7786,23 @@ function setupListsManager() {
     e.preventDefault();
     e.stopPropagation();
     const options = listDialogOptions || { navigate: true };
-    const id = createFromInput(listInput, document.getElementById("list-dialog-icons"), {
+    const iconContainer = document.getElementById("list-dialog-icons");
+    const name = listInput?.value?.trim() || "";
+    const icon = getSelectedListIcon(iconContainer);
+    const iconImage = getSelectedListIconImage(iconContainer);
+
+    if (options.editId) {
+      if (!name) return;
+      const ok = options.shared
+        ? updateSharedListMeta(options.spaceId, options.editId, { name, icon, iconImage })
+        : updateCustomContext(options.editId, { name, icon, iconImage });
+      if (!ok) return;
+      closeListDialog({ cancelled: false });
+      if (typeof renderAll === "function") renderAll();
+      return;
+    }
+
+    const id = createFromInput(listInput, iconContainer, {
       navigate: options.navigate !== false && !options.onCreated,
     });
     if (!id) return;
@@ -7448,11 +7864,27 @@ function setupListsManager() {
     }
     if (renameBtn) {
       const id = renameBtn.dataset.id;
+      if (renameBtn.dataset.shared === "true") {
+        const shared = findSharedContext(id);
+        if (!shared) return;
+        openListDialog({
+          editId: id,
+          spaceId: renameBtn.getAttribute("data-space-id") || shared.spaceId,
+          shared: true,
+          name: shared.name || "",
+          icon: shared.icon || DEFAULT_CUSTOM_LIST_ICON,
+          iconImage: shared.iconImage || null,
+        });
+        return;
+      }
       const current = getCustomContexts().find((c) => c.id === id);
-      const next = window.prompt("Rename category", current?.name || "");
-      if (next == null) return;
-      renameCustomContext(id, next);
-      renderAll();
+      if (!current) return;
+      openListDialog({
+        editId: id,
+        name: current.name || "",
+        icon: current.icon || DEFAULT_CUSTOM_LIST_ICON,
+        iconImage: current.iconImage || null,
+      });
       return;
     }
     if (deleteBtn) {

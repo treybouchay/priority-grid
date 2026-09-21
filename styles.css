@@ -5883,9 +5883,15 @@ dialog {
 
 .list-icon-picker {
   display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0 0 1.25rem;
+}
+
+.list-icon-picker-row {
+  display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin: 0 0 1.25rem;
 }
 
 .list-icon-option {
@@ -5911,6 +5917,66 @@ dialog {
 .list-icon-option--upload {
   position: relative;
   overflow: hidden;
+}
+
+.list-icon-option--random,
+.list-icon-option--emoji,
+.list-icon-option--emoji-random {
+  border-style: dashed;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.list-icon-random-glyph {
+  display: block;
+  transform: translateY(0.5px);
+}
+
+.list-emoji-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.list-emoji-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.list-emoji-search {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(14, 48, 48, 0.16);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #11302c;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.list-emoji-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-height: 10.5rem;
+  overflow: auto;
+}
+
+.list-emoji-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: rgba(17, 48, 44, 0.65);
+}
+
+.list-icon-option--emoji-pick {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .list-icon-custom-preview {
