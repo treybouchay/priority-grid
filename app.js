@@ -6217,13 +6217,20 @@ function carryOverIncompleteScheduledTasks() {
 }
 
 function runDailyMaintenance({ render = false } = {}) {
+  const beforeDay = localDayKey();
   clearExpiredDeferredTasks();
   const carried = carryOverIncompleteScheduledTasks();
   const resetDaily = resetRepeatDailyTasksIfNeeded();
   const resetWeekly = resetRepeatWeeklyTasksIfNeeded();
   const rolled = archiveCompletedTasksPastMidnight();
-  if (render && (carried || rolled || resetDaily || resetWeekly)) renderAll();
-  return carried || resetDaily || resetWeekly || rolled;
+  const afterDay = localDayKey();
+  let snapped = false;
+  if (afterDay !== beforeDay || rolled) {
+    snapWeeklyViewToToday({ skipRender: true });
+    snapped = true;
+  }
+  if (render && (carried || rolled || resetDaily || resetWeekly || snapped)) renderAll();
+  return carried || resetDaily || resetWeekly || rolled || snapped;
 }
 
 function scheduleMidnightMaintenance() {
@@ -6282,6 +6289,7 @@ function addRepeatDailyTask(text, tier, ctx) {
       done: false,
       repeatDaily: true,
       repeatLastReset: today,
+      createdAt: new Date().toISOString(),
     },
   ]);
 }
@@ -6302,6 +6310,7 @@ function addRepeatWeeklyTask(text, tier, ctx, weekday) {
       repeatWeekly: true,
       repeatWeekday: day,
       repeatLastReset: today,
+      createdAt: new Date().toISOString(),
     },
   ]);
 }
@@ -8736,7 +8745,10 @@ function taskCardHtml(task) {
           <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
         </label>
         <div class="task-card-body">
-          <button type="button" class="task-text-btn">${escapeHtml(task.text)}</button>
+          <div class="task-title-with-age">
+            <button type="button" class="task-text-btn">${escapeHtml(task.text)}</button>
+            ${taskStaleAgeBadgeHtml(task)}
+          </div>
           ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
         </div>
         <div class="task-card-trailing">
@@ -11267,6 +11279,7 @@ function planCardTaskHtml(task) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
+      ${taskStaleAgeBadgeHtml(task)}
       ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
       <span class="plan-card-task-meta">
         ${taskAttachmentIndicatorHtml(task)}
@@ -11343,7 +11356,10 @@ function homeCardTaskHtml(task, options = {}) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <div class="home-card-task-body">
-        <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
+        <div class="task-title-with-age">
+          <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
+          ${taskStaleAgeBadgeHtml(task)}
+        </div>
         ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
         ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
       </div>
@@ -11417,6 +11433,86 @@ function dayKeyFromLocalDate(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function daysBetweenDayKeys(fromKey, toKey) {
+  const from = parseDayKeyLocal(fromKey);
+  const to = parseDayKeyLocal(toKey);
+  if (!from || !to) return 0;
+  return Math.round((to.getTime() - from.getTime()) / 86400000);
+}
+
+const STALE_TASK_DAYS = 7;
+
+function taskCreatedDayKey(task) {
+  if (!task?.createdAt) return null;
+  const stamp = Date.parse(task.createdAt);
+  if (!Number.isFinite(stamp)) return null;
+  return localDayKey(new Date(stamp));
+}
+
+function legacyTaskCreatedAtIso(task) {
+  const scheduled = normalizeScheduledFor(task?.scheduledFor);
+  if (scheduled) {
+    const scheduledDate = parseDayKeyLocal(scheduled);
+    if (scheduledDate) return scheduledDate.toISOString();
+  }
+  const started = parseDayKeyLocal(getAppStartedDay());
+  const floor = new Date();
+  floor.setHours(12, 0, 0, 0);
+  floor.setDate(floor.getDate() - STALE_TASK_DAYS);
+  if (started && started.getTime() < floor.getTime()) return started.toISOString();
+  return floor.toISOString();
+}
+
+function ensureTaskCreatedAt(task) {
+  if (!task || typeof task !== "object") return task;
+  if (typeof task.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))) {
+    return task;
+  }
+  return { ...task, createdAt: legacyTaskCreatedAtIso(task) };
+}
+
+/** One-time / opportunistic backfill so older open tasks can show age. */
+function backfillMissingTaskCreatedAts() {
+  let changed = false;
+  getContexts().forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let listChanged = false;
+    const next = list.map((task) => {
+      if (typeof task?.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))) {
+        return task;
+      }
+      listChanged = true;
+      return ensureTaskCreatedAt(task);
+    });
+    if (listChanged) {
+      changed = true;
+      saveTasks(ctx, next, { skipSync: true });
+    }
+  });
+  if (changed) markSyncDirty();
+  return changed;
+}
+
+/** Calendar days since the task was added (open / incomplete only). */
+function taskOpenAgeDays(task) {
+  if (!task || task.done || task.archived) return 0;
+  if (isRepeatTask(task)) return 0;
+  const createdDay = taskCreatedDayKey(ensureTaskCreatedAt(task));
+  if (!createdDay) return 0;
+  return Math.max(0, daysBetweenDayKeys(createdDay, todayKey()));
+}
+
+function isStaleOpenTask(task) {
+  return taskOpenAgeDays(task) >= STALE_TASK_DAYS;
+}
+
+function taskStaleAgeBadgeHtml(task) {
+  const days = taskOpenAgeDays(task);
+  if (days < STALE_TASK_DAYS) return "";
+  const label = days === 1 ? "1 day ago" : `${days} days ago`;
+  return `<span class="task-stale-age" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${days}d ago</span>`;
 }
 
 function addDaysToDayKey(dayKey, days) {
@@ -11610,6 +11706,19 @@ function ensureWeeklySelectedDayKey() {
     if (!week.includes(weeklySelectedDayKey)) weeklySelectedDayKey = week[0];
   }
   return weeklySelectedDayKey;
+}
+
+/** Jump the fortnight window + selected day chip to today (used on load / day rollover). */
+function snapWeeklyViewToToday(options = {}) {
+  const today = reflectionTodayKey();
+  setWeeklyWindowStartKey(today, { skipRender: true });
+  weeklySelectedDayKey = today;
+  weeklyCalendarMonthKey = monthKeyFromDayKey(today);
+  if (!options.skipRender) {
+    if (page === "home" && weeklyView) renderHome();
+    else if (page === "tasks" && weeklyView) renderGrid();
+  }
+  return today;
 }
 
 function setWeeklySelectedDayKey(dayKey) {
@@ -13872,10 +13981,14 @@ function getDialogRepeatWeekday() {
 }
 
 function buildTaskFromDialogFields(baseTask) {
-  return applyScheduledForToTask(
+  const next = applyScheduledForToTask(
     applyRepeatModeToTask(baseTask, getDialogRepeatMode(), getDialogRepeatWeekday()),
     getDialogScheduledFor()
   );
+  if (!next?.createdAt) {
+    return { ...next, createdAt: new Date().toISOString() };
+  }
+  return next;
 }
 
 async function openTaskDialog(tier = 1) {
@@ -13964,7 +14077,10 @@ function sendBrainDumpToTier(id, ctx, tier, textOverride) {
   const text = (textOverride ?? item.text).trim();
   if (!text) return;
 
-  updateTaskInContext(ctx, (list) => [...list, { id: createId(), text, tier, done: false }]);
+  updateTaskInContext(ctx, (list) => [
+    ...list,
+    { id: createId(), text, tier, done: false, createdAt: new Date().toISOString() },
+  ]);
   recordDeletedId(id);
   saveBrainDump(
     ctx,
@@ -14952,6 +15068,7 @@ function seedHomeFromNotebook() {
 migrateLegacyData();
 setupDailyMaintenance();
 ensureAppStartedDay();
+backfillMissingTaskCreatedAts();
 
 document.documentElement.dataset.font = getFont();
 applyTheme();
@@ -14993,5 +15110,6 @@ syncThoughtsBellAnimation();
 updateBoardHint();
 rebuildContextUi();
 
+snapWeeklyViewToToday({ skipRender: true });
 setPage(page, filter);
 syncBottomChrome();
