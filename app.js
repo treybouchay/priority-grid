@@ -11443,6 +11443,7 @@ function daysBetweenDayKeys(fromKey, toKey) {
 }
 
 const STALE_TASK_DAYS = 7;
+const CREATED_AT_BACKFILL_REPAIR_KEY = "priority-grid-created-at-backfill-repaired-v1";
 
 function taskCreatedDayKey(task) {
   if (!task?.createdAt) return null;
@@ -11451,46 +11452,42 @@ function taskCreatedDayKey(task) {
   return localDayKey(new Date(stamp));
 }
 
-function legacyTaskCreatedAtIso(task) {
-  const scheduled = normalizeScheduledFor(task?.scheduledFor);
-  if (scheduled) {
-    const scheduledDate = parseDayKeyLocal(scheduled);
-    if (scheduledDate) return scheduledDate.toISOString();
+/**
+ * Undo the first backfill that stamped undated tasks with the app-start day
+ * (made brand-new tasks look ~months old). Only runs once per device.
+ */
+function repairBogusCreatedAtBackfill() {
+  let already = false;
+  try {
+    already = localStorage.getItem(CREATED_AT_BACKFILL_REPAIR_KEY) === "1";
+  } catch {
+    /* ignore */
   }
-  const started = parseDayKeyLocal(getAppStartedDay());
-  const floor = new Date();
-  floor.setHours(12, 0, 0, 0);
-  floor.setDate(floor.getDate() - STALE_TASK_DAYS);
-  if (started && started.getTime() < floor.getTime()) return started.toISOString();
-  return floor.toISOString();
-}
+  if (already) return false;
 
-function ensureTaskCreatedAt(task) {
-  if (!task || typeof task !== "object") return task;
-  if (typeof task.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))) {
-    return task;
-  }
-  return { ...task, createdAt: legacyTaskCreatedAtIso(task) };
-}
-
-/** One-time / opportunistic backfill so older open tasks can show age. */
-function backfillMissingTaskCreatedAts() {
+  const startedDay = getAppStartedDay();
   let changed = false;
   getContexts().forEach((ctx) => {
     const list = loadTasks(ctx);
     let listChanged = false;
     const next = list.map((task) => {
-      if (typeof task?.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))) {
-        return task;
-      }
+      if (!task || typeof task !== "object") return task;
+      const day = taskCreatedDayKey(task);
+      if (!day || day !== startedDay) return task;
       listChanged = true;
-      return ensureTaskCreatedAt(task);
+      const { createdAt, ...rest } = task;
+      return rest;
     });
     if (listChanged) {
       changed = true;
       saveTasks(ctx, next, { skipSync: true });
     }
   });
+  try {
+    localStorage.setItem(CREATED_AT_BACKFILL_REPAIR_KEY, "1");
+  } catch {
+    /* ignore */
+  }
   if (changed) markSyncDirty();
   return changed;
 }
@@ -11499,7 +11496,8 @@ function backfillMissingTaskCreatedAts() {
 function taskOpenAgeDays(task) {
   if (!task || task.done || task.archived) return 0;
   if (isRepeatTask(task)) return 0;
-  const createdDay = taskCreatedDayKey(ensureTaskCreatedAt(task));
+  // Only trust a real stored createdAt — never invent ages for legacy tasks.
+  const createdDay = taskCreatedDayKey(task);
   if (!createdDay) return 0;
   return Math.max(0, daysBetweenDayKeys(createdDay, todayKey()));
 }
@@ -15068,7 +15066,7 @@ function seedHomeFromNotebook() {
 migrateLegacyData();
 setupDailyMaintenance();
 ensureAppStartedDay();
-backfillMissingTaskCreatedAts();
+repairBogusCreatedAtBackfill();
 
 document.documentElement.dataset.font = getFont();
 applyTheme();
