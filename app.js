@@ -11444,12 +11444,35 @@ function daysBetweenDayKeys(fromKey, toKey) {
 
 const STALE_TASK_DAYS = 7;
 const CREATED_AT_BACKFILL_REPAIR_KEY = "priority-grid-created-at-backfill-repaired-v1";
+const CREATED_AT_ANCHOR_KEY = "priority-grid-created-at-anchor-v2";
 
 function taskCreatedDayKey(task) {
   if (!task?.createdAt) return null;
   const stamp = Date.parse(task.createdAt);
   if (!Number.isFinite(stamp)) return null;
   return localDayKey(new Date(stamp));
+}
+
+function dayKeyToNoonIso(dayKey) {
+  const date = parseDayKeyLocal(dayKey);
+  return date ? date.toISOString() : null;
+}
+
+/** Earliest day we can prove for a task (create date, notes, or past schedule). */
+function earliestTaskEvidenceDayKey(task) {
+  if (!task) return null;
+  const days = [];
+  const created = taskCreatedDayKey(task);
+  if (created) days.push(created);
+  getTaskNoteEntries(task).forEach((note) => {
+    const noteDay = taskCreatedDayKey(note);
+    if (noteDay) days.push(noteDay);
+  });
+  const scheduled = normalizeScheduledFor(task.scheduledFor);
+  if (scheduled && scheduled <= todayKey()) days.push(scheduled);
+  if (!days.length) return null;
+  days.sort();
+  return days[0];
 }
 
 /**
@@ -11492,12 +11515,55 @@ function repairBogusCreatedAtBackfill() {
   return changed;
 }
 
+/**
+ * For legacy tasks still missing createdAt, anchor age from the best evidence
+ * we have (notes / schedule), else the app-start day as a lower bound.
+ * New tasks always get a real createdAt at create time, so they won't hit this.
+ */
+function anchorUndatedTaskCreatedAts() {
+  let already = false;
+  try {
+    already = localStorage.getItem(CREATED_AT_ANCHOR_KEY) === "1";
+  } catch {
+    /* ignore */
+  }
+  if (already) return false;
+
+  const startedDay = getAppStartedDay();
+  const startedIso = dayKeyToNoonIso(startedDay);
+  let changed = false;
+  getContexts().forEach((ctx) => {
+    const list = loadTasks(ctx);
+    let listChanged = false;
+    const next = list.map((task) => {
+      if (!task || typeof task !== "object") return task;
+      if (typeof task.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))) {
+        return task;
+      }
+      const evidenceDay = earliestTaskEvidenceDayKey(task) || startedDay;
+      const iso = dayKeyToNoonIso(evidenceDay) || startedIso || new Date().toISOString();
+      listChanged = true;
+      return { ...task, createdAt: iso, createdAtInferred: true };
+    });
+    if (listChanged) {
+      changed = true;
+      saveTasks(ctx, next, { skipSync: true });
+    }
+  });
+  try {
+    localStorage.setItem(CREATED_AT_ANCHOR_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  if (changed) markSyncDirty();
+  return changed;
+}
+
 /** Calendar days since the task was added (open / incomplete only). */
 function taskOpenAgeDays(task) {
   if (!task || task.done || task.archived) return 0;
   if (isRepeatTask(task)) return 0;
-  // Only trust a real stored createdAt — never invent ages for legacy tasks.
-  const createdDay = taskCreatedDayKey(task);
+  const createdDay = taskCreatedDayKey(task) || earliestTaskEvidenceDayKey(task);
   if (!createdDay) return 0;
   return Math.max(0, daysBetweenDayKeys(createdDay, todayKey()));
 }
@@ -11509,8 +11575,11 @@ function isStaleOpenTask(task) {
 function taskStaleAgeBadgeHtml(task) {
   const days = taskOpenAgeDays(task);
   if (days < STALE_TASK_DAYS) return "";
+  const approx = Boolean(task?.createdAtInferred);
   const label = days === 1 ? "1 day ago" : `${days} days ago`;
-  return `<span class="task-stale-age" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${days}d ago</span>`;
+  const title = approx ? `${label} (at least — added before date tracking)` : label;
+  const text = approx ? `${days}d+ ago` : `${days}d ago`;
+  return `<span class="task-stale-age" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${text}</span>`;
 }
 
 function addDaysToDayKey(dayKey, days) {
@@ -13984,7 +14053,12 @@ function buildTaskFromDialogFields(baseTask) {
     getDialogScheduledFor()
   );
   if (!next?.createdAt) {
-    return { ...next, createdAt: new Date().toISOString() };
+    const { createdAtInferred, ...rest } = next || {};
+    return { ...rest, createdAt: new Date().toISOString() };
+  }
+  if (next.createdAtInferred) {
+    // Keep inferred anchors on edit unless we're replacing create time.
+    return next;
   }
   return next;
 }
@@ -15067,6 +15141,7 @@ migrateLegacyData();
 setupDailyMaintenance();
 ensureAppStartedDay();
 repairBogusCreatedAtBackfill();
+anchorUndatedTaskCreatedAts();
 
 document.documentElement.dataset.font = getFont();
 applyTheme();
