@@ -11444,40 +11444,18 @@ function daysBetweenDayKeys(fromKey, toKey) {
 
 const STALE_TASK_DAYS = 7;
 const CREATED_AT_BACKFILL_REPAIR_KEY = "priority-grid-created-at-backfill-repaired-v1";
-const CREATED_AT_ANCHOR_KEY = "priority-grid-created-at-anchor-v2";
+const CREATED_AT_INFERRED_CLEAR_KEY = "priority-grid-created-at-inferred-cleared-v1";
 
 function taskCreatedDayKey(task) {
-  if (!task?.createdAt) return null;
+  if (!task?.createdAt || task.createdAtInferred) return null;
   const stamp = Date.parse(task.createdAt);
   if (!Number.isFinite(stamp)) return null;
   return localDayKey(new Date(stamp));
 }
 
-function dayKeyToNoonIso(dayKey) {
-  const date = parseDayKeyLocal(dayKey);
-  return date ? date.toISOString() : null;
-}
-
-/** Earliest day we can prove for a task (create date, notes, or past schedule). */
-function earliestTaskEvidenceDayKey(task) {
-  if (!task) return null;
-  const days = [];
-  const created = taskCreatedDayKey(task);
-  if (created) days.push(created);
-  getTaskNoteEntries(task).forEach((note) => {
-    const noteDay = taskCreatedDayKey(note);
-    if (noteDay) days.push(noteDay);
-  });
-  const scheduled = normalizeScheduledFor(task.scheduledFor);
-  if (scheduled && scheduled <= todayKey()) days.push(scheduled);
-  if (!days.length) return null;
-  days.sort();
-  return days[0];
-}
-
 /**
- * Undo the first backfill that stamped undated tasks with the app-start day
- * (made brand-new tasks look ~months old). Only runs once per device.
+ * Undo the first backfill that stamped undated tasks with the app-start day.
+ * Only runs once per device.
  */
 function repairBogusCreatedAtBackfill() {
   let already = false;
@@ -11495,10 +11473,14 @@ function repairBogusCreatedAtBackfill() {
     let listChanged = false;
     const next = list.map((task) => {
       if (!task || typeof task !== "object") return task;
-      const day = taskCreatedDayKey(task);
+      if (task.createdAtInferred === false) return task;
+      const day =
+        typeof task.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))
+          ? localDayKey(new Date(task.createdAt))
+          : null;
       if (!day || day !== startedDay) return task;
       listChanged = true;
-      const { createdAt, ...rest } = task;
+      const { createdAt, createdAtInferred, ...rest } = task;
       return rest;
     });
     if (listChanged) {
@@ -11515,35 +11497,25 @@ function repairBogusCreatedAtBackfill() {
   return changed;
 }
 
-/**
- * For legacy tasks still missing createdAt, anchor age from the best evidence
- * we have (notes / schedule), else the app-start day as a lower bound.
- * New tasks always get a real createdAt at create time, so they won't hit this.
- */
-function anchorUndatedTaskCreatedAts() {
+/** Drop guessed create dates — badges only use real collected createdAt going forward. */
+function clearInferredTaskCreatedAts() {
   let already = false;
   try {
-    already = localStorage.getItem(CREATED_AT_ANCHOR_KEY) === "1";
+    already = localStorage.getItem(CREATED_AT_INFERRED_CLEAR_KEY) === "1";
   } catch {
     /* ignore */
   }
   if (already) return false;
 
-  const startedDay = getAppStartedDay();
-  const startedIso = dayKeyToNoonIso(startedDay);
   let changed = false;
   getContexts().forEach((ctx) => {
     const list = loadTasks(ctx);
     let listChanged = false;
     const next = list.map((task) => {
-      if (!task || typeof task !== "object") return task;
-      if (typeof task.createdAt === "string" && Number.isFinite(Date.parse(task.createdAt))) {
-        return task;
-      }
-      const evidenceDay = earliestTaskEvidenceDayKey(task) || startedDay;
-      const iso = dayKeyToNoonIso(evidenceDay) || startedIso || new Date().toISOString();
+      if (!task?.createdAtInferred) return task;
       listChanged = true;
-      return { ...task, createdAt: iso, createdAtInferred: true };
+      const { createdAt, createdAtInferred, ...rest } = task;
+      return rest;
     });
     if (listChanged) {
       changed = true;
@@ -11551,7 +11523,7 @@ function anchorUndatedTaskCreatedAts() {
     }
   });
   try {
-    localStorage.setItem(CREATED_AT_ANCHOR_KEY, "1");
+    localStorage.setItem(CREATED_AT_INFERRED_CLEAR_KEY, "1");
   } catch {
     /* ignore */
   }
@@ -11559,11 +11531,11 @@ function anchorUndatedTaskCreatedAts() {
   return changed;
 }
 
-/** Calendar days since the task was added (open / incomplete only). */
+/** Calendar days since the task was added — exact createdAt only. */
 function taskOpenAgeDays(task) {
   if (!task || task.done || task.archived) return 0;
   if (isRepeatTask(task)) return 0;
-  const createdDay = taskCreatedDayKey(task) || earliestTaskEvidenceDayKey(task);
+  const createdDay = taskCreatedDayKey(task);
   if (!createdDay) return 0;
   return Math.max(0, daysBetweenDayKeys(createdDay, todayKey()));
 }
@@ -11575,11 +11547,8 @@ function isStaleOpenTask(task) {
 function taskStaleAgeBadgeHtml(task) {
   const days = taskOpenAgeDays(task);
   if (days < STALE_TASK_DAYS) return "";
-  const approx = Boolean(task?.createdAtInferred);
   const label = days === 1 ? "1 day ago" : `${days} days ago`;
-  const title = approx ? `${label} (at least — added before date tracking)` : label;
-  const text = approx ? `${days}d+ ago` : `${days}d ago`;
-  return `<span class="task-stale-age" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${text}</span>`;
+  return `<span class="task-stale-age" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${days}d ago</span>`;
 }
 
 function addDaysToDayKey(dayKey, days) {
@@ -14052,15 +14021,11 @@ function buildTaskFromDialogFields(baseTask) {
     applyRepeatModeToTask(baseTask, getDialogRepeatMode(), getDialogRepeatWeekday()),
     getDialogScheduledFor()
   );
-  if (!next?.createdAt) {
-    const { createdAtInferred, ...rest } = next || {};
+  const { createdAtInferred, ...rest } = next || {};
+  if (!rest.createdAt) {
     return { ...rest, createdAt: new Date().toISOString() };
   }
-  if (next.createdAtInferred) {
-    // Keep inferred anchors on edit unless we're replacing create time.
-    return next;
-  }
-  return next;
+  return rest;
 }
 
 async function openTaskDialog(tier = 1) {
@@ -15141,7 +15106,7 @@ migrateLegacyData();
 setupDailyMaintenance();
 ensureAppStartedDay();
 repairBogusCreatedAtBackfill();
-anchorUndatedTaskCreatedAts();
+clearInferredTaskCreatedAts();
 
 document.documentElement.dataset.font = getFont();
 applyTheme();
