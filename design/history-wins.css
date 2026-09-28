@@ -432,6 +432,11 @@ body[data-page="history"] .history-note-kind--sticky {
   color: #ffdbd2;
 }
 
+body[data-page="history"] .history-note-kind--checklist {
+  background: #1f5c4d;
+  color: #dff5ea;
+}
+
 body[data-page="history"] .history-note-kind--note {
   background: rgba(14, 48, 48, 0.12);
   color: #0e3030;
@@ -591,6 +596,49 @@ body[data-page="history"] .history-note-item--linked {
 
 body[data-page="history"] .history-note-item--sticky {
   background: #fff;
+}
+
+body[data-page="history"] .history-note-item--checklist {
+  background: #fffdf4;
+}
+
+body[data-page="history"] .history-note-checklist {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+body[data-page="history"] .history-note-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: #11302c;
+  line-height: 1.35;
+}
+
+body[data-page="history"] .history-note-checklist-item.done {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+body[data-page="history"] .history-note-checklist-mark {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+body[data-page="history"] .history-note-checklist-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+body[data-page="history"] .history-note-text--title {
+  font-weight: 700;
 }
 
 body[data-page="history"] .history-note-task-link {

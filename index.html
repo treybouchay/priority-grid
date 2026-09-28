@@ -67,11 +67,11 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=193" />
+    <link rel="stylesheet" href="styles.css?v=198" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
     <link rel="stylesheet" href="design/home-presence.css?v=134" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
-    <link rel="stylesheet" href="design/history-wins.css?v=17" />
+    <link rel="stylesheet" href="design/history-wins.css?v=18" />
     <link rel="stylesheet" href="design/settings-page.css?v=15" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -526,6 +526,7 @@
                 </div>
               </div>
               <p class="home-priority-progress hidden" id="home-priority-progress"></p>
+              <div id="home-checklist-stickies" class="home-checklist-stickies" aria-live="polite"></div>
               <div id="home-priority-content">
                 <ul class="priority-preview-list" id="home-priority-list"></ul>
               </div>
@@ -1066,6 +1067,34 @@
               <input type="file" id="list-icon-file-input" accept="image/*" hidden />
             </article>
 
+            <article class="settings-card" aria-labelledby="settings-ocr-heading">
+              <header class="settings-card-header">
+                <h2 class="settings-card-title" id="settings-ocr-heading">Handwriting scan</h2>
+                <p class="settings-card-desc">
+                  Uses Google AI (Gemini) to read handwritten lists accurately — the closest web option to Google Lens.
+                </p>
+              </header>
+              <label class="settings-field-label" for="settings-gemini-ocr-key">Google AI API key</label>
+              <div class="settings-ocr-row">
+                <input
+                  type="password"
+                  id="settings-gemini-ocr-key"
+                  class="settings-text-input"
+                  placeholder="Paste key from Google AI Studio"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button type="button" class="btn-secondary" id="settings-gemini-ocr-save">Save</button>
+                <button type="button" class="btn-ghost" id="settings-gemini-ocr-clear">Clear</button>
+              </div>
+              <p class="settings-hint" id="settings-gemini-ocr-hint">
+                Free key:
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>
+                — then Scan handwritten list works on any paper color.
+              </p>
+              <p class="settings-hint settings-ocr-status" id="settings-gemini-ocr-status" aria-live="polite"></p>
+            </article>
+
             <article class="settings-card" aria-labelledby="settings-sync-heading">
               <header class="settings-card-header">
                 <h2 class="settings-card-title" id="settings-sync-heading">Data &amp; sync</h2>
@@ -1261,6 +1290,22 @@
         ></textarea>
         <p class="dialog-parse-hint hidden" id="dialog-parse-hint"></p>
         <ul class="dialog-parse-preview hidden" id="dialog-parse-preview" aria-live="polite"></ul>
+        <div class="dialog-sticky-tools hidden" id="dialog-sticky-tools">
+          <div class="dialog-sticky-actions">
+            <label class="dialog-sticky-scan-btn" for="dialog-sticky-scan-input">
+              <svg class="icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M4 7V5a2 2 0 0 1 2-2h2M16 3h2a2 2 0 0 1 2 2v2M20 17v2a2 2 0 0 1-2 2h-2M8 21H6a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="3.25" stroke="currentColor" stroke-width="1.75"/>
+              </svg>
+              Scan list with Google AI
+            </label>
+            <input type="file" id="dialog-sticky-scan-input" accept="image/*" capture="environment" hidden />
+          </div>
+          <p class="dialog-sticky-scan-status hidden" id="dialog-sticky-scan-status" aria-live="polite"></p>
+          <div class="dialog-sticky-scan-preview hidden" id="dialog-sticky-scan-preview"></div>
+          <p class="dialog-sticky-checklist-hint hidden" id="dialog-sticky-checklist-hint"></p>
+          <ul class="dialog-sticky-checklist-preview hidden" id="dialog-sticky-checklist-preview" aria-live="polite"></ul>
+        </div>
         <div class="dialog-task-fields" id="dialog-task-fields">
         <label class="dialog-label" for="dialog-context">List</label>
         <div class="dialog-list-field">
@@ -1366,7 +1411,7 @@
         </div>
         </div>
         <p class="dialog-note-hint hidden" id="dialog-note-hint">
-          Stickies land in History. You can attach them to a task later as notes.
+          Stickies land on Home and in History. Scan reads handwriting with Google AI (add a free key in Settings). Then drag rows onto 1st–4th.
         </p>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
@@ -1648,6 +1693,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=362"></script>
+    <script src="app.js?v=373"></script>
   </body>
 </html>

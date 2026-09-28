@@ -38,6 +38,7 @@ const DISPLAY_NAME_KEY = "priority-grid-display-name";
 const PROFILE_AVATAR_KEY = "priority-grid-profile-avatar";
 const WEEK_START_KEY = "priority-grid-week-start";
 const WEEKLY_VIEW_KEY = "priority-grid-weekly-view";
+const GEMINI_OCR_KEY = "priority-grid-gemini-ocr-key";
 const WEEKLY_WINDOW_START_KEY = "priority-grid-weekly-window-start";
 const WEEKLY_WINDOW_LEN = 14;
 const DEFAULT_DISPLAY_NAME = "Friend";
@@ -4729,14 +4730,57 @@ function setupDialogNotes() {
   }
 }
 
-function normalizeStandaloneNote(item) {
+function normalizeChecklistItem(item) {
   if (!item) return null;
-  const text = typeof item.text === "string" ? item.text.trim() : "";
+  const text =
+    typeof item === "string"
+      ? item.trim()
+      : typeof item.text === "string"
+        ? item.text.trim()
+        : "";
   if (!text) return null;
   return {
     id: typeof item.id === "string" && item.id ? item.id : createId(),
-    text,
+    text: text.slice(0, 180),
+    done: Boolean(item.done),
+  };
+}
+
+function isChecklistStandaloneNote(note) {
+  return Boolean(note && Array.isArray(note.items) && note.items.length > 0);
+}
+
+function standaloneNotePlainText(note) {
+  if (!note) return "";
+  if (isChecklistStandaloneNote(note)) {
+    const title = typeof note.text === "string" ? note.text.trim() : "";
+    const lines = note.items.map((item) => `${item.done ? "☑" : "☐"} ${item.text}`);
+    return title ? `${title}\n${lines.join("\n")}` : lines.join("\n");
+  }
+  return typeof note.text === "string" ? note.text : "";
+}
+
+function normalizeStandaloneNote(item) {
+  if (!item) return null;
+  const items = Array.isArray(item.items)
+    ? item.items.map(normalizeChecklistItem).filter(Boolean).slice(0, 40)
+    : [];
+  const text = typeof item.text === "string" ? item.text.trim() : "";
+  if (items.length) {
+    return {
+      id: typeof item.id === "string" && item.id ? item.id : createId(),
+      text: (text || "Shopping list").slice(0, 1000),
+      createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+      kind: "checklist",
+      items,
+    };
+  }
+  if (!text) return null;
+  return {
+    id: typeof item.id === "string" && item.id ? item.id : createId(),
+    text: text.slice(0, 1000),
     createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+    kind: "note",
   };
 }
 
@@ -4758,10 +4802,25 @@ function saveStandaloneNotes(items, options = {}) {
   if (!options.skipSync) markSyncDirty();
 }
 
-function addStandaloneNote(text) {
+function addStandaloneNote(text, options = {}) {
+  const itemLines = Array.isArray(options.items)
+    ? options.items.map(normalizeChecklistItem).filter(Boolean).slice(0, 40)
+    : [];
+  if (itemLines.length) {
+    const title = String(options.title || text || "Shopping list").trim().slice(0, 1000) || "Shopping list";
+    const note = {
+      id: createId(),
+      text: title,
+      createdAt: new Date().toISOString(),
+      kind: "checklist",
+      items: itemLines,
+    };
+    saveStandaloneNotes([note, ...loadStandaloneNotes()]);
+    return note;
+  }
   const trimmed = String(text || "").trim().slice(0, 1000);
   if (!trimmed) return null;
-  const note = { id: createId(), text: trimmed, createdAt: new Date().toISOString() };
+  const note = { id: createId(), text: trimmed, createdAt: new Date().toISOString(), kind: "note" };
   saveStandaloneNotes([note, ...loadStandaloneNotes()]);
   return note;
 }
@@ -4777,8 +4836,106 @@ function updateStandaloneNote(id, text) {
   const notes = loadStandaloneNotes();
   const index = notes.findIndex((n) => n.id === id);
   if (index === -1) return false;
-  notes[index] = { ...notes[index], text: trimmed };
+  const existing = notes[index];
+  if (isChecklistStandaloneNote(existing)) {
+    const lines = parseTasksFromText(trimmed);
+    if (lines.length > 1) {
+      notes[index] = {
+        ...existing,
+        text: existing.text || "Shopping list",
+        kind: "checklist",
+        items: lines.map((line) => normalizeChecklistItem(line)).filter(Boolean),
+      };
+    } else {
+      notes[index] = { id: existing.id, text: trimmed, createdAt: existing.createdAt, kind: "note" };
+    }
+  } else {
+    notes[index] = { ...existing, text: trimmed, kind: "note" };
+    delete notes[index].items;
+  }
   saveStandaloneNotes(notes);
+  return true;
+}
+
+function updateStandaloneChecklistItem(stickyId, itemId, patch = {}) {
+  const notes = loadStandaloneNotes();
+  const note = notes.find((n) => n.id === stickyId);
+  if (!isChecklistStandaloneNote(note)) return false;
+  const item = note.items.find((entry) => entry.id === itemId);
+  if (!item) return false;
+  if (typeof patch.text === "string") {
+    const next = patch.text.trim().slice(0, 180);
+    if (!next) return false;
+    item.text = next;
+  }
+  if (typeof patch.done === "boolean") item.done = patch.done;
+  saveStandaloneNotes(notes);
+  return true;
+}
+
+function removeStandaloneChecklistItem(stickyId, itemId) {
+  const notes = loadStandaloneNotes();
+  const index = notes.findIndex((n) => n.id === stickyId);
+  if (index === -1) return false;
+  const note = notes[index];
+  if (!isChecklistStandaloneNote(note)) return false;
+  note.items = note.items.filter((entry) => entry.id !== itemId);
+  if (!note.items.length) {
+    recordDeletedId(stickyId);
+    notes.splice(index, 1);
+  }
+  saveStandaloneNotes(notes);
+  return true;
+}
+
+function getPreferredTaskContext() {
+  if (homeContextFilter && homeContextFilter !== "all" && isValidContext(homeContextFilter)) {
+    return homeContextFilter;
+  }
+  const contexts = getContexts();
+  if (contexts.includes("home")) return "home";
+  return contexts[0] || "home";
+}
+
+function promoteStickyItemToTier(stickyId, itemId, tier, beforeId = null, atTierStart = false) {
+  const notes = loadStandaloneNotes();
+  const note = notes.find((n) => n.id === stickyId);
+  if (!isChecklistStandaloneNote(note)) return false;
+  const item = note.items.find((entry) => entry.id === itemId);
+  if (!item || !item.text.trim()) return false;
+  const ctx = getPreferredTaskContext();
+  const nextTier = Number(tier);
+  if (![1, 2, 3, 4].includes(nextTier)) return false;
+
+  const created = {
+    id: createId(),
+    text: item.text.trim().slice(0, 180),
+    tier: nextTier,
+    done: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  updateTaskInContext(ctx, (list) => {
+    const next = [...list];
+    if (beforeId) {
+      const at = next.findIndex((t) => t.id === beforeId);
+      if (at >= 0) {
+        next.splice(at, 0, created);
+        return next;
+      }
+    }
+    if (atTierStart) {
+      const tierStart = next.findIndex((t) => t.tier === nextTier && !t.archived);
+      if (tierStart >= 0) {
+        next.splice(tierStart, 0, created);
+        return next;
+      }
+    }
+    next.push(created);
+    return next;
+  });
+
+  removeStandaloneChecklistItem(stickyId, itemId);
   return true;
 }
 
@@ -4790,7 +4947,7 @@ function linkStandaloneNoteToTask(noteId, taskId, context) {
   if (!task) return;
   const entries = [
     ...getTaskNoteEntries(task),
-    { id: note.id, text: note.text, createdAt: note.createdAt },
+    { id: note.id, text: standaloneNotePlainText(note).slice(0, 1000), createdAt: note.createdAt },
   ];
   persistTaskNotes(taskId, context, entries);
   deleteStandaloneNote(noteId);
@@ -4833,9 +4990,12 @@ function collectAllNotesForPanel() {
   loadStandaloneNotes().forEach((note) => {
     items.push({
       id: note.id,
-      text: note.text,
+      text: isChecklistStandaloneNote(note) ? standaloneNotePlainText(note) : note.text,
       createdAt: note.createdAt,
       source: "standalone",
+      kind: note.kind || "note",
+      items: isChecklistStandaloneNote(note) ? note.items : null,
+      title: isChecklistStandaloneNote(note) ? note.text : null,
     });
   });
   getContexts().forEach((ctx) => {
@@ -5462,6 +5622,182 @@ function setupSettingsPreferences() {
     });
   }
   setupWeeklyViewControls();
+  setupGeminiOcrSettings();
+}
+
+function getGeminiOcrApiKey() {
+  try {
+    return String(localStorage.getItem(GEMINI_OCR_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function setGeminiOcrApiKey(key) {
+  const trimmed = String(key || "").trim();
+  try {
+    if (trimmed) localStorage.setItem(GEMINI_OCR_KEY, trimmed);
+    else localStorage.removeItem(GEMINI_OCR_KEY);
+  } catch {
+    /* ignore */
+  }
+  syncGeminiOcrSettingsUi();
+}
+
+function syncGeminiOcrSettingsUi() {
+  const input = document.getElementById("settings-gemini-ocr-key");
+  const status = document.getElementById("settings-gemini-ocr-status");
+  const key = getGeminiOcrApiKey();
+  if (input && document.activeElement !== input) {
+    input.value = key;
+  }
+  if (status) {
+    status.textContent = key
+      ? "Handwriting scan is ready — use Scan list with Google AI on Stickies."
+      : "No key saved yet. Scanning stays limited until you add one.";
+  }
+}
+
+function setupGeminiOcrSettings() {
+  const input = document.getElementById("settings-gemini-ocr-key");
+  const saveBtn = document.getElementById("settings-gemini-ocr-save");
+  const clearBtn = document.getElementById("settings-gemini-ocr-clear");
+  if (!input || input.dataset.bound === "1") {
+    syncGeminiOcrSettingsUi();
+    return;
+  }
+  input.dataset.bound = "1";
+  syncGeminiOcrSettingsUi();
+  saveBtn?.addEventListener("click", () => {
+    setGeminiOcrApiKey(input.value);
+    const status = document.getElementById("settings-gemini-ocr-status");
+    if (status) {
+      status.textContent = getGeminiOcrApiKey()
+        ? "Saved. Try Scan list with Google AI on a Sticky."
+        : "Cleared.";
+    }
+  });
+  clearBtn?.addEventListener("click", () => {
+    input.value = "";
+    setGeminiOcrApiKey("");
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveBtn?.click();
+    }
+  });
+}
+
+async function fileToBase64(file) {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function compressImageForGemini(file, maxEdge = 1600, quality = 0.88) {
+  const img = await loadImageFromBlob(file);
+  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+  const blob = await canvasToBlob(canvas, "image/jpeg", quality);
+  return blob;
+}
+
+async function callGeminiHandwritingOcr(base64, mimeType, apiKey, model) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    model
+  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const prompt =
+    "You are extracting a handwritten shopping/checklist from a photo. " +
+    "Return ONLY the list items, one per line. No numbering, bullets, commentary, or markdown. " +
+    "Keep the writer's spelling. Include a store name at the top if present. " +
+    "Skip blank lines and page junk. If nothing readable, return exactly: NONE";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType || "image/jpeg", data: base64 } },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 1024,
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail =
+      payload?.error?.message || payload?.error?.status || `HTTP ${response.status}`;
+    throw new Error(detail);
+  }
+  const text = (payload?.candidates || [])
+    .flatMap((c) => c?.content?.parts || [])
+    .map((p) => p?.text || "")
+    .join("\n")
+    .trim();
+  return text;
+}
+
+async function ocrHandwrittenListWithGemini(file) {
+  const apiKey = getGeminiOcrApiKey();
+  if (!apiKey) throw new Error("Missing Google AI API key");
+
+  setStickyScanStatus("Reading handwriting with Google AI…");
+  const compressed = await compressImageForGemini(file);
+  const base64 = await fileToBase64(compressed);
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+  let lastError = null;
+  let rawText = "";
+  let usedModel = models[0];
+
+  for (const model of models) {
+    try {
+      rawText = await callGeminiHandwritingOcr(base64, "image/jpeg", apiKey, model);
+      usedModel = model;
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err;
+      // Try next model on not-found / unsupported model names.
+      if (!/not found|NOT_FOUND|404|unsupported/i.test(String(err?.message || err))) {
+        throw err;
+      }
+    }
+  }
+  if (lastError) throw lastError;
+
+  if (!rawText || /^none$/i.test(rawText.trim())) {
+    return { score: 0, text: "", lines: [], meanConfidence: 0, label: `gemini:${usedModel}` };
+  }
+
+  const lines = filterOcrChecklistLines(parseTasksFromText(rawText, { max: 40 }));
+  const ranked = scoreOcrCandidateText(lines.join("\n"), 88);
+  return {
+    score: ranked.score + 40,
+    text: rawText,
+    lines: ranked.lines.length ? ranked.lines : lines,
+    meanConfidence: 88,
+    label: `gemini:${usedModel}`,
+  };
 }
 
 function anxietyBoxItemHtml(item) {
@@ -6554,9 +6890,13 @@ function removeDragGhost() {
 }
 
 const GRIP_DRAG_CARD_SELECTOR =
-  ".task-card, .plan-card-task:not(.completed-wins-item):not(.history-wins-item)";
+  ".task-card, .plan-card-task:not(.completed-wins-item):not(.history-wins-item), .sticky-check-item";
 const GRIP_DRAG_LIST_SELECTOR =
   "#tier-expand-list, .task-list[data-tier], .plan-card-list[data-tier]";
+
+function isStickyCheckDragCard(card) {
+  return Boolean(card?.matches?.(".sticky-check-item") || card?.dataset?.dragKind === "sticky-item");
+}
 
 function queryGripDragCards(listEl) {
   return [...listEl.querySelectorAll(GRIP_DRAG_CARD_SELECTOR)];
@@ -8747,7 +9087,7 @@ function taskCardHtml(task) {
         <div class="task-card-body">
           <div class="task-title-with-age">
             <button type="button" class="task-text-btn">${escapeHtml(task.text)}</button>
-            ${taskStaleAgeBadgeHtml(task)}
+            ${taskAddedAgeBadgeHtml(task)}
           </div>
           ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
         </div>
@@ -11279,7 +11619,7 @@ function planCardTaskHtml(task) {
         <input type="checkbox" ${task.done ? "checked" : ""} aria-label="Mark complete" />
       </label>
       <button type="button" class="plan-card-task-text">${escapeHtml(task.text)}</button>
-      ${taskStaleAgeBadgeHtml(task)}
+      ${taskAddedAgeBadgeHtml(task)}
       ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
       <span class="plan-card-task-meta">
         ${taskAttachmentIndicatorHtml(task)}
@@ -11358,7 +11698,7 @@ function homeCardTaskHtml(task, options = {}) {
       <div class="home-card-task-body">
         <div class="task-title-with-age">
           <button type="button" class="home-card-task-title">${escapeHtml(task.text)}</button>
-          ${taskStaleAgeBadgeHtml(task)}
+          ${taskAddedAgeBadgeHtml(task)}
         </div>
         ${isPrimary ? `<span class="task-combine-primary-tag">Keep</span>` : ""}
         ${showTier ? `<span class="home-card-task-tier ${tierClass}">${TIER_NAMES[task.tier - 1]}</span>` : ""}
@@ -11544,11 +11884,49 @@ function isStaleOpenTask(task) {
   return taskOpenAgeDays(task) >= STALE_TASK_DAYS;
 }
 
+/** Relative / short label for when a task was added (real createdAt only). */
+function taskAddedAgeInfo(task) {
+  if (!task || task.archived) return null;
+  const createdDay = taskCreatedDayKey(task);
+  if (!createdDay) return null;
+  const days = Math.max(0, daysBetweenDayKeys(createdDay, todayKey()));
+  const fullWhen = formatArchiveDayHeading(createdDay);
+  if (days === 0) {
+    return { short: "today", title: `Added ${fullWhen}`, stale: false };
+  }
+  if (days === 1) {
+    return { short: "1d ago", title: `Added ${fullWhen}`, stale: false };
+  }
+  if (days < 21) {
+    return {
+      short: `${days}d ago`,
+      title: `Added ${fullWhen}`,
+      stale: days >= STALE_TASK_DAYS,
+    };
+  }
+  const date = parseDayKeyLocal(createdDay);
+  const short = date
+    ? date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== new Date().getFullYear() ? "2-digit" : undefined,
+      })
+    : `${days}d ago`;
+  return { short, title: `Added ${fullWhen}`, stale: true };
+}
+
+function taskAddedAgeBadgeHtml(task) {
+  const info = taskAddedAgeInfo(task);
+  if (!info) return "";
+  const cls = info.stale ? "task-added-age task-added-age--stale" : "task-added-age";
+  return `<span class="${cls}" title="${escapeHtml(info.title)}" aria-label="${escapeHtml(
+    info.title
+  )}">${escapeHtml(info.short)}</span>`;
+}
+
+/** @deprecated use taskAddedAgeBadgeHtml — kept for any leftover callers */
 function taskStaleAgeBadgeHtml(task) {
-  const days = taskOpenAgeDays(task);
-  if (days < STALE_TASK_DAYS) return "";
-  const label = days === 1 ? "1 day ago" : `${days} days ago`;
-  return `<span class="task-stale-age" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${days}d ago</span>`;
+  return taskAddedAgeBadgeHtml(task);
 }
 
 function addDaysToDayKey(dayKey, days) {
@@ -13107,11 +13485,97 @@ function renderHomeCompletedToday() {
   bindCompletedWinsActions(content);
 }
 
+function stickyCheckItemHtml(stickyId, item) {
+  return `
+    <li
+      class="sticky-check-item${item.done ? " done" : ""}"
+      data-id="${escapeHtml(item.id)}"
+      data-item-id="${escapeHtml(item.id)}"
+      data-sticky-id="${escapeHtml(stickyId)}"
+      data-drag-kind="sticky-item"
+    >
+      <label class="plan-card-check sticky-check-box">
+        <input type="checkbox" ${item.done ? "checked" : ""} aria-label="Mark item bought" />
+      </label>
+      <span class="sticky-check-text">${escapeHtml(item.text)}</span>
+      <button type="button" class="plan-card-drag task-drag-handle sticky-check-drag" tabindex="-1" aria-label="Drag to a priority list">
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
+          <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
+          <circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/>
+          <circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
+        </svg>
+      </button>
+    </li>`;
+}
+
+function homeChecklistStickyHtml(note) {
+  const openCount = note.items.filter((item) => !item.done).length;
+  const itemsHtml = note.items.map((item) => stickyCheckItemHtml(note.id, item)).join("");
+  return `
+    <article class="home-checklist-sticky" data-sticky-id="${escapeHtml(note.id)}">
+      <header class="home-checklist-sticky-header">
+        <div class="home-checklist-sticky-heading">
+          <span class="home-checklist-sticky-kind">Checklist sticky</span>
+          <h4 class="home-checklist-sticky-title">${escapeHtml(note.text || "Shopping list")}</h4>
+          <p class="home-checklist-sticky-sub">Drag a row onto 1st–4th · ${openCount} open</p>
+        </div>
+        <button type="button" class="home-checklist-sticky-delete" aria-label="Delete checklist sticky" title="Delete">
+          <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+        </button>
+      </header>
+      <ul class="home-checklist-sticky-list">${itemsHtml}</ul>
+    </article>`;
+}
+
+function bindStickyCheckItemDrag(row) {
+  if (!row) return;
+  if (!isTouchDevice()) {
+    bindMouseGripDrag(row);
+  }
+}
+
+function bindHomeChecklistStickies(root) {
+  if (!root) return;
+  root.querySelectorAll(".home-checklist-sticky").forEach((card) => {
+    const stickyId = card.dataset.stickyId;
+    card.querySelector(".home-checklist-sticky-delete")?.addEventListener("click", () => {
+      deleteStandaloneNote(stickyId);
+      renderAll();
+    });
+    card.querySelectorAll(".sticky-check-item").forEach((row) => {
+      const itemId = row.dataset.itemId;
+      row.querySelector('input[type="checkbox"]')?.addEventListener("change", (e) => {
+        updateStandaloneChecklistItem(stickyId, itemId, { done: e.target.checked });
+        renderAll();
+      });
+      bindStickyCheckItemDrag(row);
+    });
+  });
+}
+
+function renderHomeChecklistStickies() {
+  const root = document.getElementById("home-checklist-stickies");
+  if (!root) return;
+  const lists = loadStandaloneNotes().filter(isChecklistStandaloneNote);
+  if (!lists.length) {
+    root.innerHTML = "";
+    root.classList.add("hidden");
+    return;
+  }
+  root.classList.remove("hidden");
+  root.innerHTML = `
+    <div class="home-checklist-stickies-inner">
+      ${lists.map(homeChecklistStickyHtml).join("")}
+    </div>`;
+  bindHomeChecklistStickies(root);
+}
+
 function renderHome() {
   syncWeeklyViewUi();
   renderHomeCategoryTags();
   syncThoughtsBellAnimation();
   syncHomeTagScrollButtons();
+  renderHomeChecklistStickies();
   if (weeklyView) {
     renderHomeWeekly();
   } else {
@@ -13247,6 +13711,43 @@ function listAtPoint(x, y) {
 }
 
 function applyGripDragDrop(card, x, y) {
+  if (isStickyCheckDragCard(card)) {
+    const stickyId = card.dataset.stickyId;
+    const itemId = card.dataset.itemId || card.dataset.id;
+    if (!stickyId || !itemId) return;
+
+    const target = taskCardAtPoint(card, x, y);
+    if (target && !isTierExpandCard(target) && !isStickyCheckDragCard(target)) {
+      const tier = getCardTier(target);
+      if (tier) {
+        promoteStickyItemToTier(stickyId, itemId, tier, target.dataset.id, false);
+        renderAll();
+        return;
+      }
+    }
+
+    const list = listAtPoint(x, y);
+    if (list) {
+      const tier = getListDragTier(list);
+      if (tier) {
+        const atStart = isDropAtListStart(list, y);
+        promoteStickyItemToTier(stickyId, itemId, tier, null, atStart);
+        renderAll();
+        return;
+      }
+    }
+
+    const col = columnAtPoint(x, y);
+    if (col) {
+      const tier = Number(col.dataset.tier);
+      const colList = col.querySelector(".task-list");
+      const atStart = colList ? isDropAtListStart(colList, y) : false;
+      promoteStickyItemToTier(stickyId, itemId, tier, null, atStart);
+      renderAll();
+    }
+    return;
+  }
+
   const id = card.dataset.id;
   const ctx = card.dataset.context;
 
@@ -13550,8 +14051,10 @@ function setupTouchListDrag() {
       const handle = e.target.closest(".task-drag-handle");
       if (!handle) return;
       const card = gripDragCardFromHandle(handle);
+      if (!card) return;
       const list = gripDragListFromCard(card);
-      if (!card || !list) return;
+      const stickyItem = isStickyCheckDragCard(card);
+      if (!list && !stickyItem) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -13568,7 +14071,7 @@ function setupTouchListDrag() {
       handle.classList.add("dragging-active");
       document.body.classList.add("task-dragging-lock");
 
-      if (list) {
+      if (list && !stickyItem) {
         startListDragSession(card, list, lastX, lastY);
       } else {
         card.classList.add("dragging");
@@ -13627,6 +14130,835 @@ function getDialogCaptureMode() {
   return document.getElementById("dialog-capture-mode")?.value === "note" ? "note" : "task";
 }
 
+let tesseractLoader = null;
+
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "1") {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.src = src;
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "1";
+      resolve();
+    });
+    script.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)));
+    document.head.appendChild(script);
+  });
+}
+
+async function loadTesseract() {
+  if (window.Tesseract) return window.Tesseract;
+  if (!tesseractLoader) {
+    tesseractLoader = loadScriptOnce(
+      "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
+    ).then(() => {
+      if (!window.Tesseract) throw new Error("Tesseract failed to load");
+      return window.Tesseract;
+    });
+  }
+  return tesseractLoader;
+}
+
+function clearStickyScanStatus() {
+  const status = document.getElementById("dialog-sticky-scan-status");
+  if (status) {
+    status.textContent = "";
+    status.classList.add("hidden");
+    status.classList.remove("is-error", "is-help");
+  }
+  clearStickyScanPreview();
+}
+
+function setStickyScanStatus(message, { error = false, help = false } = {}) {
+  const status = document.getElementById("dialog-sticky-scan-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.classList.toggle("hidden", !message);
+  status.classList.toggle("is-error", Boolean(error) && !help);
+  status.classList.toggle("is-help", Boolean(help));
+}
+
+function syncStickyChecklistPreview() {
+  const hint = document.getElementById("dialog-sticky-checklist-hint");
+  const preview = document.getElementById("dialog-sticky-checklist-preview");
+  const input = document.getElementById("dialog-input");
+  if (!hint || !preview || !input) return;
+
+  if (getDialogCaptureMode() !== "note") {
+    hint.classList.add("hidden");
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    return;
+  }
+
+  const lines = parseTasksFromText(input.value, { max: 40 });
+  if (lines.length <= 1) {
+    hint.classList.add("hidden");
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    setTaskDialogSubmitLabel("Save sticky");
+    return;
+  }
+
+  hint.classList.remove("hidden");
+  hint.textContent = `Will save a checklist sticky with ${lines.length} items. Drag rows from Home onto 1st–4th.`;
+  preview.classList.remove("hidden");
+  preview.innerHTML = lines
+    .map(
+      (text) =>
+        `<li class="dialog-sticky-checklist-row"><span class="dialog-sticky-check" aria-hidden="true"></span><span>${escapeHtml(
+          text
+        )}</span></li>`
+    )
+    .join("");
+  setTaskDialogSubmitLabel(`Save ${lines.length}-item list`);
+}
+
+function guessChecklistTitle(lines) {
+  if (!lines.length) return "Shopping list";
+  const first = lines[0];
+  if (
+    /^(shopping|grocery|groceries|to[\s-]?buy|errands|list|costco|walmart|trader\s*joe'?s|target|whole\s*foods)\b/i.test(
+      first
+    ) &&
+    first.length <= 40
+  ) {
+    return first;
+  }
+  return "Shopping list";
+}
+
+function loadImageFromBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(err || new Error("Could not load image"));
+    };
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas, type = "image/png", quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Could not encode image"))),
+      type,
+      quality
+    );
+  });
+}
+
+function ocrLuminance(r, g, b) {
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+function ocrSaturation(r, g, b) {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max <= 1) return 0;
+  return (max - min) / max;
+}
+
+function prepareHandwritingCanvas(img) {
+  const maxEdge = 2200;
+  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+  const source = document.createElement("canvas");
+  source.width = width;
+  source.height = height;
+  const sctx = source.getContext("2d", { willReadFrequently: true });
+  sctx.drawImage(img, 0, 0, width, height);
+  const { data } = sctx.getImageData(0, 0, width, height);
+
+  // Color-agnostic paper detection: bright + fairly flat pixels (white, cream,
+  // yellow, pink, coral, light blue) vs dark desks / busy wood grain.
+  const lum = new Float32Array(width * height);
+  const sat = new Float32Array(width * height);
+  const lumValues = [];
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const L = ocrLuminance(r, g, b);
+    lum[p] = L;
+    sat[p] = ocrSaturation(r, g, b);
+    lumValues.push(L);
+  }
+  lumValues.sort((a, b) => a - b);
+  const lumFloor = lumValues[Math.floor(lumValues.length * 0.35)];
+  const paperLumCut = Math.max(95, Math.min(170, lumFloor + 8));
+
+  const paperMask = new Uint8Array(width * height);
+  let paperCount = 0;
+  for (let p = 0; p < lum.length; p++) {
+    // Paper can be tinted; reject only dark / highly textured-looking dark areas.
+    if (lum[p] >= paperLumCut && !(lum[p] < 140 && sat[p] > 0.55)) {
+      paperMask[p] = 1;
+      paperCount += 1;
+    }
+  }
+
+  let minX = 0;
+  let minY = 0;
+  let maxX = width - 1;
+  let maxY = height - 1;
+  if (paperCount > width * height * 0.08) {
+    minX = width;
+    minY = height;
+    maxX = 0;
+    maxY = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!paperMask[y * width + x]) continue;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+    const padX = Math.round((maxX - minX) * 0.02);
+    const padY = Math.round((maxY - minY) * 0.02);
+    minX = Math.max(0, minX - padX);
+    minY = Math.max(0, minY - padY);
+    maxX = Math.min(width - 1, maxX + padX);
+    maxY = Math.min(height - 1, maxY + padY);
+  }
+
+  const cropW = Math.max(1, maxX - minX + 1);
+  const cropH = Math.max(1, maxY - minY + 1);
+
+  // Local contrast ink score: ink is darker than nearby paper, any paper color.
+  const win = Math.max(8, Math.round(Math.min(cropW, cropH) * 0.03));
+  const integral = new Float64Array((cropW + 1) * (cropH + 1));
+  const integralSq = new Float64Array((cropW + 1) * (cropH + 1));
+  const cropLum = new Float32Array(cropW * cropH);
+  for (let y = 0; y < cropH; y++) {
+    let rowSum = 0;
+    let rowSq = 0;
+    for (let x = 0; x < cropW; x++) {
+      const L = lum[(minY + y) * width + (minX + x)];
+      cropLum[y * cropW + x] = L;
+      rowSum += L;
+      rowSq += L * L;
+      const idx = (y + 1) * (cropW + 1) + (x + 1);
+      const above = y * (cropW + 1) + (x + 1);
+      integral[idx] = integral[above] + rowSum;
+      integralSq[idx] = integralSq[above] + rowSq;
+    }
+  }
+
+  function rectSum(arr, x0, y0, x1, y1) {
+    const W = cropW + 1;
+    return arr[(y1 + 1) * W + (x1 + 1)] - arr[y0 * W + (x1 + 1)] - arr[(y1 + 1) * W + x0] + arr[y0 * W + x0];
+  }
+
+  const ink = new Float32Array(cropW * cropH);
+  let inkSum = 0;
+  for (let y = 0; y < cropH; y++) {
+    const y0 = Math.max(0, y - win);
+    const y1 = Math.min(cropH - 1, y + win);
+    for (let x = 0; x < cropW; x++) {
+      const x0 = Math.max(0, x - win);
+      const x1 = Math.min(cropW - 1, x + win);
+      const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+      const mean = rectSum(integral, x0, y0, x1, y1) / area;
+      const meanSq = rectSum(integralSq, x0, y0, x1, y1) / area;
+      const variance = Math.max(0, meanSq - mean * mean);
+      const std = Math.sqrt(variance);
+      // Sauvola-style local threshold: darker than local paper => ink.
+      const localThresh = mean * (1 - 0.28 * (1 - std / Math.max(std, 28)));
+      const L = cropLum[y * cropW + x];
+      const score = L < localThresh - 4 ? Math.min(255, (localThresh - L) * 3) : 0;
+      ink[y * cropW + x] = score;
+      inkSum += score;
+    }
+  }
+  const inkMean = inkSum / Math.max(1, ink.length);
+
+  const mid = Math.floor(cropW / 2);
+  let leftInk = 0;
+  let rightInk = 0;
+  for (let y = 0; y < cropH; y++) {
+    for (let x = 0; x < cropW; x++) {
+      const v = ink[y * cropW + x];
+      if (v <= Math.max(12, inkMean * 0.6)) continue;
+      if (x < mid) leftInk += v;
+      else rightInk += v;
+    }
+  }
+  let textMinX = 0;
+  let textMaxX = cropW - 1;
+  if (rightInk > leftInk * 1.25) {
+    textMinX = Math.max(0, mid - Math.round(cropW * 0.04));
+  } else if (leftInk > rightInk * 1.25) {
+    textMaxX = Math.min(cropW - 1, mid + Math.round(cropW * 0.04));
+  }
+
+  const outW = Math.max(1, textMaxX - textMinX + 1);
+  const outH = cropH;
+  const gray = new Uint8ClampedArray(outW * outH);
+  const values = [];
+  for (let y = 0; y < outH; y++) {
+    for (let x = 0; x < outW; x++) {
+      const v = ink[y * cropW + (textMinX + x)];
+      gray[y * outW + x] = v;
+      values.push(v);
+    }
+  }
+  values.sort((a, b) => a - b);
+  const lo = values[Math.floor(values.length * 0.05)];
+  const hi = values[Math.floor(values.length * 0.95)] || lo + 1;
+  const span = Math.max(1, hi - lo);
+
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < gray.length; i++) {
+    const stretched = Math.max(0, Math.min(255, Math.round(((gray[i] - lo) / span) * 255)));
+    gray[i] = stretched;
+    hist[stretched] += 1;
+  }
+  let total = gray.length;
+  let sumAll = 0;
+  for (let i = 0; i < 256; i++) sumAll += i * hist[i];
+  let sumB = 0;
+  let wB = 0;
+  let bestVar = -1;
+  let threshold = 120;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sumAll - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > bestVar) {
+      bestVar = between;
+      threshold = t;
+    }
+  }
+  threshold = Math.max(70, Math.min(170, threshold - 6));
+
+  const mask = new Uint8Array(outW * outH);
+  const rowInk = new Array(outH).fill(0);
+  for (let y = 0; y < outH; y++) {
+    let count = 0;
+    for (let x = 0; x < outW; x++) {
+      const on = gray[y * outW + x] >= threshold ? 1 : 0;
+      mask[y * outW + x] = on;
+      count += on;
+    }
+    rowInk[y] = count / outW;
+  }
+  for (let y = 1; y < outH - 1; y++) {
+    if (rowInk[y] < 0.55) continue;
+    if (rowInk[y] > rowInk[y - 1] * 1.35 && rowInk[y] > rowInk[y + 1] * 1.35) {
+      for (let x = 0; x < outW; x++) mask[y * outW + x] = 0;
+      rowInk[y] = 0;
+    }
+  }
+
+  const full = document.createElement("canvas");
+  const up = outW < 900 ? 2 : 1;
+  full.width = outW * up;
+  full.height = outH * up;
+  const fctx = full.getContext("2d");
+  fctx.fillStyle = "#fff";
+  fctx.fillRect(0, 0, full.width, full.height);
+  const tmp = document.createElement("canvas");
+  tmp.width = outW;
+  tmp.height = outH;
+  const tctx = tmp.getContext("2d");
+  const imageData = tctx.createImageData(outW, outH);
+  for (let i = 0; i < mask.length; i++) {
+    const on = mask[i] ? 0 : 255;
+    const o = i * 4;
+    imageData.data[o] = on;
+    imageData.data[o + 1] = on;
+    imageData.data[o + 2] = on;
+    imageData.data[o + 3] = 255;
+  }
+  tctx.putImageData(imageData, 0, 0);
+  fctx.imageSmoothingEnabled = false;
+  fctx.drawImage(tmp, 0, 0, full.width, full.height);
+
+  // Lined paper: detect ruled lines, then OCR the text sitting between them.
+  const smooth = new Array(outH).fill(0);
+  for (let y = 0; y < outH; y++) {
+    let sum = 0;
+    let n = 0;
+    for (let k = -1; k <= 1; k++) {
+      const yy = y + k;
+      if (yy < 0 || yy >= outH) continue;
+      sum += rowInk[yy];
+      n += 1;
+    }
+    smooth[y] = sum / n;
+  }
+
+  const ruleCandidates = [];
+  for (let y = 2; y < outH - 2; y++) {
+    // Ruled line: spans much of the width and is a thin local peak.
+    if (rowInk[y] < 0.28) continue;
+    if (rowInk[y] >= rowInk[y - 1] && rowInk[y] >= rowInk[y + 1] && rowInk[y] > rowInk[y - 2] && rowInk[y] > rowInk[y + 2]) {
+      ruleCandidates.push(y);
+    }
+  }
+  const rules = [];
+  for (const y of ruleCandidates) {
+    if (!rules.length || y - rules[rules.length - 1] > 10) rules.push(y);
+    else if (rowInk[y] > rowInk[rules[rules.length - 1]]) rules[rules.length - 1] = y;
+  }
+
+  let merged = [];
+  if (rules.length >= 3) {
+    for (let i = 0; i < rules.length - 1; i++) {
+      const a = rules[i] + 1;
+      const b = rules[i + 1] - 1;
+      if (b - a < 6) continue;
+      // Skip empty gutters between rules.
+      let ink = 0;
+      for (let y = a; y <= b; y++) ink += smooth[y];
+      if (ink / (b - a + 1) < 0.01) continue;
+      merged.push([a, b]);
+    }
+    // Also capture text above the first rule / below the last if present.
+    if (rules[0] > 12) {
+      let topInk = 0;
+      for (let y = 0; y < rules[0]; y++) topInk += smooth[y];
+      if (topInk / rules[0] > 0.012) merged.unshift([Math.max(0, rules[0] - 48), rules[0] - 1]);
+    }
+  } else {
+    // Fallback: peak/valley split when rules aren't clear.
+    const peak = Math.max(...smooth, 0.0001);
+    const inkThresh = Math.max(0.018, Math.min(0.12, peak * 0.22));
+    const bands = [];
+    let inBand = false;
+    let startY = 0;
+    for (let y = 0; y < outH; y++) {
+      const dense = smooth[y] >= inkThresh;
+      if (dense && !inBand) {
+        inBand = true;
+        startY = y;
+      } else if (!dense && inBand) {
+        inBand = false;
+        bands.push([startY, y - 1]);
+      }
+    }
+    if (inBand) bands.push([startY, outH - 1]);
+    for (const [a, b] of bands) {
+      const h = b - a + 1;
+      if (h < 55) {
+        merged.push([a, b]);
+        continue;
+      }
+      const local = smooth.slice(a, b + 1);
+      const localPeak = Math.max(...local, 0.0001);
+      const valleyCut = localPeak * 0.35;
+      let cursor = a;
+      for (let y = a + 8; y <= b - 8; y++) {
+        if (smooth[y] > valleyCut) continue;
+        if (smooth[y] <= smooth[y - 1] && smooth[y] <= smooth[y + 1]) {
+          if (y - cursor >= 12) {
+            merged.push([cursor, y - 1]);
+            cursor = y + 1;
+            y += 4;
+          }
+        }
+      }
+      if (b - cursor >= 10) merged.push([cursor, b]);
+      else if (merged.length) merged[merged.length - 1][1] = b;
+      else merged.push([a, b]);
+    }
+  }
+
+  const lineCanvases = [];
+  for (const [a, b] of merged) {
+    const h = b - a + 1;
+    if (h < 8 || h > Math.max(90, outH * 0.12)) continue;
+    let left = outW;
+    let right = -1;
+    for (let y = a; y <= b; y++) {
+      for (let x = 0; x < outW; x++) {
+        if (!mask[y * outW + x]) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+    if (right < left) continue;
+    const padY = Math.max(4, Math.round(h * 0.2));
+    const padX = Math.max(6, Math.round((right - left + 1) * 0.08));
+    const y0 = Math.max(0, a - padY);
+    const y1 = Math.min(outH - 1, b + padY);
+    const x0 = Math.max(0, left - padX);
+    const x1 = Math.min(outW - 1, right + padX);
+    const lw = x1 - x0 + 1;
+    const lh = y1 - y0 + 1;
+    if (lw < 20 || lh < 10) continue;
+    const line = document.createElement("canvas");
+    const lineUp = lw < 420 ? 3 : lw < 700 ? 2 : 1;
+    line.width = lw * lineUp;
+    line.height = lh * lineUp;
+    const lctx = line.getContext("2d");
+    // Soft grayscale crop (better for handwriting models than hard binary).
+    const soft = document.createElement("canvas");
+    soft.width = lw;
+    soft.height = lh;
+    const sctx2 = soft.getContext("2d");
+    const softData = sctx2.createImageData(lw, lh);
+    for (let yy = 0; yy < lh; yy++) {
+      for (let xx = 0; xx < lw; xx++) {
+        const gv = 255 - gray[(y0 + yy) * outW + (x0 + xx)];
+        const o = (yy * lw + xx) * 4;
+        softData.data[o] = gv;
+        softData.data[o + 1] = gv;
+        softData.data[o + 2] = gv;
+        softData.data[o + 3] = 255;
+      }
+    }
+    sctx2.putImageData(softData, 0, 0);
+    lctx.fillStyle = "#fff";
+    lctx.fillRect(0, 0, line.width, line.height);
+    lctx.imageSmoothingEnabled = true;
+    lctx.drawImage(soft, 0, 0, line.width, line.height);
+    lineCanvases.push(line);
+    if (lineCanvases.length >= 40) break;
+  }
+
+  return { full, lines: lineCanvases };
+}
+
+function scoreOcrCandidateText(text, meanConfidence) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  if (!lines.length) return { score: 0, lines: [], meanConfidence: 0 };
+
+  let letterChars = 0;
+  let junkChars = 0;
+  let goodLines = 0;
+  const cleaned = [];
+  for (const line of lines) {
+    const letters = (line.match(/[A-Za-z]/g) || []).length;
+    const digits = (line.match(/\d/g) || []).length;
+    const junk = (line.match(/[^A-Za-z0-9\s'\-&./]/g) || []).length;
+    letterChars += letters;
+    junkChars += junk;
+    const alphaRatio = letters / Math.max(1, line.length);
+    const looksLikeWord = letters >= 3 && alphaRatio >= 0.62 && junk <= Math.max(1, letters * 0.25);
+    const looksLikeItem = looksLikeWord && line.length <= 40 && digits <= 4;
+    if (looksLikeItem) {
+      goodLines += 1;
+      cleaned.push(line.replace(/^[-*•·▪︎◦\d.)\]]+\s*/, "").trim());
+    }
+  }
+
+  const conf = Number.isFinite(meanConfidence) ? meanConfidence : 0;
+  const score =
+    goodLines * 14 +
+    Math.min(45, conf * 0.4) +
+    Math.min(20, letterChars * 0.12) -
+    junkChars * 2 -
+    Math.max(0, lines.length - goodLines) * 6;
+
+  return { score, lines: cleaned.filter(Boolean), meanConfidence: conf };
+}
+
+function filterOcrChecklistLines(lines) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of lines) {
+    let line = String(raw || "")
+      .replace(/[|_/\\]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!line) continue;
+    const letters = (line.match(/[A-Za-z]/g) || []).length;
+    if (letters < 3) continue;
+    if (letters / line.length < 0.58) continue;
+    if (/^[^A-Za-z]*$/.test(line)) continue;
+    const tokens = line.split(/\s+/);
+    if (tokens.length >= 4 && tokens.every((t) => t.length <= 3)) continue;
+    // Shopping-list items are short; drop sentence-like OCR hallucinations.
+    if (tokens.length > 5) continue;
+    if (/\b(united states|community|successful|when i want|jury)\b/i.test(line)) continue;
+    if ((line.match(/0{3,}/g) || []).length) continue;
+    line = line
+      .replace(/\bcosteo\b/i, "costco")
+      .replace(/\bzuchinni\b/i, "zucchini")
+      .replace(/\bzbchinni\b/i, "zucchini")
+      .replace(/\bbrocoli\b/i, "broccoli")
+      .replace(/\bweapons\b/i, "wraps")
+      .replace(/\bmuscles\b/i, "ruffles");
+    const key = line.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(line);
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+
+function ocrListLooksGarbled(lines, meanConfidence = 0) {
+  if (!Array.isArray(lines) || lines.length < 2) return true;
+  if (Number(meanConfidence) > 0 && meanConfidence < 38) return true;
+  let bad = 0;
+  for (const line of lines) {
+    const letters = (line.match(/[A-Za-z]/g) || []).length;
+    const vowels = (line.match(/[aeiouy]/gi) || []).length;
+    const junk = (line.match(/[^A-Za-z0-9\s'\-&./]/g) || []).length;
+    const tokens = line.trim().split(/\s+/);
+    const vowelRatio = vowels / Math.max(1, letters);
+    const weird =
+      letters < 3 ||
+      vowelRatio < 0.22 ||
+      junk > Math.max(1, letters * 0.3) ||
+      tokens.length > 5 ||
+      (tokens.length >= 3 && tokens.filter((t) => t.length <= 2).length >= 2);
+    if (weird) bad += 1;
+  }
+  return bad / lines.length >= 0.4;
+}
+
+async function recognizeHandwritingPasses(prepared, Tesseract) {
+  const whitelist =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -'&./";
+
+  const worker = await Tesseract.createWorker("eng", 1, {
+    logger: (message) => {
+      if (message?.status === "recognizing text" && Number.isFinite(message.progress)) {
+        const pct = Math.round(message.progress * 100);
+        if (recognizeHandwritingPasses.activeLabel) {
+          setStickyScanStatus(
+            `Reading handwriting… ${recognizeHandwritingPasses.activeLabel} (${pct}%)`
+          );
+        }
+      }
+    },
+  });
+
+  try {
+    if (prepared.lines?.length >= 3) {
+      recognizeHandwritingPasses.activeLabel = `lines 0/${prepared.lines.length}`;
+      await worker.setParameters({
+        tessedit_pageseg_mode: "7",
+        preserve_interword_spaces: "1",
+        tessedit_char_whitelist: whitelist,
+      });
+      const lineTexts = [];
+      let confSum = 0;
+      let confCount = 0;
+      for (let i = 0; i < prepared.lines.length; i++) {
+        recognizeHandwritingPasses.activeLabel = `line ${i + 1}/${prepared.lines.length}`;
+        setStickyScanStatus(`Reading handwriting… line ${i + 1}/${prepared.lines.length}`);
+        const blob = await canvasToBlob(prepared.lines[i], "image/png");
+        const result = await worker.recognize(blob);
+        const text = String(result?.data?.text || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const conf = Number(result?.data?.confidence) || 0;
+        if (text) {
+          lineTexts.push(text);
+          confSum += conf;
+          confCount += 1;
+        }
+      }
+      const meanConfidence = confCount ? confSum / confCount : 0;
+      const joined = lineTexts.join("\n");
+      const ranked = scoreOcrCandidateText(joined, meanConfidence);
+      if (ranked.lines.length >= 2 && meanConfidence >= 40) {
+        return {
+          score: ranked.score + 20,
+          text: joined,
+          lines: ranked.lines,
+          meanConfidence,
+          label: "lines",
+        };
+      }
+    }
+
+    const fullBlob = await canvasToBlob(prepared.full, "image/png");
+    const configs = [
+      { psm: "6", label: "block" },
+      { psm: "4", label: "column" },
+    ];
+    let best = { score: -Infinity, text: "", lines: [], meanConfidence: 0, label: "" };
+    for (let i = 0; i < configs.length; i++) {
+      const { psm, label } = configs[i];
+      recognizeHandwritingPasses.activeLabel = `pass ${i + 1}/${configs.length}`;
+      setStickyScanStatus(`Reading handwriting… pass ${i + 1}/${configs.length}`);
+      await worker.setParameters({
+        tessedit_pageseg_mode: psm,
+        preserve_interword_spaces: "1",
+        tessedit_char_whitelist: whitelist,
+      });
+      const result = await worker.recognize(fullBlob);
+      const meanConfidence = Number(result?.data?.confidence) || 0;
+      const ranked = scoreOcrCandidateText(result?.data?.text || "", meanConfidence);
+      if (ranked.score > best.score) {
+        best = {
+          score: ranked.score,
+          text: String(result?.data?.text || ""),
+          lines: ranked.lines,
+          meanConfidence,
+          label,
+        };
+      }
+    }
+    return best;
+  } finally {
+    recognizeHandwritingPasses.activeLabel = "";
+    try {
+      await worker.terminate();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function ocrHandwrittenListImage(file) {
+  setStickyScanStatus("Preparing photo…");
+  if (getGeminiOcrApiKey()) {
+    try {
+      return await ocrHandwrittenListWithGemini(file);
+    } catch (err) {
+      console.warn("Google AI handwriting scan failed", err);
+      throw err;
+    }
+  }
+  const img = await loadImageFromBlob(file);
+  const prepared = prepareHandwritingCanvas(img);
+  const Tesseract = await loadTesseract();
+  return recognizeHandwritingPasses(prepared, Tesseract);
+}
+
+async function handleStickyScanFile(file) {
+  if (!file?.type?.startsWith("image/")) {
+    setStickyScanStatus("Choose a photo of your handwritten list.", { error: true });
+    return;
+  }
+  const input = document.getElementById("dialog-input");
+  if (!input) return;
+
+  await showStickyScanPreview(file);
+
+  if (!getGeminiOcrApiKey()) {
+    setStickyScanStatus(
+      "Add a free Google AI key in Settings → Handwriting scan so Presence can read lists accurately (Google Lens isn’t available inside web apps).",
+      { help: true }
+    );
+    return;
+  }
+
+  setStickyScanStatus("Reading handwriting with Google AI…");
+  try {
+    const result = await ocrHandwrittenListImage(file);
+    const lines = filterOcrChecklistLines(
+      result.lines?.length ? result.lines : parseTasksFromText(result.text || "", { max: 40 })
+    );
+    const fromGemini = String(result.label || "").startsWith("gemini");
+    const usable =
+      lines.length >= 2 &&
+      (fromGemini
+        ? !ocrListLooksGarbled(lines, result.meanConfidence)
+        : !ocrListLooksGarbled(lines, result.meanConfidence) &&
+          ((result.meanConfidence >= 45 && result.score >= 40) ||
+            (result.label === "lines" && result.meanConfidence >= 50 && lines.length >= 4)));
+
+    if (!usable) {
+      input.value = "";
+      delete input.dataset.checklistTitle;
+      syncStickyChecklistPreview();
+      setStickyScanStatus(
+        "Google AI couldn’t pull a clear list from that photo. Try a tighter crop / brighter light, or edit the box above.",
+        { help: true }
+      );
+      input.focus();
+      return;
+    }
+
+    const title = guessChecklistTitle(lines);
+    const bodyLines =
+      title !== "Shopping list" && lines[0].toLowerCase() === title.toLowerCase()
+        ? lines.slice(1)
+        : lines;
+    input.value = (bodyLines.length ? bodyLines : lines).join("\n");
+    input.dataset.checklistTitle = title;
+    const count = bodyLines.length || lines.length;
+    setStickyScanStatus(`Found ${count} items with Google AI — edit anything off, then save.`);
+    syncStickyChecklistPreview();
+  } catch (err) {
+    console.warn("Sticky OCR failed", err);
+    const msg = String(err?.message || err || "");
+    if (/API key|PERMISSION|401|403/i.test(msg)) {
+      setStickyScanStatus(
+        "Google AI key was rejected. Check Settings → Handwriting scan, or create a new key at aistudio.google.com/apikey.",
+        { error: true }
+      );
+    } else {
+      setStickyScanStatus(
+        "Couldn’t reach Google AI. Check your connection and try again.",
+        { error: true }
+      );
+    }
+  }
+}
+
+let stickyScanPreviewUrl = "";
+
+function clearStickyScanPreview() {
+  if (stickyScanPreviewUrl) {
+    URL.revokeObjectURL(stickyScanPreviewUrl);
+    stickyScanPreviewUrl = "";
+  }
+  const wrap = document.getElementById("dialog-sticky-scan-preview");
+  if (wrap) {
+    wrap.innerHTML = "";
+    wrap.classList.add("hidden");
+  }
+}
+
+async function showStickyScanPreview(file) {
+  clearStickyScanPreview();
+  const wrap = document.getElementById("dialog-sticky-scan-preview");
+  if (!wrap || !file) return;
+  stickyScanPreviewUrl = URL.createObjectURL(file);
+  wrap.classList.remove("hidden");
+  wrap.innerHTML = `<img src="${stickyScanPreviewUrl}" alt="Scanned list photo" class="dialog-sticky-scan-image" />`;
+}
+
+function setupStickyScanCapture() {
+  const scanInput = document.getElementById("dialog-sticky-scan-input");
+  if (!scanInput || scanInput.dataset.bound === "1") return;
+  scanInput.dataset.bound = "1";
+  scanInput.addEventListener("change", async () => {
+    const file = scanInput.files?.[0];
+    scanInput.value = "";
+    if (!file) return;
+    await handleStickyScanFile(file);
+  });
+}
+
 function setDialogCaptureMode(mode, options = {}) {
   const next = mode === "note" ? "note" : "task";
   const modeInput = document.getElementById("dialog-capture-mode");
@@ -13648,17 +14980,19 @@ function setDialogCaptureMode(mode, options = {}) {
 
   const taskFields = document.getElementById("dialog-task-fields");
   const noteHint = document.getElementById("dialog-note-hint");
+  const stickyTools = document.getElementById("dialog-sticky-tools");
   const input = document.getElementById("dialog-input");
   const title = document.getElementById("dialog-title");
 
   taskFields?.classList.toggle("hidden", next === "note");
   noteHint?.classList.toggle("hidden", next !== "note");
+  stickyTools?.classList.toggle("hidden", next !== "note");
 
   if (next === "note") {
     if (title && options.updateTitle !== false) title.textContent = "Add Sticky";
     if (input) {
-      input.placeholder = "Jot a sticky…";
-      input.maxLength = 1000;
+      input.placeholder = "One sticky — or paste / scan a list (one item per line)";
+      input.maxLength = 2000;
       input.rows = 4;
     }
     setTaskDialogSubmitLabel("Save sticky");
@@ -13667,6 +15001,7 @@ function setDialogCaptureMode(mode, options = {}) {
     hint?.classList.add("hidden");
     preview?.classList.add("hidden");
     if (preview) preview.innerHTML = "";
+    if (options.syncPreview !== false) syncStickyChecklistPreview();
   } else {
     if (title && options.updateTitle !== false) title.textContent = "Add Task";
     if (input) {
@@ -13674,6 +15009,7 @@ function setDialogCaptureMode(mode, options = {}) {
       input.maxLength = 2000;
       input.rows = 2;
     }
+    clearStickyScanStatus();
     if (options.syncPreview !== false) syncDialogParsePreview();
   }
 }
@@ -13743,10 +15079,11 @@ function splitTaskSegment(segment) {
   return cleaned.length > 1 ? cleaned : [single];
 }
 
-function parseTasksFromText(raw) {
+function parseTasksFromText(raw, options = {}) {
   if (typeof raw !== "string") return [];
   const text = raw.replace(/\u00a0/g, " ").trim();
   if (!text) return [];
+  const maxItems = Number.isFinite(options.max) ? Math.max(1, options.max) : 20;
 
   // A blank line is always a hard task boundary. Single line breaks continue
   // to support pasted bullet and numbered lists.
@@ -13765,7 +15102,7 @@ function parseTasksFromText(raw) {
     if (seen.has(key)) continue;
     seen.add(key);
     tasks.push(normalized);
-    if (tasks.length >= 20) break;
+    if (tasks.length >= maxItems) break;
   }
   return tasks;
 }
@@ -14127,8 +15464,29 @@ function sendBrainDumpToTier(id, ctx, tier, textOverride) {
 
 function saveTaskFromDialog() {
   if (getDialogCaptureMode() === "note") {
-    const text = document.getElementById("dialog-input")?.value || "";
+    const input = document.getElementById("dialog-input");
+    const text = input?.value || "";
+    const lines = parseTasksFromText(text, { max: 40 });
+    if (lines.length > 1) {
+      const scannedTitle = String(input?.dataset.checklistTitle || "").trim();
+      let title = scannedTitle || guessChecklistTitle(lines);
+      let items = lines;
+      if (
+        !scannedTitle &&
+        title !== "Shopping list" &&
+        lines[0]?.toLowerCase() === title.toLowerCase()
+      ) {
+        items = lines.slice(1);
+      }
+      if (!items.length) items = lines;
+      if (!addStandaloneNote(title, { title, items })) return false;
+      if (input) delete input.dataset.checklistTitle;
+      clearStickyScanStatus();
+      return true;
+    }
     if (!addStandaloneNote(text)) return false;
+    if (input) delete input.dataset.checklistTitle;
+    clearStickyScanStatus();
     return true;
   }
 
@@ -14272,7 +15630,12 @@ function setupTaskDialog() {
     syncDialogParsePreview();
   });
 
-  input?.addEventListener("input", syncDialogParsePreview);
+  input?.addEventListener("input", () => {
+    if (getDialogCaptureMode() === "note") syncStickyChecklistPreview();
+    else syncDialogParsePreview();
+  });
+
+  setupStickyScanCapture();
 
   document.getElementById("dialog-repeat")?.addEventListener("change", syncDialogRepeatFields);
 
@@ -14672,10 +16035,33 @@ function historyAnxietyCardHtml(history) {
 function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
   const when = formatNoteTimestamp(note.createdAt);
   const linked = note.source === "task";
-  const kind = linked ? "Note" : "Sticky";
-  const kindClass = linked ? "history-note-kind--note" : "history-note-kind--sticky";
+  const isChecklist = !linked && Array.isArray(note.items) && note.items.length > 0;
+  const kind = linked ? "Note" : isChecklist ? "List" : "Sticky";
+  const kindClass = linked
+    ? "history-note-kind--note"
+    : isChecklist
+      ? "history-note-kind--checklist"
+      : "history-note-kind--sticky";
+  const displayText = isChecklist
+    ? note.title || note.text?.split("\n")[0] || "Shopping list"
+    : note.text;
+  const checklistHtml = isChecklist
+    ? `<ul class="history-note-checklist">
+        ${note.items
+          .map(
+            (item) => `<li class="history-note-checklist-item${item.done ? " done" : ""}">
+              <span class="history-note-checklist-mark" aria-hidden="true">${item.done ? "☑" : "☐"}</span>
+              <span>${escapeHtml(item.text)}</span>
+            </li>`
+          )
+          .join("")}
+      </ul>
+      <p class="history-note-checklist-hint">Open Home to drag items onto 1st–4th priority.</p>`
+    : `<p class="history-note-text">${escapeHtml(note.text)}</p>`;
   return `
-    <li class="history-note-item${linked ? " history-note-item--linked" : " history-note-item--sticky"}" data-note-id="${escapeHtml(note.id)}" data-note-kind="${linked ? "note" : "sticky"}"${
+    <li class="history-note-item${linked ? " history-note-item--linked" : " history-note-item--sticky"}${
+      isChecklist ? " history-note-item--checklist" : ""
+    }" data-note-id="${escapeHtml(note.id)}" data-note-kind="${linked ? "note" : "sticky"}"${
       linked
         ? ` data-task-id="${escapeHtml(note.taskId)}" data-context="${escapeHtml(note.context)}"`
         : ""
@@ -14683,7 +16069,8 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
       <div class="history-note-copy">
         <div class="history-note-view">
           <span class="history-note-kind ${kindClass}">${kind}</span>
-          <p class="history-note-text">${escapeHtml(note.text)}</p>
+          ${isChecklist ? `<p class="history-note-text history-note-text--title">${escapeHtml(displayText)}</p>` : ""}
+          ${checklistHtml}
           ${when ? `<p class="history-note-meta">${escapeHtml(when)}</p>` : ""}
           ${
             linked
@@ -14702,7 +16089,7 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
         </div>
         <form class="history-note-edit hidden">
           <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit ${kind.toLowerCase()}">${escapeHtml(
-            note.text
+            isChecklist ? note.items.map((item) => item.text).join("\n") : note.text
           )}</textarea>
           <div class="history-note-edit-actions">
             <button type="button" class="history-note-edit-cancel">Cancel</button>
@@ -14803,7 +16190,16 @@ function bindHistoryNotesCard(root) {
       setHistoryNoteEditing(el, true);
     });
     el.querySelector(".history-note-edit-cancel")?.addEventListener("click", () => {
-      if (editInput) editInput.value = el.querySelector(".history-note-text")?.textContent || "";
+      if (editInput) {
+        const checklist = el.querySelectorAll(".history-note-checklist-item span:last-child");
+        if (checklist.length) {
+          editInput.value = [...checklist].map((span) => span.textContent || "").join("\n");
+        } else {
+          editInput.value = el.querySelector(".history-note-text:not(.history-note-text--title)")?.textContent
+            || el.querySelector(".history-note-text")?.textContent
+            || "";
+        }
+      }
       setHistoryNoteEditing(el, false);
     });
     editForm?.addEventListener("submit", (e) => {

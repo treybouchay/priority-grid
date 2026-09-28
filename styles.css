@@ -5180,6 +5180,272 @@ dialog {
   display: none !important;
 }
 
+.dialog-sticky-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.dialog-sticky-tools.hidden {
+  display: none;
+}
+
+.dialog-sticky-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.dialog-sticky-scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px dashed rgba(14, 48, 48, 0.28);
+  border-radius: 0.7rem;
+  background: rgba(253, 249, 244, 0.9);
+  color: #11302c;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.dialog-sticky-scan-btn:hover {
+  border-color: rgba(14, 48, 48, 0.45);
+  background: #fff;
+}
+
+.dialog-sticky-scan-status {
+  margin: 0;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(14, 48, 48, 0.62);
+}
+
+.dialog-sticky-scan-status.is-error {
+  color: #9b3b2f;
+}
+
+
+.settings-ocr-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: stretch;
+  margin-top: 0.35rem;
+}
+
+.settings-ocr-row .settings-text-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.settings-ocr-status {
+  margin-top: 0.45rem;
+  font-weight: 600;
+  color: rgba(14, 48, 48, 0.72);
+}
+
+.dialog-sticky-scan-status.is-help {
+  color: rgba(14, 48, 48, 0.72);
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  background: rgba(14, 48, 48, 0.05);
+}
+
+.dialog-sticky-scan-preview {
+  margin: 0.15rem 0 0;
+  border-radius: 0.75rem;
+  overflow: auto;
+  border: 1px solid rgba(14, 48, 48, 0.12);
+  background: #fff;
+  max-height: min(42vh, 18rem);
+}
+
+.dialog-sticky-scan-preview.hidden {
+  display: none;
+}
+
+.dialog-sticky-scan-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(42vh, 18rem);
+  object-fit: contain;
+  background: #f7f3ec;
+}
+
+.dialog-sticky-checklist-hint {
+  margin: 0;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(14, 48, 48, 0.55);
+}
+
+.dialog-sticky-checklist-preview {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid rgba(14, 48, 48, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 252, 246, 0.95);
+  max-height: 10rem;
+  overflow: auto;
+}
+
+.dialog-sticky-checklist-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.28rem 0;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.8125rem;
+  color: #11302c;
+}
+
+.dialog-sticky-check {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: 0.15rem;
+  border: 1.5px solid rgba(14, 48, 48, 0.35);
+  border-radius: 0.25rem;
+  background: #fff;
+}
+
+.home-checklist-stickies {
+  margin: 0 0 1rem;
+}
+
+.home-checklist-stickies.hidden {
+  display: none;
+}
+
+.home-checklist-stickies-inner {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.home-checklist-sticky {
+  border: 1px solid rgba(14, 48, 48, 0.1);
+  border-radius: 1rem;
+  background:
+    linear-gradient(160deg, rgba(255, 248, 214, 0.95), rgba(255, 252, 236, 0.92)),
+    #fff8d6;
+  box-shadow: 0 10px 28px rgba(17, 48, 44, 0.08);
+  padding: 0.85rem 0.9rem 0.7rem;
+}
+
+.home-checklist-sticky-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.home-checklist-sticky-kind {
+  display: inline-block;
+  margin-bottom: 0.2rem;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+.home-checklist-sticky-title {
+  margin: 0;
+  font-family: var(--font-display, "Fraunces", Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #11302c;
+  line-height: 1.25;
+}
+
+.home-checklist-sticky-sub {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  color: rgba(17, 48, 44, 0.55);
+}
+
+.home-checklist-sticky-delete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.45);
+  cursor: pointer;
+}
+
+.home-checklist-sticky-delete:hover {
+  background: rgba(17, 48, 44, 0.06);
+  color: #11302c;
+}
+
+.home-checklist-sticky-delete .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.home-checklist-sticky-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sticky-check-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.25rem 0.35rem 0.25rem 0.2rem;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.sticky-check-item.done .sticky-check-text {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.sticky-check-item.dragging {
+  opacity: 0.35;
+}
+
+.sticky-check-text {
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: #11302c;
+  line-height: 1.3;
+}
+
+.sticky-check-drag {
+  opacity: 0.55;
+}
+
+@media (min-width: 769px) {
+  .home-checklist-stickies-inner {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+}
+
 #task-dialog .dialog-task-input {
   min-height: 3.25rem;
   padding-top: 0.55rem;
@@ -5987,22 +6253,30 @@ dialog {
   display: block;
 }
 
+.task-added-age,
 .task-stale-age {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   align-self: center;
-  min-width: 3.1rem;
+  min-width: 2.6rem;
   height: 1.15rem;
   padding: 0 0.4rem;
   border-radius: 999px;
-  background: rgba(138, 67, 36, 0.1);
-  color: rgba(138, 67, 36, 0.72);
+  background: rgba(14, 48, 48, 0.06);
+  color: rgba(14, 48, 48, 0.48);
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
+  white-space: nowrap;
+}
+
+.task-added-age--stale,
+.task-stale-age {
+  background: rgba(138, 67, 36, 0.1);
+  color: rgba(138, 67, 36, 0.72);
 }
 
 .task-title-with-age {
@@ -6020,6 +6294,7 @@ dialog {
   min-width: 0;
 }
 
+.plan-card-task > .task-added-age,
 .plan-card-task > .task-stale-age {
   margin-right: 0.15rem;
 }
