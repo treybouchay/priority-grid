@@ -3284,3 +3284,559 @@ html[data-hero-wallpaper="night"] body[data-page="home"] .presence-focus-label {
     background: linear-gradient(to left, rgba(253, 249, 244, 0.98), rgba(253, 249, 244, 0));
   }
 }
+
+/* —— Focus screensaver —— */
+body[data-page="home"] .focus-timer-screen-btn {
+  border: 1.5px solid rgba(255, 219, 210, 0.45);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  background: transparent;
+  color: var(--peach-on-forest, #ffdbd2);
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+body[data-page="home"] .focus-timer-screen-btn:hover {
+  background: rgba(255, 219, 210, 0.12);
+  border-color: rgba(255, 219, 210, 0.7);
+}
+
+body[data-page="home"] .focus-timer-card.is-done .focus-timer-screen-btn {
+  border-color: rgba(14, 48, 48, 0.25);
+  color: #0e3030;
+}
+
+.focus-timer-mini-screen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(255, 219, 210, 0.14);
+  color: var(--ft-ink, var(--peach-on-forest, #ffdbd2));
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.focus-timer-mini-screen svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.focus-timer-mini.is-done .focus-timer-mini-screen {
+  background: rgba(14, 48, 48, 0.1);
+  color: #0e3030;
+}
+
+html.focus-screensaver-open,
+body.focus-screensaver-open {
+  overflow: hidden;
+}
+
+.focus-screensaver {
+  --ss-surface: #0e3030;
+  --ss-ink: #ffdbd2;
+  --ss-ink-muted: rgba(255, 219, 210, 0.72);
+  --ss-panel: transparent;
+  --ss-panel-border: rgba(253, 249, 244, 0.32);
+  --ss-row: rgba(14, 48, 48, 0.38);
+  --ss-row-border: rgba(255, 219, 210, 0.28);
+  --ss-btn: #ffdbd2;
+  --ss-btn-ink: #0e3030;
+  --ss-exit-bg: rgba(253, 249, 244, 0.14);
+  --ss-check-border: rgba(255, 219, 210, 0.5);
+  --ss-check-fill: #ffdbd2;
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  background-color: var(--ss-surface);
+  background-image: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: var(--ss-ink);
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  transition: background-color 0.55s ease, color 0.45s ease;
+}
+
+.focus-screensaver[data-bg="hills"],
+.focus-screensaver[data-bg="falls"],
+.focus-screensaver[data-bg="sunset"] {
+  background-color: #0e3030;
+}
+
+.focus-screensaver[data-bg="hills"] {
+  background-image:
+    linear-gradient(180deg, rgba(14, 48, 48, 0.28) 0%, rgba(14, 48, 48, 0.12) 35%, rgba(14, 48, 48, 0.45) 100%),
+    url("../assets/focus/mist-hills.png");
+}
+
+.focus-screensaver[data-bg="falls"] {
+  background-image:
+    linear-gradient(180deg, rgba(14, 48, 48, 0.28) 0%, rgba(14, 48, 48, 0.12) 35%, rgba(14, 48, 48, 0.45) 100%),
+    url("../assets/focus/mist-falls.png");
+}
+
+.focus-screensaver[data-bg="sunset"] {
+  background-image:
+    linear-gradient(180deg, rgba(14, 48, 48, 0.22) 0%, rgba(14, 48, 48, 0.08) 40%, rgba(14, 48, 48, 0.4) 100%),
+    url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver[data-bg="parallax"] {
+  --ss-ink: #0e3030;
+  --ss-ink-muted: rgba(14, 48, 48, 0.68);
+  --ss-row: rgba(14, 48, 48, 0.28);
+  --ss-row-border: rgba(14, 48, 48, 0.16);
+  --ss-btn: #0e3030;
+  --ss-btn-ink: #ffdbd2;
+  --ss-exit-bg: rgba(253, 249, 244, 0.45);
+  --ss-panel-border: rgba(14, 48, 48, 0.18);
+  --ss-check-border: rgba(14, 48, 48, 0.35);
+  --ss-check-fill: #0e3030;
+  background-color: #d7e4ea;
+  background-image: none;
+}
+
+.focus-ss-parallax {
+  display: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.focus-screensaver[data-bg="parallax"] .focus-ss-parallax {
+  display: block;
+}
+
+.focus-ss-parallax-layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
+  will-change: transform;
+}
+
+.focus-ss-parallax-sky {
+  background-image: url("../assets/focus/parallax-sky.png");
+  background-position: center top;
+  animation: focus-ss-parallax-drift 90s ease-in-out infinite alternate;
+}
+
+.focus-ss-parallax-mountains {
+  background-image: url("../assets/focus/parallax-mountains.png");
+  width: 112%;
+  left: -6%;
+  animation: focus-ss-parallax-drift 70s ease-in-out infinite alternate;
+  animation-delay: -8s;
+}
+
+.focus-ss-parallax-lake {
+  background-image: url("../assets/focus/parallax-lake.png");
+  width: 118%;
+  left: -9%;
+  animation: focus-ss-parallax-drift 48s ease-in-out infinite alternate;
+  animation-delay: -14s;
+}
+
+.focus-ss-parallax-trees {
+  background-image: url("../assets/focus/parallax-trees.png");
+  width: 124%;
+  left: -12%;
+  animation: focus-ss-parallax-drift 32s ease-in-out infinite alternate;
+  animation-delay: -4s;
+}
+
+@keyframes focus-ss-parallax-drift {
+  from {
+    transform: translate3d(-2.5%, 0, 0);
+  }
+  to {
+    transform: translate3d(2.5%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-ss-parallax-layer {
+    animation: none !important;
+    width: 100% !important;
+    left: 0 !important;
+    transform: none !important;
+  }
+}
+
+.focus-screensaver.is-done {
+  --ss-surface: #ffdbd2;
+  --ss-ink: #0e3030;
+  --ss-ink-muted: rgba(14, 48, 48, 0.72);
+  --ss-panel: transparent;
+  --ss-panel-border: rgba(14, 48, 48, 0.16);
+  --ss-row: rgba(14, 48, 48, 0.12);
+  --ss-row-border: rgba(14, 48, 48, 0.18);
+  --ss-btn: #0e3030;
+  --ss-btn-ink: #ffdbd2;
+  --ss-exit-bg: rgba(14, 48, 48, 0.08);
+  --ss-check-border: rgba(14, 48, 48, 0.28);
+  --ss-check-fill: #0e3030;
+}
+
+.focus-screensaver.is-done[data-bg="hills"],
+.focus-screensaver.is-done[data-bg="falls"],
+.focus-screensaver.is-done[data-bg="sunset"] {
+  --ss-ink: #ffdbd2;
+  --ss-ink-muted: rgba(255, 219, 210, 0.78);
+  --ss-panel: transparent;
+  --ss-panel-border: rgba(253, 249, 244, 0.32);
+  --ss-row: rgba(14, 48, 48, 0.38);
+  --ss-row-border: rgba(255, 219, 210, 0.28);
+  --ss-btn: #ffdbd2;
+  --ss-btn-ink: #0e3030;
+  --ss-exit-bg: rgba(253, 249, 244, 0.14);
+  --ss-check-border: rgba(255, 219, 210, 0.5);
+  --ss-check-fill: #ffdbd2;
+}
+
+.focus-screensaver.is-done[data-bg="parallax"] {
+  --ss-ink: #0e3030;
+  --ss-ink-muted: rgba(14, 48, 48, 0.7);
+  --ss-row: rgba(255, 219, 210, 0.55);
+  --ss-row-border: rgba(14, 48, 48, 0.16);
+  --ss-btn: #0e3030;
+  --ss-btn-ink: #ffdbd2;
+  --ss-exit-bg: rgba(253, 249, 244, 0.55);
+  --ss-panel-border: rgba(14, 48, 48, 0.18);
+  --ss-check-border: rgba(14, 48, 48, 0.35);
+  --ss-check-fill: #0e3030;
+}
+
+.focus-screensaver.is-done[data-bg="hills"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 219, 210, 0.22) 0%, rgba(14, 48, 48, 0.18) 40%, rgba(14, 48, 48, 0.5) 100%),
+    url("../assets/focus/mist-hills.png");
+}
+
+.focus-screensaver.is-done[data-bg="falls"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 219, 210, 0.22) 0%, rgba(14, 48, 48, 0.18) 40%, rgba(14, 48, 48, 0.5) 100%),
+    url("../assets/focus/mist-falls.png");
+}
+
+.focus-screensaver.is-done[data-bg="sunset"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 219, 210, 0.2) 0%, rgba(14, 48, 48, 0.15) 40%, rgba(14, 48, 48, 0.48) 100%),
+    url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver.hidden {
+  display: none;
+}
+
+.focus-screensaver-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding:
+    calc(1.5rem + env(safe-area-inset-top, 0px))
+    clamp(1.25rem, 4vw, 3rem)
+    calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  gap: clamp(1.1rem, 3vh, 2.25rem);
+}
+
+.focus-screensaver-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding-top: clamp(0.35rem, 3vh, 2rem);
+}
+
+.focus-screensaver-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ss-ink-muted);
+}
+
+.focus-screensaver-display {
+  margin: 0;
+  font-family: var(--font-heading, "Source Serif 4", Georgia, serif);
+  font-size: clamp(4rem, 16vw, 7.5rem);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--ss-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-screensaver-complete {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-heading, "Source Serif 4", Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ss-ink-muted);
+}
+
+.focus-screensaver-complete.hidden {
+  display: none;
+}
+
+.focus-screensaver-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.focus-screensaver-toggle,
+.focus-screensaver-exit {
+  border: none;
+  border-radius: 999px;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.7rem 1.25rem;
+}
+
+.focus-screensaver-toggle {
+  background: var(--ss-btn);
+  color: var(--ss-btn-ink);
+}
+
+.focus-screensaver-exit {
+  background: var(--ss-exit-bg);
+  color: var(--ss-ink);
+  border: 1.5px solid var(--ss-panel-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.focus-screensaver-bgs {
+  display: flex;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.95rem;
+}
+
+.focus-screensaver-bg {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.75rem;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  background-color: #0e3030;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 0 1px rgba(255, 219, 210, 0.22);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.focus-screensaver-bg[data-bg="solid"] {
+  background-image: none;
+  background-color: #0e3030;
+}
+
+.focus-screensaver-bg[data-bg="hills"] {
+  background-image: url("../assets/focus/mist-hills.png");
+}
+
+.focus-screensaver-bg[data-bg="falls"] {
+  background-image: url("../assets/focus/mist-falls.png");
+}
+
+.focus-screensaver-bg[data-bg="parallax"] {
+  background-image:
+    url("../assets/focus/parallax-trees.png"),
+    url("../assets/focus/parallax-sky.png");
+  background-size: cover, cover;
+  background-position: center bottom, center top;
+}
+
+.focus-screensaver-bg[data-bg="sunset"] {
+  background-image: url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver-bg.is-active {
+  box-shadow: 0 0 0 2px var(--ss-ink);
+  transform: translateY(-1px);
+}
+
+.focus-screensaver.is-done .focus-screensaver-bg {
+  box-shadow: 0 0 0 1px rgba(14, 48, 48, 0.2);
+}
+
+.focus-screensaver.is-done[data-bg="solid"] .focus-screensaver-bg.is-active,
+.focus-screensaver.is-done .focus-screensaver-bg.is-active {
+  box-shadow: 0 0 0 2px var(--ss-ink);
+}
+
+.focus-screensaver-tasks-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 34rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1rem 1.1rem 1.15rem;
+  border-radius: 1.35rem;
+  background: var(--ss-row);
+  border: 1px solid var(--ss-row-border);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow: inset 0 1px 0 rgba(255, 219, 210, 0.08);
+  overflow: hidden;
+  max-height: min(52vh, 28rem);
+}
+
+.focus-screensaver-tasks-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ss-ink-muted);
+}
+
+.focus-screensaver-tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 0 1 auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.focus-screensaver-task {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.15rem;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.focus-screensaver-task.done,
+.focus-screensaver-task.is-done-row {
+  opacity: 0.5;
+}
+
+.focus-screensaver-task.done .focus-screensaver-task-text,
+.focus-screensaver-task.is-done-row .focus-screensaver-task-text {
+  text-decoration: line-through;
+}
+
+.focus-screensaver-check input {
+  appearance: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.4rem;
+  border: 1.5px solid var(--ss-check-border);
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.focus-screensaver-check input:checked {
+  background: var(--ss-check-fill);
+  border-color: var(--ss-check-fill);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.75rem;
+}
+
+.focus-screensaver.is-done .focus-screensaver-check input:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.focus-screensaver.is-done[data-bg="hills"] .focus-screensaver-check input:checked,
+.focus-screensaver.is-done[data-bg="falls"] .focus-screensaver-check input:checked,
+.focus-screensaver.is-done[data-bg="sunset"] .focus-screensaver-check input:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.focus-screensaver[data-bg="parallax"] .focus-screensaver-check input:checked,
+.focus-screensaver.is-done[data-bg="parallax"] .focus-screensaver-check input:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%23ffdbd2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.focus-screensaver-task-text {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ss-ink);
+  cursor: pointer;
+}
+
+.focus-screensaver-task .focus-timer-task-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  opacity: 0.7;
+  color: var(--ss-ink);
+}
+
+.focus-screensaver-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ss-ink-muted);
+  text-align: center;
+  padding: 1.25rem 0.5rem;
+}
+
+.focus-screensaver-empty.hidden {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .focus-screensaver-content {
+    gap: 1rem;
+  }
+
+  .focus-screensaver-tasks-panel {
+    max-width: none;
+    border-radius: 1.15rem;
+  }
+
+  .focus-screensaver-display {
+    font-size: clamp(3.5rem, 18vw, 5.5rem);
+  }
+}

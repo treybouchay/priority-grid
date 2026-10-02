@@ -69,7 +69,7 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=198" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=134" />
+    <link rel="stylesheet" href="design/home-presence.css?v=147" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
     <link rel="stylesheet" href="design/history-wins.css?v=18" />
     <link rel="stylesheet" href="design/settings-page.css?v=15" />
@@ -586,6 +586,9 @@
                           <line x1="5" x2="19" y1="12" y2="12" stroke-linecap="round" />
                           <polyline points="12 5 19 12 12 19" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
+                      </button>
+                      <button type="button" class="focus-timer-screen-btn hidden" id="focus-timer-screen" aria-label="Enter immersive mode">
+                        Immersive
                       </button>
                       <button type="button" class="focus-timer-reset" id="focus-timer-reset">Reset</button>
                     </div>
@@ -1190,6 +1193,81 @@
       </div>
     </div>
 
+    <div
+      id="focus-screensaver"
+      class="focus-screensaver hidden"
+      data-bg="solid"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="focus-screensaver-display"
+    >
+      <div class="focus-ss-parallax" aria-hidden="true">
+        <div class="focus-ss-parallax-layer focus-ss-parallax-sky"></div>
+        <div class="focus-ss-parallax-layer focus-ss-parallax-mountains"></div>
+        <div class="focus-ss-parallax-layer focus-ss-parallax-lake"></div>
+        <div class="focus-ss-parallax-layer focus-ss-parallax-trees"></div>
+      </div>
+      <div class="focus-screensaver-content">
+        <header class="focus-screensaver-header">
+          <p class="focus-screensaver-kicker">Focus</p>
+          <p class="focus-screensaver-display" id="focus-screensaver-display" aria-live="polite">20:00</p>
+          <p class="focus-screensaver-complete hidden" id="focus-screensaver-complete">Focus complete</p>
+          <div class="focus-screensaver-actions">
+            <button type="button" class="focus-screensaver-toggle" id="focus-screensaver-toggle">Pause</button>
+            <button type="button" class="focus-screensaver-exit" id="focus-screensaver-exit">Exit screen</button>
+          </div>
+          <div class="focus-screensaver-bgs" role="group" aria-label="Background">
+            <button
+              type="button"
+              class="focus-screensaver-bg is-active"
+              data-bg="solid"
+              aria-pressed="true"
+              aria-label="Solid green"
+              title="Solid"
+            ></button>
+            <button
+              type="button"
+              class="focus-screensaver-bg"
+              data-bg="hills"
+              aria-pressed="false"
+              aria-label="Misty hills"
+              title="Hills"
+            ></button>
+            <button
+              type="button"
+              class="focus-screensaver-bg"
+              data-bg="falls"
+              aria-pressed="false"
+              aria-label="Misty falls"
+              title="Falls"
+            ></button>
+            <button
+              type="button"
+              class="focus-screensaver-bg"
+              data-bg="parallax"
+              aria-pressed="false"
+              aria-label="Parallax landscape"
+              title="Parallax"
+            ></button>
+            <button
+              type="button"
+              class="focus-screensaver-bg"
+              data-bg="sunset"
+              aria-pressed="false"
+              aria-label="Sunset lake"
+              title="Sunset"
+            ></button>
+          </div>
+        </header>
+        <section class="focus-screensaver-tasks-panel" aria-label="Remaining focus tasks">
+          <p class="focus-screensaver-tasks-label" id="focus-screensaver-tasks-label">Still to do</p>
+          <ul class="focus-screensaver-tasks" id="focus-screensaver-tasks"></ul>
+          <p class="focus-screensaver-empty hidden" id="focus-screensaver-empty">Nothing left on this focus list.</p>
+        </section>
+      </div>
+    </div>
+
     <div id="focus-timer-mini-dock">
       <div class="focus-timer-mini hidden" id="focus-timer-mini" aria-label="Focus session">
         <div class="focus-timer-mini-row">
@@ -1202,6 +1280,14 @@
           </span>
           <p class="focus-timer-mini-display" id="focus-timer-mini-display" aria-live="polite">20:00</p>
           <button type="button" class="focus-timer-mini-toggle" id="focus-timer-mini-toggle">Pause</button>
+          <button type="button" class="focus-timer-mini-screen hidden" id="focus-timer-mini-screen" aria-label="Enter immersive mode" title="Immersive">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M16 3h3a2 2 0 0 1 2 2v3" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M8 21H5a2 2 0 0 1-2-2v-3" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
           <button type="button" class="focus-timer-mini-reset" id="focus-timer-mini-reset">Reset</button>
         </div>
         <p class="focus-timer-complete-label focus-timer-mini-complete-label" id="focus-timer-mini-complete-label" aria-live="polite">Focus complete</p>
@@ -1693,6 +1779,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=373"></script>
+    <script src="app.js?v=380"></script>
   </body>
 </html>

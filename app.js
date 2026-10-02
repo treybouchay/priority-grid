@@ -928,6 +928,8 @@ const TIER_NAMES = ["1st Priority", "2nd Priority", "3rd Priority", "4th Priorit
 const PREVIEW_TASK_LIMIT = 5;
 const FOCUS_TIMER_MAX_TASKS = 10;
 const FOCUS_TIMER_TASKS_KEY = "priority-grid-focus-timer-tasks";
+const FOCUS_SS_BG_KEY = "priority-grid-focus-ss-bg";
+const FOCUS_SS_BGS = ["solid", "hills", "falls", "parallax", "sunset"];
 let focusTimerAttached = [];
 let refreshFocusTimerUI = () => {};
 let renderFocusTimerChrome = () => {};
@@ -1177,6 +1179,16 @@ function setupFocusTimer() {
   const pickerDialog = document.getElementById("focus-timer-picker-dialog");
   const pickerList = document.getElementById("focus-timer-picker-list");
   const pickerSub = document.getElementById("focus-timer-picker-sub");
+  const screensaver = document.getElementById("focus-screensaver");
+  const screensaverDisplay = document.getElementById("focus-screensaver-display");
+  const screensaverToggle = document.getElementById("focus-screensaver-toggle");
+  const screensaverExit = document.getElementById("focus-screensaver-exit");
+  const screensaverTasks = document.getElementById("focus-screensaver-tasks");
+  const screensaverEmpty = document.getElementById("focus-screensaver-empty");
+  const screensaverLabel = document.getElementById("focus-screensaver-tasks-label");
+  const screensaverComplete = document.getElementById("focus-screensaver-complete");
+  const screenBtn = document.getElementById("focus-timer-screen");
+  const miniScreenBtn = document.getElementById("focus-timer-mini-screen");
   if (!root || !display || !toggleBtn || !resetBtn) return;
 
   focusTimerAttached = loadFocusTimerAttached();
@@ -1186,6 +1198,40 @@ function setupFocusTimer() {
   let endsAt = 0;
   let intervalId = null;
   let running = false;
+  let screensaverOpen = false;
+  let lastScreensaverTaskSig = "";
+  let screensaverBg = loadFocusScreensaverBg();
+
+  function loadFocusScreensaverBg() {
+    try {
+      const stored = localStorage.getItem(FOCUS_SS_BG_KEY);
+      if (FOCUS_SS_BGS.includes(stored)) return stored;
+    } catch {
+      /* ignore */
+    }
+    return "solid";
+  }
+
+  function saveFocusScreensaverBg(bg) {
+    try {
+      localStorage.setItem(FOCUS_SS_BG_KEY, bg);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function applyFocusScreensaverBg(bg) {
+    const next = FOCUS_SS_BGS.includes(bg) ? bg : "solid";
+    screensaverBg = next;
+    saveFocusScreensaverBg(next);
+    if (!screensaver) return;
+    screensaver.dataset.bg = next;
+    screensaver.querySelectorAll(".focus-screensaver-bg").forEach((btn) => {
+      const active = btn.dataset.bg === next;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
 
   function formatTime(ms) {
     const totalSec = Math.max(0, Math.ceil(ms / 1000));
@@ -1274,10 +1320,111 @@ function setupFocusTimer() {
       onDoneChange?.();
     });
     bindAttachmentIndicator(row, id, ctx);
-    row.querySelector(".focus-timer-session-text, .focus-timer-mini-task-text")?.addEventListener("click", () => {
-      const task = loadTasks(ctx).find((t) => t.id === id);
-      if (task) openTaskMediaViewer(task);
-    });
+    row
+      .querySelector(
+        ".focus-timer-session-text, .focus-timer-mini-task-text, .focus-screensaver-task-text"
+      )
+      ?.addEventListener("click", () => {
+        const task = loadTasks(ctx).find((t) => t.id === id);
+        if (task) openTaskMediaViewer(task);
+      });
+  }
+
+  function isScreensaverOpen() {
+    return screensaverOpen && screensaver && !screensaver.classList.contains("hidden");
+  }
+
+  function openFocusScreensaver() {
+    if (!screensaver) return;
+    screensaverOpen = true;
+    lastScreensaverTaskSig = "";
+    applyFocusScreensaverBg(screensaverBg);
+    screensaver.classList.remove("hidden");
+    screensaver.setAttribute("aria-hidden", "false");
+    document.body.classList.add("focus-screensaver-open");
+    document.documentElement.classList.add("focus-screensaver-open");
+    renderScreensaver({ forceTasks: true });
+    screensaverExit?.focus({ preventScroll: true });
+  }
+
+  function closeFocusScreensaver() {
+    if (!screensaver) return;
+    screensaverOpen = false;
+    lastScreensaverTaskSig = "";
+    screensaver.classList.add("hidden");
+    screensaver.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("focus-screensaver-open");
+    document.documentElement.classList.remove("focus-screensaver-open");
+  }
+
+  function renderScreensaverChrome() {
+    if (!screensaver || !isScreensaverOpen()) return;
+
+    const timeText = formatTime(remainingMs);
+    if (screensaverDisplay) screensaverDisplay.textContent = timeText;
+
+    const done = !running && remainingMs === 0;
+    screensaver.classList.toggle("is-running", running);
+    screensaver.classList.toggle("is-done", done);
+    if (screensaverComplete) screensaverComplete.classList.toggle("hidden", !done);
+
+    if (screensaverToggle) {
+      screensaverToggle.textContent = running ? "Pause" : done ? "Start again" : "Resume";
+      screensaverToggle.classList.toggle("is-resume", !running);
+    }
+  }
+
+  function renderScreensaver({ forceTasks = false } = {}) {
+    if (!screensaver || !isScreensaverOpen()) return;
+    renderScreensaverChrome();
+
+    const tasks = getFocusTimerTasksForDisplay();
+    const openTasks = tasks.filter((t) => !t.done);
+    const doneTasks = tasks.filter((t) => t.done);
+    const taskSig = tasks.map((t) => `${t.context}:${t.id}:${t.done ? 1 : 0}:${t.text}`).join("|");
+
+    if (screensaverLabel) {
+      screensaverLabel.textContent = openTasks.length
+        ? `Still to do · ${openTasks.length}`
+        : doneTasks.length
+          ? "All caught up"
+          : "Focus list";
+    }
+
+    if (screensaverEmpty) {
+      const noAttached = tasks.length === 0;
+      screensaverEmpty.classList.toggle("hidden", !noAttached);
+      screensaverEmpty.textContent = "No focus tasks attached — enjoy the quiet.";
+    }
+
+    if (!forceTasks && taskSig === lastScreensaverTaskSig) return;
+    lastScreensaverTaskSig = taskSig;
+
+    if (screensaverTasks) {
+      const rows = [
+        ...openTasks.map((task) =>
+          focusTimerTaskRowHtml(task, {
+            itemClass: "focus-screensaver-task",
+            checkClass: "focus-screensaver-check",
+            textClass: "focus-screensaver-task-text",
+          })
+        ),
+        ...doneTasks.map((task) =>
+          focusTimerTaskRowHtml(task, {
+            itemClass: "focus-screensaver-task is-done-row",
+            checkClass: "focus-screensaver-check",
+            textClass: "focus-screensaver-task-text",
+          })
+        ),
+      ];
+      screensaverTasks.innerHTML = rows.join("");
+      screensaverTasks.querySelectorAll(".focus-screensaver-task").forEach((row) => {
+        bindFocusTimerTaskRow(row, () => {
+          lastScreensaverTaskSig = "";
+          renderAttachedSurfaces();
+        });
+      });
+    }
   }
 
   function focusTimerTaskRowHtml(task, { itemClass, checkClass, textClass }) {
@@ -1346,6 +1493,7 @@ function setupFocusTimer() {
   function renderAttachedSurfaces() {
     renderAttachList();
     renderSessionTasks();
+    renderScreensaver();
   }
 
   function openFocusTimerPicker() {
@@ -1394,7 +1542,7 @@ function setupFocusTimer() {
     const reflectionOpen = document.documentElement.classList.contains("reflection-open");
     const hideTimerForAnxiety =
       reflectionOpen && loadAnxietyBox().length > 0;
-    const showMiniBar = sessionActive && !focusCardVisible && !hideTimerForAnxiety;
+    const showMiniBar = sessionActive && !focusCardVisible && !hideTimerForAnxiety && !isScreensaverOpen();
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-active", active);
     root.classList.toggle("is-done", done);
@@ -1429,7 +1577,9 @@ function setupFocusTimer() {
 
     const themeMeta = document.querySelector('meta[name="theme-color"]');
     if (themeMeta) {
-      if (showMiniBar) {
+      if (isScreensaverOpen()) {
+        themeMeta.setAttribute("content", done ? "#ffdbd2" : "#0e3030");
+      } else if (showMiniBar) {
         themeMeta.setAttribute("content", done ? "#ffdbd2" : "#0e3030");
       } else if (!themeMeta.dataset.locked) {
         const effective = document.documentElement.dataset.theme;
@@ -1450,6 +1600,10 @@ function setupFocusTimer() {
       miniToggle.textContent = running ? "Pause" : done ? "Start" : "Resume";
       miniToggle.classList.toggle("is-resume", !running && (active || done));
     }
+
+    const canOpenScreen = sessionActive;
+    if (screenBtn) screenBtn.classList.toggle("hidden", !canOpenScreen || isScreensaverOpen());
+    if (miniScreenBtn) miniScreenBtn.classList.toggle("hidden", !canOpenScreen);
 
     root.classList.toggle("focus-timer-show-presets", done);
     if (miniPresets) miniPresets.classList.toggle("hidden", !done);
@@ -1548,6 +1702,7 @@ function setupFocusTimer() {
     remainingMs = durationMs;
     clearTick();
     purgeDoneFocusTasks();
+    closeFocusScreensaver();
     customWrap?.classList.add("hidden");
     miniCustomWrap?.classList.add("hidden");
     render();
@@ -1567,6 +1722,7 @@ function setupFocusTimer() {
     remainingMs = durationMs;
     running = false;
     clearTick();
+    closeFocusScreensaver();
     syncPresetButtons(safe);
     customWrap?.classList.add("hidden");
     miniCustomWrap?.classList.add("hidden");
@@ -1645,6 +1801,34 @@ function setupFocusTimer() {
     else start();
   });
   miniReset?.addEventListener("click", resetFromMini);
+  screenBtn?.addEventListener("click", () => {
+    openFocusScreensaver();
+    render();
+  });
+  miniScreenBtn?.addEventListener("click", () => {
+    openFocusScreensaver();
+    render();
+  });
+  screensaverToggle?.addEventListener("click", () => {
+    if (running) pause();
+    else start();
+  });
+  screensaverExit?.addEventListener("click", () => {
+    closeFocusScreensaver();
+    render();
+  });
+  document.querySelectorAll(".focus-screensaver-bg").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      applyFocusScreensaverBg(btn.dataset.bg);
+    });
+  });
+  applyFocusScreensaverBg(screensaverBg);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !isScreensaverOpen()) return;
+    e.preventDefault();
+    closeFocusScreensaver();
+    render();
+  });
   attachAdd?.addEventListener("click", openFocusTimerPicker);
   document.getElementById("focus-timer-picker-close")?.addEventListener("click", () => {
     pickerDialog?.close();
