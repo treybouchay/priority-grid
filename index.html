@@ -69,7 +69,7 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=198" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=147" />
+    <link rel="stylesheet" href="design/home-presence.css?v=148" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
     <link rel="stylesheet" href="design/history-wins.css?v=18" />
     <link rel="stylesheet" href="design/settings-page.css?v=15" />
@@ -1217,48 +1217,62 @@
             <button type="button" class="focus-screensaver-toggle" id="focus-screensaver-toggle">Pause</button>
             <button type="button" class="focus-screensaver-exit" id="focus-screensaver-exit">Exit screen</button>
           </div>
-          <div class="focus-screensaver-bgs" role="group" aria-label="Background">
-            <button
-              type="button"
-              class="focus-screensaver-bg is-active"
-              data-bg="solid"
-              aria-pressed="true"
-              aria-label="Solid green"
-              title="Solid"
-            ></button>
-            <button
-              type="button"
-              class="focus-screensaver-bg"
-              data-bg="hills"
-              aria-pressed="false"
-              aria-label="Misty hills"
-              title="Hills"
-            ></button>
-            <button
-              type="button"
-              class="focus-screensaver-bg"
-              data-bg="falls"
-              aria-pressed="false"
-              aria-label="Misty falls"
-              title="Falls"
-            ></button>
-            <button
-              type="button"
-              class="focus-screensaver-bg"
-              data-bg="parallax"
-              aria-pressed="false"
-              aria-label="Parallax landscape"
-              title="Parallax"
-            ></button>
-            <button
-              type="button"
-              class="focus-screensaver-bg"
-              data-bg="sunset"
-              aria-pressed="false"
-              aria-label="Sunset lake"
-              title="Sunset"
-            ></button>
-          </div>
+          <details class="focus-screensaver-bg-picker">
+            <summary class="focus-screensaver-bg-summary">
+              <span>Background</span>
+              <span class="focus-screensaver-bg-chip" data-bg="solid" aria-hidden="true"></span>
+            </summary>
+            <div class="focus-screensaver-bgs" role="group" aria-label="Background">
+              <button
+                type="button"
+                class="focus-screensaver-bg is-active"
+                data-bg="solid"
+                aria-pressed="true"
+                aria-label="Solid green"
+                title="Solid"
+              ></button>
+              <button
+                type="button"
+                class="focus-screensaver-bg"
+                data-bg="hills"
+                aria-pressed="false"
+                aria-label="Misty hills"
+                title="Hills"
+              ></button>
+              <button
+                type="button"
+                class="focus-screensaver-bg"
+                data-bg="falls"
+                aria-pressed="false"
+                aria-label="Misty falls"
+                title="Falls"
+              ></button>
+              <button
+                type="button"
+                class="focus-screensaver-bg"
+                data-bg="parallax"
+                aria-pressed="false"
+                aria-label="Parallax landscape"
+                title="Parallax"
+              ></button>
+              <button
+                type="button"
+                class="focus-screensaver-bg"
+                data-bg="sunset"
+                aria-pressed="false"
+                aria-label="Sunset lake"
+                title="Sunset"
+              ></button>
+              <button
+                type="button"
+                class="focus-screensaver-bg"
+                data-bg="sunrise"
+                aria-pressed="false"
+                aria-label="Sunrise peaks"
+                title="Sunrise"
+              ></button>
+            </div>
+          </details>
         </header>
         <section class="focus-screensaver-tasks-panel" aria-label="Remaining focus tasks">
           <p class="focus-screensaver-tasks-label" id="focus-screensaver-tasks-label">Still to do</p>
@@ -1779,6 +1793,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=380"></script>
+    <script src="app.js?v=381"></script>
   </body>
 </html>

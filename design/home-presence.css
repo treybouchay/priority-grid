@@ -3368,7 +3368,8 @@ body.focus-screensaver-open {
 
 .focus-screensaver[data-bg="hills"],
 .focus-screensaver[data-bg="falls"],
-.focus-screensaver[data-bg="sunset"] {
+.focus-screensaver[data-bg="sunset"],
+.focus-screensaver[data-bg="sunrise"] {
   background-color: #0e3030;
 }
 
@@ -3388,6 +3389,12 @@ body.focus-screensaver-open {
   background-image:
     linear-gradient(180deg, rgba(14, 48, 48, 0.22) 0%, rgba(14, 48, 48, 0.08) 40%, rgba(14, 48, 48, 0.4) 100%),
     url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver[data-bg="sunrise"] {
+  background-image:
+    linear-gradient(180deg, rgba(14, 48, 48, 0.18) 0%, rgba(14, 48, 48, 0.06) 38%, rgba(14, 48, 48, 0.42) 100%),
+    url("../assets/focus/sunrise-peaks.jpg");
 }
 
 .focus-screensaver[data-bg="parallax"] {
@@ -3492,7 +3499,8 @@ body.focus-screensaver-open {
 
 .focus-screensaver.is-done[data-bg="hills"],
 .focus-screensaver.is-done[data-bg="falls"],
-.focus-screensaver.is-done[data-bg="sunset"] {
+.focus-screensaver.is-done[data-bg="sunset"],
+.focus-screensaver.is-done[data-bg="sunrise"] {
   --ss-ink: #ffdbd2;
   --ss-ink-muted: rgba(255, 219, 210, 0.78);
   --ss-panel: transparent;
@@ -3535,6 +3543,12 @@ body.focus-screensaver-open {
   background-image:
     linear-gradient(180deg, rgba(255, 219, 210, 0.2) 0%, rgba(14, 48, 48, 0.15) 40%, rgba(14, 48, 48, 0.48) 100%),
     url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver.is-done[data-bg="sunrise"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 219, 210, 0.18) 0%, rgba(14, 48, 48, 0.14) 40%, rgba(14, 48, 48, 0.48) 100%),
+    url("../assets/focus/sunrise-peaks.jpg");
 }
 
 .focus-screensaver.hidden {
@@ -3629,11 +3643,94 @@ body.focus-screensaver-open {
   -webkit-backdrop-filter: blur(12px);
 }
 
+.focus-screensaver-bg-picker {
+  margin-top: 0.85rem;
+  width: min(100%, 22rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.focus-screensaver-bg-summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin: 0 auto;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--ss-panel-border);
+  background: var(--ss-exit-bg);
+  color: var(--ss-ink);
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  user-select: none;
+}
+
+.focus-screensaver-bg-summary::-webkit-details-marker {
+  display: none;
+}
+
+.focus-screensaver-bg-chip {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--ss-panel-border);
+  background-color: #0e3030;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.focus-screensaver-bg-chip[data-bg="solid"] {
+  background-image: none;
+  background-color: #0e3030;
+}
+
+.focus-screensaver-bg-chip[data-bg="hills"] {
+  background-image: url("../assets/focus/mist-hills.png");
+}
+
+.focus-screensaver-bg-chip[data-bg="falls"] {
+  background-image: url("../assets/focus/mist-falls.png");
+}
+
+.focus-screensaver-bg-chip[data-bg="parallax"] {
+  background-image:
+    url("../assets/focus/parallax-trees.png"),
+    url("../assets/focus/parallax-sky.png");
+  background-size: cover, cover;
+  background-position: center bottom, center top;
+}
+
+.focus-screensaver-bg-chip[data-bg="sunset"] {
+  background-image: url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver-bg-chip[data-bg="sunrise"] {
+  background-image: url("../assets/focus/sunrise-peaks.jpg");
+}
+
+.focus-screensaver-bg-picker .focus-screensaver-bgs {
+  margin-top: 0.7rem;
+}
+
+.focus-screensaver-bg-picker:not([open]) .focus-screensaver-bgs {
+  display: none;
+}
+
 .focus-screensaver-bgs {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
-  margin-top: 0.95rem;
 }
 
 .focus-screensaver-bg {
@@ -3673,6 +3770,10 @@ body.focus-screensaver-open {
 
 .focus-screensaver-bg[data-bg="sunset"] {
   background-image: url("../assets/focus/sunset-lake.jpg");
+}
+
+.focus-screensaver-bg[data-bg="sunrise"] {
+  background-image: url("../assets/focus/sunrise-peaks.jpg");
 }
 
 .focus-screensaver-bg.is-active {
@@ -3782,7 +3883,8 @@ body.focus-screensaver-open {
 
 .focus-screensaver.is-done[data-bg="hills"] .focus-screensaver-check input:checked,
 .focus-screensaver.is-done[data-bg="falls"] .focus-screensaver-check input:checked,
-.focus-screensaver.is-done[data-bg="sunset"] .focus-screensaver-check input:checked {
+.focus-screensaver.is-done[data-bg="sunset"] .focus-screensaver-check input:checked,
+.focus-screensaver.is-done[data-bg="sunrise"] .focus-screensaver-check input:checked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 6.2 4.8 8.5 9.5 3.8' stroke='%230e3030' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 

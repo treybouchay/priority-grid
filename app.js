@@ -929,7 +929,7 @@ const PREVIEW_TASK_LIMIT = 5;
 const FOCUS_TIMER_MAX_TASKS = 10;
 const FOCUS_TIMER_TASKS_KEY = "priority-grid-focus-timer-tasks";
 const FOCUS_SS_BG_KEY = "priority-grid-focus-ss-bg";
-const FOCUS_SS_BGS = ["solid", "hills", "falls", "parallax", "sunset"];
+const FOCUS_SS_BGS = ["solid", "hills", "falls", "parallax", "sunset", "sunrise"];
 let focusTimerAttached = [];
 let refreshFocusTimerUI = () => {};
 let renderFocusTimerChrome = () => {};
@@ -1231,6 +1231,8 @@ function setupFocusTimer() {
       btn.classList.toggle("is-active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
+    const chip = screensaver.querySelector(".focus-screensaver-bg-chip");
+    if (chip) chip.dataset.bg = next;
   }
 
   function formatTime(ms) {
@@ -1820,6 +1822,8 @@ function setupFocusTimer() {
   document.querySelectorAll(".focus-screensaver-bg").forEach((btn) => {
     btn.addEventListener("click", () => {
       applyFocusScreensaverBg(btn.dataset.bg);
+      const picker = btn.closest("details.focus-screensaver-bg-picker");
+      if (picker) picker.open = false;
     });
   });
   applyFocusScreensaverBg(screensaverBg);
