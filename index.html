@@ -67,11 +67,11 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=199" />
+    <link rel="stylesheet" href="styles.css?v=200" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
     <link rel="stylesheet" href="design/home-presence.css?v=148" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
-    <link rel="stylesheet" href="design/history-wins.css?v=18" />
+    <link rel="stylesheet" href="design/history-wins.css?v=19" />
     <link rel="stylesheet" href="design/settings-page.css?v=15" />
     <link rel="stylesheet" href="design/reflection.css?v=84" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1390,9 +1390,17 @@
         ></textarea>
         <p class="dialog-parse-hint hidden" id="dialog-parse-hint"></p>
         <ul class="dialog-parse-preview hidden" id="dialog-parse-preview" aria-live="polite"></ul>
-        <div class="dialog-sticky-tools hidden" id="dialog-sticky-tools" hidden>
+        <div class="dialog-sticky-tools hidden" id="dialog-sticky-tools">
           <div class="dialog-sticky-actions">
-            <label class="dialog-sticky-scan-btn" for="dialog-sticky-scan-input">
+            <button
+              type="button"
+              class="dialog-sticky-list-toggle"
+              id="dialog-sticky-list-toggle"
+              aria-pressed="false"
+            >
+              List mode
+            </button>
+            <label class="dialog-sticky-scan-btn hidden" id="dialog-sticky-scan-btn" for="dialog-sticky-scan-input">
               <svg class="icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M4 7V5a2 2 0 0 1 2-2h2M16 3h2a2 2 0 0 1 2 2v2M20 17v2a2 2 0 0 1-2 2h-2M8 21H6a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
                 <circle cx="12" cy="12" r="3.25" stroke="currentColor" stroke-width="1.75"/>
@@ -1511,7 +1519,7 @@
         </div>
         </div>
         <p class="dialog-note-hint hidden" id="dialog-note-hint">
-          Stickies show up in History. Convert any task into a sticky from the note icon on the task.
+          Stickies show up in History. Turn on List mode for checklists you can drag onto priorities.
         </p>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
@@ -1794,6 +1802,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=382"></script>
+    <script src="app.js?v=383"></script>
   </body>
 </html>

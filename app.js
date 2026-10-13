@@ -4934,37 +4934,34 @@ function normalizeChecklistItem(item) {
   };
 }
 
-function flattenChecklistNoteText(note) {
-  if (!note) return "";
-  const title = typeof note.text === "string" ? note.text.trim() : "";
-  const items = Array.isArray(note.items)
-    ? note.items.map(normalizeChecklistItem).filter(Boolean)
-    : [];
-  if (!items.length) return title;
-  const lines = items.map((item) => item.text);
-  if (title && title.toLowerCase() !== "shopping list") {
-    return `${title}\n${lines.join("\n")}`.trim();
-  }
-  return lines.join("\n").trim();
-}
-
 function isChecklistStandaloneNote(note) {
-  return false;
+  return Boolean(note && Array.isArray(note.items) && note.items.length > 0);
 }
 
 function standaloneNotePlainText(note) {
   if (!note) return "";
+  if (isChecklistStandaloneNote(note)) {
+    const title = typeof note.text === "string" ? note.text.trim() : "";
+    const lines = note.items.map((item) => `${item.done ? "☑" : "☐"} ${item.text}`);
+    return title ? `${title}\n${lines.join("\n")}` : lines.join("\n");
+  }
   return typeof note.text === "string" ? note.text : "";
 }
 
 function normalizeStandaloneNote(item) {
   if (!item) return null;
-  const legacyItems = Array.isArray(item.items)
-    ? item.items.map(normalizeChecklistItem).filter(Boolean)
+  const items = Array.isArray(item.items)
+    ? item.items.map(normalizeChecklistItem).filter(Boolean).slice(0, 40)
     : [];
-  let text = typeof item.text === "string" ? item.text.trim() : "";
-  if (legacyItems.length) {
-    text = flattenChecklistNoteText({ text, items: legacyItems });
+  const text = typeof item.text === "string" ? item.text.trim() : "";
+  if (items.length) {
+    return {
+      id: typeof item.id === "string" && item.id ? item.id : createId(),
+      text: (text || "List").slice(0, 1000),
+      createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString(),
+      kind: "checklist",
+      items,
+    };
   }
   if (!text) return null;
   return {
@@ -4993,7 +4990,22 @@ function saveStandaloneNotes(items, options = {}) {
   if (!options.skipSync) markSyncDirty();
 }
 
-function addStandaloneNote(text) {
+function addStandaloneNote(text, options = {}) {
+  const itemLines = Array.isArray(options.items)
+    ? options.items.map(normalizeChecklistItem).filter(Boolean).slice(0, 40)
+    : [];
+  if (itemLines.length) {
+    const title = String(options.title || text || "List").trim().slice(0, 1000) || "List";
+    const note = {
+      id: createId(),
+      text: title,
+      createdAt: new Date().toISOString(),
+      kind: "checklist",
+      items: itemLines,
+    };
+    saveStandaloneNotes([note, ...loadStandaloneNotes()]);
+    return note;
+  }
   const trimmed = String(text || "").trim().slice(0, 1000);
   if (!trimmed) return null;
   const note = { id: createId(), text: trimmed, createdAt: new Date().toISOString(), kind: "note" };
@@ -5006,15 +5018,137 @@ function deleteStandaloneNote(id) {
   saveStandaloneNotes(loadStandaloneNotes().filter((n) => n.id !== id));
 }
 
-function updateStandaloneNote(id, text) {
+function updateStandaloneNote(id, text, options = {}) {
   const trimmed = String(text || "").trim().slice(0, 1000);
   if (!id || !trimmed) return false;
   const notes = loadStandaloneNotes();
   const index = notes.findIndex((n) => n.id === id);
   if (index === -1) return false;
   const existing = notes[index];
-  notes[index] = { id: existing.id, text: trimmed, createdAt: existing.createdAt, kind: "note" };
+  const asList =
+    typeof options.asList === "boolean" ? options.asList : isChecklistStandaloneNote(existing);
+  const lines = parseTasksFromText(trimmed, { max: 40 });
+  if (asList && lines.length >= 1) {
+    const wasChecklist = isChecklistStandaloneNote(existing);
+    let title = options.title
+      ? String(options.title).trim().slice(0, 1000) || "List"
+      : wasChecklist
+        ? String(existing.text || "List").trim().slice(0, 1000) || "List"
+        : guessChecklistTitle(lines);
+    let items = lines;
+    if (
+      !options.title &&
+      wasChecklist &&
+      title !== "List" &&
+      title.toLowerCase() !== "shopping list" &&
+      lines[0]?.toLowerCase() === title.toLowerCase()
+    ) {
+      items = lines.slice(1);
+    }
+    if (!items.length) items = lines;
+    const prevByText = new Map(
+      (existing.items || []).map((entry) => [String(entry.text || "").toLowerCase(), entry])
+    );
+    notes[index] = {
+      id: existing.id,
+      text: title,
+      createdAt: existing.createdAt,
+      kind: "checklist",
+      items: items.map((line) => {
+        const prev = prevByText.get(String(line).toLowerCase());
+        return normalizeChecklistItem({
+          id: prev?.id,
+          text: line,
+          done: prev?.done,
+        });
+      }).filter(Boolean),
+    };
+  } else {
+    notes[index] = { id: existing.id, text: trimmed, createdAt: existing.createdAt, kind: "note" };
+  }
   saveStandaloneNotes(notes);
+  return true;
+}
+
+function updateStandaloneChecklistItem(stickyId, itemId, patch = {}) {
+  const notes = loadStandaloneNotes();
+  const note = notes.find((n) => n.id === stickyId);
+  if (!isChecklistStandaloneNote(note)) return false;
+  const item = note.items.find((entry) => entry.id === itemId);
+  if (!item) return false;
+  if (typeof patch.text === "string") {
+    const next = patch.text.trim().slice(0, 180);
+    if (!next) return false;
+    item.text = next;
+  }
+  if (typeof patch.done === "boolean") item.done = patch.done;
+  saveStandaloneNotes(notes);
+  return true;
+}
+
+function removeStandaloneChecklistItem(stickyId, itemId) {
+  const notes = loadStandaloneNotes();
+  const index = notes.findIndex((n) => n.id === stickyId);
+  if (index === -1) return false;
+  const note = notes[index];
+  if (!isChecklistStandaloneNote(note)) return false;
+  note.items = note.items.filter((entry) => entry.id !== itemId);
+  if (!note.items.length) {
+    recordDeletedId(stickyId);
+    notes.splice(index, 1);
+  }
+  saveStandaloneNotes(notes);
+  return true;
+}
+
+function getPreferredTaskContext() {
+  if (homeContextFilter && homeContextFilter !== "all" && isValidContext(homeContextFilter)) {
+    return homeContextFilter;
+  }
+  const contexts = getContexts();
+  if (contexts.includes("home")) return "home";
+  return contexts[0] || "home";
+}
+
+function promoteStickyItemToTier(stickyId, itemId, tier, beforeId = null, atTierStart = false) {
+  const notes = loadStandaloneNotes();
+  const note = notes.find((n) => n.id === stickyId);
+  if (!isChecklistStandaloneNote(note)) return false;
+  const item = note.items.find((entry) => entry.id === itemId);
+  if (!item || !item.text.trim()) return false;
+  const ctx = getPreferredTaskContext();
+  const nextTier = Number(tier);
+  if (![1, 2, 3, 4].includes(nextTier)) return false;
+
+  const created = {
+    id: createId(),
+    text: item.text.trim().slice(0, 180),
+    tier: nextTier,
+    done: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  updateTaskInContext(ctx, (list) => {
+    const next = [...list];
+    if (beforeId) {
+      const at = next.findIndex((t) => t.id === beforeId);
+      if (at >= 0) {
+        next.splice(at, 0, created);
+        return next;
+      }
+    }
+    if (atTierStart) {
+      const tierStart = next.findIndex((t) => t.tier === nextTier && !t.archived);
+      if (tierStart >= 0) {
+        next.splice(tierStart, 0, created);
+        return next;
+      }
+    }
+    next.push(created);
+    return next;
+  });
+
+  removeStandaloneChecklistItem(stickyId, itemId);
   return true;
 }
 
@@ -5036,15 +5170,6 @@ function convertTaskToSticky(id, ctx) {
 
 function stickyConvertButtonHtml() {
   return `<button type="button" class="sticky-convert-btn" aria-label="Convert to sticky" title="Make sticky"><svg class="icon icon-sticky-convert" aria-hidden="true"><use href="#icon-note"></use></svg></button>`;
-}
-
-function getPreferredTaskContext() {
-  if (homeContextFilter && homeContextFilter !== "all" && isValidContext(homeContextFilter)) {
-    return homeContextFilter;
-  }
-  const contexts = getContexts();
-  if (contexts.includes("home")) return "home";
-  return contexts[0] || "home";
 }
 
 function linkStandaloneNoteToTask(noteId, taskId, context) {
@@ -5098,10 +5223,12 @@ function collectAllNotesForPanel() {
   loadStandaloneNotes().forEach((note) => {
     items.push({
       id: note.id,
-      text: note.text,
+      text: isChecklistStandaloneNote(note) ? standaloneNotePlainText(note) : note.text,
       createdAt: note.createdAt,
       source: "standalone",
-      kind: "note",
+      kind: note.kind || "note",
+      items: isChecklistStandaloneNote(note) ? note.items : null,
+      title: isChecklistStandaloneNote(note) ? note.text : null,
     });
   });
   getContexts().forEach((ctx) => {
@@ -6996,12 +7123,12 @@ function removeDragGhost() {
 }
 
 const GRIP_DRAG_CARD_SELECTOR =
-  ".task-card, .plan-card-task:not(.completed-wins-item):not(.history-wins-item)";
+  ".task-card, .plan-card-task:not(.completed-wins-item):not(.history-wins-item), .sticky-check-item";
 const GRIP_DRAG_LIST_SELECTOR =
   "#tier-expand-list, .task-list[data-tier], .plan-card-list[data-tier]";
 
-function isStickyCheckDragCard() {
-  return false;
+function isStickyCheckDragCard(card) {
+  return Boolean(card?.matches?.(".sticky-check-item") || card?.dataset?.dragKind === "sticky-item");
 }
 
 function queryGripDragCards(listEl) {
@@ -13593,23 +13720,89 @@ function renderHomeCompletedToday() {
   bindCompletedWinsActions(content);
 }
 
-function stickyCheckItemHtml() {
-  return "";
+function stickyCheckItemHtml(stickyId, item) {
+  return `
+    <li
+      class="sticky-check-item${item.done ? " done" : ""}"
+      data-id="${escapeHtml(item.id)}"
+      data-item-id="${escapeHtml(item.id)}"
+      data-sticky-id="${escapeHtml(stickyId)}"
+      data-drag-kind="sticky-item"
+    >
+      <label class="plan-card-check sticky-check-box">
+        <input type="checkbox" ${item.done ? "checked" : ""} aria-label="Mark item done" />
+      </label>
+      <span class="sticky-check-text">${escapeHtml(item.text)}</span>
+      <button type="button" class="plan-card-drag task-drag-handle sticky-check-drag" tabindex="-1" aria-label="Drag to a priority list">
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
+          <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
+          <circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/>
+          <circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
+        </svg>
+      </button>
+    </li>`;
 }
 
-function homeChecklistStickyHtml() {
-  return "";
+function homeChecklistStickyHtml(note) {
+  const openCount = note.items.filter((item) => !item.done).length;
+  const itemsHtml = note.items.map((item) => stickyCheckItemHtml(note.id, item)).join("");
+  return `
+    <article class="home-checklist-sticky" data-sticky-id="${escapeHtml(note.id)}">
+      <header class="home-checklist-sticky-header">
+        <div class="home-checklist-sticky-heading">
+          <span class="home-checklist-sticky-kind">List sticky</span>
+          <h4 class="home-checklist-sticky-title">${escapeHtml(note.text || "List")}</h4>
+          <p class="home-checklist-sticky-sub">Drag a row onto 1st–4th · ${openCount} open</p>
+        </div>
+        <button type="button" class="home-checklist-sticky-delete" aria-label="Delete list sticky" title="Delete">
+          <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+        </button>
+      </header>
+      <ul class="home-checklist-sticky-list">${itemsHtml}</ul>
+    </article>`;
 }
 
-function bindStickyCheckItemDrag() {}
+function bindStickyCheckItemDrag(row) {
+  if (!row) return;
+  if (!isTouchDevice()) {
+    bindMouseGripDrag(row);
+  }
+}
 
-function bindHomeChecklistStickies() {}
+function bindHomeChecklistStickies(root) {
+  if (!root) return;
+  root.querySelectorAll(".home-checklist-sticky").forEach((card) => {
+    const stickyId = card.dataset.stickyId;
+    card.querySelector(".home-checklist-sticky-delete")?.addEventListener("click", () => {
+      deleteStandaloneNote(stickyId);
+      renderAll();
+    });
+    card.querySelectorAll(".sticky-check-item").forEach((row) => {
+      const itemId = row.dataset.itemId;
+      row.querySelector('input[type="checkbox"]')?.addEventListener("change", (e) => {
+        updateStandaloneChecklistItem(stickyId, itemId, { done: e.target.checked });
+        renderAll();
+      });
+      bindStickyCheckItemDrag(row);
+    });
+  });
+}
 
 function renderHomeChecklistStickies() {
   const root = document.getElementById("home-checklist-stickies");
   if (!root) return;
-  root.innerHTML = "";
-  root.classList.add("hidden");
+  const lists = loadStandaloneNotes().filter(isChecklistStandaloneNote);
+  if (!lists.length) {
+    root.innerHTML = "";
+    root.classList.add("hidden");
+    return;
+  }
+  root.classList.remove("hidden");
+  root.innerHTML = `
+    <div class="home-checklist-stickies-inner">
+      ${lists.map(homeChecklistStickyHtml).join("")}
+    </div>`;
+  bindHomeChecklistStickies(root);
 }
 
 function renderHome() {
@@ -13753,6 +13946,43 @@ function listAtPoint(x, y) {
 }
 
 function applyGripDragDrop(card, x, y) {
+  if (isStickyCheckDragCard(card)) {
+    const stickyId = card.dataset.stickyId;
+    const itemId = card.dataset.itemId || card.dataset.id;
+    if (!stickyId || !itemId) return;
+
+    const target = taskCardAtPoint(card, x, y);
+    if (target && !isTierExpandCard(target) && !isStickyCheckDragCard(target)) {
+      const tier = getCardTier(target);
+      if (tier) {
+        promoteStickyItemToTier(stickyId, itemId, tier, target.dataset.id, false);
+        renderAll();
+        return;
+      }
+    }
+
+    const list = listAtPoint(x, y);
+    if (list) {
+      const tier = getListDragTier(list);
+      if (tier) {
+        const atStart = isDropAtListStart(list, y);
+        promoteStickyItemToTier(stickyId, itemId, tier, null, atStart);
+        renderAll();
+        return;
+      }
+    }
+
+    const col = columnAtPoint(x, y);
+    if (col) {
+      const tier = Number(col.dataset.tier);
+      const colList = col.querySelector(".task-list");
+      const atStart = colList ? isDropAtListStart(colList, y) : false;
+      promoteStickyItemToTier(stickyId, itemId, tier, null, atStart);
+      renderAll();
+    }
+    return;
+  }
+
   const id = card.dataset.id;
   const ctx = card.dataset.context;
 
@@ -14202,16 +14432,83 @@ function setStickyScanStatus(message, { error = false, help = false } = {}) {
   status.classList.toggle("is-help", Boolean(help));
 }
 
+function isDialogStickyListMode() {
+  const btn = document.getElementById("dialog-sticky-list-toggle");
+  return btn?.getAttribute("aria-pressed") === "true";
+}
+
+function setDialogStickyListMode(on, options = {}) {
+  const pressed = Boolean(on);
+  const btn = document.getElementById("dialog-sticky-list-toggle");
+  const scanBtn = document.getElementById("dialog-sticky-scan-btn");
+  const input = document.getElementById("dialog-input");
+  if (btn) {
+    btn.setAttribute("aria-pressed", pressed ? "true" : "false");
+    btn.classList.toggle("is-active", pressed);
+  }
+  scanBtn?.classList.toggle("hidden", !pressed);
+  if (getDialogCaptureMode() === "note" && input) {
+    input.placeholder = pressed
+      ? "One item per line — or scan a handwritten list"
+      : "Write a sticky note…";
+    input.maxLength = pressed ? 2000 : 1000;
+  }
+  if (!pressed) {
+    const hint = document.getElementById("dialog-sticky-checklist-hint");
+    const preview = document.getElementById("dialog-sticky-checklist-preview");
+    hint?.classList.add("hidden");
+    preview?.classList.add("hidden");
+    if (preview) preview.innerHTML = "";
+    if (input) delete input.dataset.checklistTitle;
+    clearStickyScanStatus();
+    setTaskDialogSubmitLabel("Save sticky");
+  } else if (options.syncPreview !== false) {
+    syncStickyChecklistPreview();
+  }
+}
+
 function syncStickyChecklistPreview() {
   const hint = document.getElementById("dialog-sticky-checklist-hint");
   const preview = document.getElementById("dialog-sticky-checklist-preview");
-  hint?.classList.add("hidden");
-  preview?.classList.add("hidden");
-  if (preview) preview.innerHTML = "";
+  const input = document.getElementById("dialog-input");
+  if (!hint || !preview || !input) return;
+
+  if (getDialogCaptureMode() !== "note" || !isDialogStickyListMode()) {
+    hint.classList.add("hidden");
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    if (getDialogCaptureMode() === "note") setTaskDialogSubmitLabel("Save sticky");
+    return;
+  }
+
+  const lines = parseTasksFromText(input.value, { max: 40 });
+  if (!lines.length) {
+    hint.classList.add("hidden");
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    setTaskDialogSubmitLabel("Save sticky");
+    return;
+  }
+
+  hint.classList.remove("hidden");
+  hint.textContent =
+    lines.length === 1
+      ? "Will save a 1-item list sticky. Add more lines for a full checklist."
+      : `Will save a checklist sticky with ${lines.length} items. Drag rows from Home onto 1st–4th.`;
+  preview.classList.remove("hidden");
+  preview.innerHTML = lines
+    .map(
+      (text) =>
+        `<li class="dialog-sticky-checklist-row"><span class="dialog-sticky-check" aria-hidden="true"></span><span>${escapeHtml(
+          text
+        )}</span></li>`
+    )
+    .join("");
+  setTaskDialogSubmitLabel(lines.length === 1 ? "Save list" : `Save ${lines.length}-item list`);
 }
 
 function guessChecklistTitle(lines) {
-  if (!lines.length) return "Shopping list";
+  if (!lines.length) return "List";
   const first = lines[0];
   if (
     /^(shopping|grocery|groceries|to[\s-]?buy|errands|list|costco|walmart|trader\s*joe'?s|target|whole\s*foods)\b/i.test(
@@ -14221,7 +14518,7 @@ function guessChecklistTitle(lines) {
   ) {
     return first;
   }
-  return "Shopping list";
+  return "List";
 }
 
 function loadImageFromBlob(blob) {
@@ -14884,9 +15181,12 @@ async function handleStickyScanFile(file) {
 
     const title = guessChecklistTitle(lines);
     const bodyLines =
-      title !== "Shopping list" && lines[0].toLowerCase() === title.toLowerCase()
+      title !== "List" &&
+      title.toLowerCase() !== "shopping list" &&
+      lines[0].toLowerCase() === title.toLowerCase()
         ? lines.slice(1)
         : lines;
+    setDialogStickyListMode(true, { syncPreview: false });
     input.value = (bodyLines.length ? bodyLines : lines).join("\n");
     input.dataset.checklistTitle = title;
     const count = bodyLines.length || lines.length;
@@ -14971,14 +15271,11 @@ function setDialogCaptureMode(mode, options = {}) {
 
   taskFields?.classList.toggle("hidden", next === "note");
   noteHint?.classList.toggle("hidden", next !== "note");
-  stickyTools?.classList.add("hidden");
-  if (stickyTools) stickyTools.hidden = true;
+  stickyTools?.classList.toggle("hidden", next !== "note");
 
   if (next === "note") {
     if (title && options.updateTitle !== false) title.textContent = "Add Sticky";
     if (input) {
-      input.placeholder = "Write a sticky note…";
-      input.maxLength = 1000;
       input.rows = 4;
     }
     setTaskDialogSubmitLabel("Save sticky");
@@ -14987,7 +15284,8 @@ function setDialogCaptureMode(mode, options = {}) {
     hint?.classList.add("hidden");
     preview?.classList.add("hidden");
     if (preview) preview.innerHTML = "";
-    clearStickyScanStatus();
+    setDialogStickyListMode(false, { syncPreview: false });
+    if (options.syncPreview !== false) syncStickyChecklistPreview();
   } else {
     if (title && options.updateTitle !== false) title.textContent = "Add Task";
     if (input) {
@@ -14995,6 +15293,7 @@ function setDialogCaptureMode(mode, options = {}) {
       input.maxLength = 2000;
       input.rows = 2;
     }
+    setDialogStickyListMode(false, { syncPreview: false });
     clearStickyScanStatus();
     if (options.syncPreview !== false) syncDialogParsePreview();
   }
@@ -15461,6 +15760,27 @@ function saveTaskFromDialog() {
   if (getDialogCaptureMode() === "note") {
     const input = document.getElementById("dialog-input");
     const text = input?.value || "";
+    if (isDialogStickyListMode()) {
+      const lines = parseTasksFromText(text, { max: 40 });
+      if (!lines.length) return false;
+      const scannedTitle = String(input?.dataset.checklistTitle || "").trim();
+      let title = scannedTitle || guessChecklistTitle(lines);
+      let items = lines;
+      if (
+        !scannedTitle &&
+        title !== "List" &&
+        title.toLowerCase() !== "shopping list" &&
+        lines[0]?.toLowerCase() === title.toLowerCase()
+      ) {
+        items = lines.slice(1);
+      }
+      if (!items.length) items = lines;
+      if (!addStandaloneNote(title, { title, items })) return false;
+      if (input) delete input.dataset.checklistTitle;
+      clearStickyScanStatus();
+      setDialogStickyListMode(false, { syncPreview: false });
+      return true;
+    }
     if (!addStandaloneNote(text)) return false;
     if (input) delete input.dataset.checklistTitle;
     clearStickyScanStatus();
@@ -15637,6 +15957,15 @@ function setupTaskDialog() {
   });
 
   setupStickyScanCapture();
+
+  const listToggle = document.getElementById("dialog-sticky-list-toggle");
+  if (listToggle && !listToggle.dataset.bound) {
+    listToggle.dataset.bound = "1";
+    listToggle.addEventListener("click", () => {
+      setDialogStickyListMode(!isDialogStickyListMode());
+      document.getElementById("dialog-input")?.focus();
+    });
+  }
 
   document.getElementById("dialog-repeat")?.addEventListener("change", syncDialogRepeatFields);
 
@@ -16036,18 +16365,45 @@ function historyAnxietyCardHtml(history) {
 function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
   const when = formatNoteTimestamp(note.createdAt);
   const linked = note.source === "task";
-  const kind = linked ? "Note" : "Sticky";
-  const kindClass = linked ? "history-note-kind--note" : "history-note-kind--sticky";
+  const isChecklist = !linked && Array.isArray(note.items) && note.items.length > 0;
+  const kind = linked ? "Note" : isChecklist ? "List" : "Sticky";
+  const kindClass = linked
+    ? "history-note-kind--note"
+    : isChecklist
+      ? "history-note-kind--checklist"
+      : "history-note-kind--sticky";
+  const displayText = isChecklist
+    ? note.title || note.text?.split("\n")[0] || "List"
+    : note.text;
+  const checklistHtml = isChecklist
+    ? `<ul class="history-note-checklist">
+        ${note.items
+          .map(
+            (item) => `<li class="history-note-checklist-item${item.done ? " done" : ""}">
+              <span class="history-note-checklist-mark" aria-hidden="true">${item.done ? "☑" : "☐"}</span>
+              <span>${escapeHtml(item.text)}</span>
+            </li>`
+          )
+          .join("")}
+      </ul>
+      <p class="history-note-checklist-hint">Open Home to drag items onto 1st–4th priority.</p>`
+    : `<p class="history-note-text">${escapeHtml(note.text)}</p>`;
+  const editValue = isChecklist
+    ? note.items.map((item) => item.text).join("\n")
+    : note.text;
   return `
-    <li class="history-note-item${linked ? " history-note-item--linked" : " history-note-item--sticky"}" data-note-id="${escapeHtml(note.id)}" data-note-kind="${linked ? "note" : "sticky"}"${
+    <li class="history-note-item${linked ? " history-note-item--linked" : " history-note-item--sticky"}${
+      isChecklist ? " history-note-item--checklist" : ""
+    }" data-note-id="${escapeHtml(note.id)}" data-note-kind="${linked ? "note" : "sticky"}"${
       linked
         ? ` data-task-id="${escapeHtml(note.taskId)}" data-context="${escapeHtml(note.context)}"`
         : ""
-    }>
+    }${isChecklist ? ` data-list-mode="1"` : ""}>
       <div class="history-note-copy">
         <div class="history-note-view">
           <span class="history-note-kind ${kindClass}">${kind}</span>
-          <p class="history-note-text">${escapeHtml(note.text)}</p>
+          ${isChecklist ? `<p class="history-note-text history-note-text--title">${escapeHtml(displayText)}</p>` : ""}
+          ${checklistHtml}
           ${when ? `<p class="history-note-meta">${escapeHtml(when)}</p>` : ""}
           ${
             linked
@@ -16065,8 +16421,17 @@ function historyNoteItemHtml(note, taskOptionsHtml, hasTasks) {
           }
         </div>
         <form class="history-note-edit hidden">
-          <textarea class="history-note-edit-input" rows="3" maxlength="1000" aria-label="Edit ${kind.toLowerCase()}">${escapeHtml(
-            note.text
+          ${
+            linked
+              ? ""
+              : `<button
+            type="button"
+            class="history-note-list-toggle${isChecklist ? " is-active" : ""}"
+            aria-pressed="${isChecklist ? "true" : "false"}"
+          >List mode</button>`
+          }
+          <textarea class="history-note-edit-input" rows="3" maxlength="2000" aria-label="Edit ${kind.toLowerCase()}">${escapeHtml(
+            editValue
           )}</textarea>
           <div class="history-note-edit-actions">
             <button type="button" class="history-note-edit-cancel">Cancel</button>
@@ -16163,7 +16528,18 @@ function bindHistoryNotesCard(root) {
     const editForm = el.querySelector(".history-note-edit");
     const editInput = el.querySelector(".history-note-edit-input");
 
+    const listToggle = el.querySelector(".history-note-list-toggle");
+    listToggle?.addEventListener("click", () => {
+      const next = listToggle.getAttribute("aria-pressed") !== "true";
+      listToggle.setAttribute("aria-pressed", next ? "true" : "false");
+      listToggle.classList.toggle("is-active", next);
+    });
     el.querySelector(".history-note-edit-btn")?.addEventListener("click", () => {
+      if (listToggle) {
+        const asList = el.dataset.listMode === "1";
+        listToggle.setAttribute("aria-pressed", asList ? "true" : "false");
+        listToggle.classList.toggle("is-active", asList);
+      }
       setHistoryNoteEditing(el, true);
     });
     el.querySelector(".history-note-edit-cancel")?.addEventListener("click", () => {
@@ -16177,15 +16553,21 @@ function bindHistoryNotesCard(root) {
             || "";
         }
       }
+      if (listToggle) {
+        const asList = el.dataset.listMode === "1";
+        listToggle.setAttribute("aria-pressed", asList ? "true" : "false");
+        listToggle.classList.toggle("is-active", asList);
+      }
       setHistoryNoteEditing(el, false);
     });
     editForm?.addEventListener("submit", (e) => {
       e.preventDefault();
       const nextText = editInput?.value || "";
+      const asList = listToggle?.getAttribute("aria-pressed") === "true";
       const saved =
         taskId && context
           ? updateTaskNote(taskId, context, noteId, nextText)
-          : updateStandaloneNote(noteId, nextText);
+          : updateStandaloneNote(noteId, nextText, { asList });
       if (!saved) return;
       renderAll();
     });
