@@ -67,7 +67,7 @@
         })();
       } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=198" />
+    <link rel="stylesheet" href="styles.css?v=199" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
     <link rel="stylesheet" href="design/home-presence.css?v=148" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
@@ -1390,7 +1390,7 @@
         ></textarea>
         <p class="dialog-parse-hint hidden" id="dialog-parse-hint"></p>
         <ul class="dialog-parse-preview hidden" id="dialog-parse-preview" aria-live="polite"></ul>
-        <div class="dialog-sticky-tools hidden" id="dialog-sticky-tools">
+        <div class="dialog-sticky-tools hidden" id="dialog-sticky-tools" hidden>
           <div class="dialog-sticky-actions">
             <label class="dialog-sticky-scan-btn" for="dialog-sticky-scan-input">
               <svg class="icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -1511,7 +1511,7 @@
         </div>
         </div>
         <p class="dialog-note-hint hidden" id="dialog-note-hint">
-          Stickies land on Home and in History. Scan reads handwriting with Google AI (add a free key in Settings). Then drag rows onto 1st–4th.
+          Stickies show up in History. Convert any task into a sticky from the note icon on the task.
         </p>
         <input type="hidden" id="dialog-edit-id" value="" />
         <input type="hidden" id="dialog-original-context" value="" />
@@ -1522,6 +1522,7 @@
         <footer class="task-dialog-footer">
           <div class="dialog-actions dialog-actions--edit">
             <button type="button" class="btn-danger-ghost hidden" id="dialog-delete">Delete</button>
+            <button type="button" class="btn-ghost hidden" id="dialog-to-sticky">Make sticky</button>
             <button type="button" class="btn-ghost hidden" id="dialog-combine">Combine…</button>
             <button type="button" class="btn-ghost" id="dialog-cancel">Cancel</button>
             <button type="submit" class="btn-primary" id="dialog-submit">Save</button>
@@ -1793,6 +1794,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=381"></script>
+    <script src="app.js?v=382"></script>
   </body>
 </html>
