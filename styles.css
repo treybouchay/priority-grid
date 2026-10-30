@@ -5370,11 +5370,17 @@ dialog {
 }
 
 .home-checklist-stickies-inner {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  align-items: flex-start;
 }
 
 .home-checklist-sticky {
+  flex: 1 1 15.5rem;
+  max-width: 20rem;
+  min-width: min(100%, 15.5rem);
+  box-sizing: border-box;
   border: 1px solid rgba(14, 48, 48, 0.1);
   border-radius: 1rem;
   background:
@@ -5388,8 +5394,48 @@ dialog {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.45rem;
+  margin-bottom: 0;
+}
+
+.home-checklist-sticky.is-expanded .home-checklist-sticky-header {
   margin-bottom: 0.55rem;
+}
+
+.home-checklist-sticky-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-top: 0.15rem;
+  border: none;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.55);
+  cursor: pointer;
+}
+
+.home-checklist-sticky-toggle .icon {
+  width: 1rem;
+  height: 1rem;
+  transition: transform 0.18s ease;
+  transform: rotate(-90deg);
+}
+
+.home-checklist-sticky.is-expanded .home-checklist-sticky-toggle .icon {
+  transform: rotate(0deg);
+}
+
+.home-checklist-sticky-toggle:hover {
+  background: rgba(17, 48, 44, 0.06);
+  color: #11302c;
+}
+
+.home-checklist-sticky-heading {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .home-checklist-sticky-kind {
@@ -5403,6 +5449,17 @@ dialog {
   color: rgba(17, 48, 44, 0.55);
 }
 
+.home-checklist-sticky-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.home-checklist-sticky-title-row.hidden {
+  display: none;
+}
+
 .home-checklist-sticky-title {
   margin: 0;
   font-family: var(--font-display, "Fraunces", Georgia, serif);
@@ -5410,6 +5467,77 @@ dialog {
   font-weight: 650;
   color: #11302c;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.home-checklist-sticky-rename {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  cursor: pointer;
+}
+
+.home-checklist-sticky-rename:hover {
+  background: rgba(17, 48, 44, 0.06);
+  color: #11302c;
+}
+
+.home-checklist-sticky-rename .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.home-checklist-sticky-rename-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+}
+
+.home-checklist-sticky-rename-form.hidden {
+  display: none;
+}
+
+.home-checklist-sticky-rename-input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(14, 48, 48, 0.18);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #11302c;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.875rem;
+}
+
+.home-checklist-sticky-rename-save,
+.home-checklist-sticky-rename-cancel {
+  height: 2rem;
+  padding: 0 0.65rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.home-checklist-sticky-rename-save {
+  background: #0e3030;
+  color: #ffdbd2;
+}
+
+.home-checklist-sticky-rename-cancel {
+  background: rgba(14, 48, 48, 0.08);
+  color: #11302c;
 }
 
 .home-checklist-sticky-sub {
@@ -5417,6 +5545,17 @@ dialog {
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.75rem;
   color: rgba(17, 48, 44, 0.55);
+}
+
+.home-checklist-sticky-hint {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.7rem;
+  color: rgba(17, 48, 44, 0.5);
+}
+
+.home-checklist-sticky-body.hidden {
+  display: none;
 }
 
 .home-checklist-sticky-delete {
@@ -5484,9 +5623,10 @@ dialog {
   opacity: 0.55;
 }
 
-@media (min-width: 769px) {
-  .home-checklist-stickies-inner {
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+@media (max-width: 480px) {
+  .home-checklist-sticky {
+    flex-basis: 100%;
+    max-width: none;
   }
 }
 

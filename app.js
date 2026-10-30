@@ -5128,6 +5128,20 @@ function updateStandaloneChecklistItem(stickyId, itemId, patch = {}) {
   return true;
 }
 
+function updateStandaloneChecklistTitle(id, title) {
+  const trimmed = String(title || "").trim().slice(0, 1000) || "List";
+  if (!id) return false;
+  const notes = loadStandaloneNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return false;
+  const existing = notes[index];
+  if (!isChecklistStandaloneNote(existing)) return false;
+  if (existing.text === trimmed) return true;
+  notes[index] = { ...existing, text: trimmed, kind: "checklist" };
+  saveStandaloneNotes(notes);
+  return true;
+}
+
 function removeStandaloneChecklistItem(stickyId, itemId) {
   const notes = loadStandaloneNotes();
   const index = notes.findIndex((n) => n.id === stickyId);
@@ -14136,22 +14150,68 @@ function stickyCheckItemHtml(stickyId, item) {
     </li>`;
 }
 
+/** Expanded list stickies on Home — collapsed by default. */
+const expandedHomeChecklistIds = new Set();
+
 function homeChecklistStickyHtml(note) {
   const openCount = note.items.filter((item) => !item.done).length;
+  const totalCount = note.items.length;
+  const expanded = expandedHomeChecklistIds.has(note.id);
+  const title = note.text || "List";
   const itemsHtml = note.items.map((item) => stickyCheckItemHtml(note.id, item)).join("");
   return `
-    <article class="home-checklist-sticky" data-sticky-id="${escapeHtml(note.id)}">
+    <article
+      class="home-checklist-sticky${expanded ? " is-expanded" : " is-collapsed"}"
+      data-sticky-id="${escapeHtml(note.id)}"
+    >
       <header class="home-checklist-sticky-header">
+        <button
+          type="button"
+          class="home-checklist-sticky-toggle"
+          aria-expanded="${expanded ? "true" : "false"}"
+          aria-controls="home-checklist-body-${escapeHtml(note.id)}"
+          aria-label="${expanded ? "Collapse list" : "Expand list"}"
+          title="${expanded ? "Collapse" : "Expand"}"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+        </button>
         <div class="home-checklist-sticky-heading">
           <span class="home-checklist-sticky-kind">List sticky</span>
-          <h4 class="home-checklist-sticky-title">${escapeHtml(note.text || "List")}</h4>
-          <p class="home-checklist-sticky-sub">Drag a row onto 1st–4th · ${openCount} open</p>
+          <div class="home-checklist-sticky-title-row">
+            <h4 class="home-checklist-sticky-title">${escapeHtml(title)}</h4>
+            <button
+              type="button"
+              class="home-checklist-sticky-rename"
+              aria-label="Edit list name"
+              title="Edit name"
+            >
+              <svg class="icon" aria-hidden="true"><use href="#icon-pencil"></use></svg>
+            </button>
+          </div>
+          <form class="home-checklist-sticky-rename-form hidden">
+            <input
+              type="text"
+              class="home-checklist-sticky-rename-input"
+              maxlength="1000"
+              value="${escapeHtml(title)}"
+              aria-label="List name"
+            />
+            <button type="submit" class="home-checklist-sticky-rename-save">Save</button>
+            <button type="button" class="home-checklist-sticky-rename-cancel">Cancel</button>
+          </form>
+          <p class="home-checklist-sticky-sub">${openCount} open · ${totalCount} item${totalCount === 1 ? "" : "s"}</p>
         </div>
         <button type="button" class="home-checklist-sticky-delete" aria-label="Delete list sticky" title="Delete">
           <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
         </button>
       </header>
-      <ul class="home-checklist-sticky-list">${itemsHtml}</ul>
+      <div
+        class="home-checklist-sticky-body${expanded ? "" : " hidden"}"
+        id="home-checklist-body-${escapeHtml(note.id)}"
+      >
+        <p class="home-checklist-sticky-hint">Drag a row onto 1st–4th</p>
+        <ul class="home-checklist-sticky-list">${itemsHtml}</ul>
+      </div>
     </article>`;
 }
 
@@ -14162,12 +14222,79 @@ function bindStickyCheckItemDrag(row) {
   }
 }
 
+function setHomeChecklistExpanded(card, stickyId, expanded) {
+  if (!card) return;
+  card.classList.toggle("is-expanded", expanded);
+  card.classList.toggle("is-collapsed", !expanded);
+  const body = card.querySelector(".home-checklist-sticky-body");
+  const toggle = card.querySelector(".home-checklist-sticky-toggle");
+  body?.classList.toggle("hidden", !expanded);
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    toggle.setAttribute("aria-label", expanded ? "Collapse list" : "Expand list");
+    toggle.title = expanded ? "Collapse" : "Expand";
+  }
+  if (expanded) expandedHomeChecklistIds.add(stickyId);
+  else expandedHomeChecklistIds.delete(stickyId);
+}
+
 function bindHomeChecklistStickies(root) {
   if (!root) return;
   root.querySelectorAll(".home-checklist-sticky").forEach((card) => {
     const stickyId = card.dataset.stickyId;
+    const titleEl = card.querySelector(".home-checklist-sticky-title");
+    const renameBtn = card.querySelector(".home-checklist-sticky-rename");
+    const renameForm = card.querySelector(".home-checklist-sticky-rename-form");
+    const renameInput = card.querySelector(".home-checklist-sticky-rename-input");
+    const titleRow = card.querySelector(".home-checklist-sticky-title-row");
+
+    const startRename = () => {
+      if (!renameForm || !renameInput || !titleRow) return;
+      titleRow.classList.add("hidden");
+      renameForm.classList.remove("hidden");
+      renameInput.value = titleEl?.textContent || "List";
+      renameInput.focus();
+      renameInput.select();
+    };
+
+    const cancelRename = () => {
+      if (!renameForm || !titleRow) return;
+      renameForm.classList.add("hidden");
+      titleRow.classList.remove("hidden");
+    };
+
+    card.querySelector(".home-checklist-sticky-toggle")?.addEventListener("click", () => {
+      const next = !card.classList.contains("is-expanded");
+      setHomeChecklistExpanded(card, stickyId, next);
+    });
+
+    renameBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      startRename();
+    });
+    titleEl?.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      startRename();
+    });
+    renameForm?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nextTitle = renameInput?.value || "";
+      if (!updateStandaloneChecklistTitle(stickyId, nextTitle)) return;
+      renderHomeChecklistStickies();
+    });
+    card.querySelector(".home-checklist-sticky-rename-cancel")?.addEventListener("click", () => {
+      cancelRename();
+    });
+    renameInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelRename();
+      }
+    });
+
     card.querySelector(".home-checklist-sticky-delete")?.addEventListener("click", () => {
       deleteStandaloneNote(stickyId);
+      expandedHomeChecklistIds.delete(stickyId);
       renderAll();
     });
     card.querySelectorAll(".sticky-check-item").forEach((row) => {
