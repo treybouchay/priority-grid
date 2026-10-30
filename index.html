@@ -69,7 +69,7 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=200" />
     <link rel="stylesheet" href="design/task-rows.css?v=17" />
-    <link rel="stylesheet" href="design/home-presence.css?v=148" />
+    <link rel="stylesheet" href="design/home-presence.css?v=149" />
     <link rel="stylesheet" href="design/tasks-screen.css?v=52" />
     <link rel="stylesheet" href="design/history-wins.css?v=19" />
     <link rel="stylesheet" href="design/settings-page.css?v=15" />
@@ -578,7 +578,13 @@
                       </div>
                       <ul class="focus-timer-attach-list" id="focus-timer-attach-list"></ul>
                     </div>
-                    <ul class="focus-timer-session-tasks hidden" id="focus-timer-session-tasks"></ul>
+                    <div class="focus-timer-session hidden" id="focus-timer-session">
+                      <div class="focus-timer-session-head">
+                        <p class="focus-timer-session-label">Focus tasks</p>
+                        <button type="button" class="focus-timer-attach-add" id="focus-timer-session-add">Add task</button>
+                      </div>
+                      <ul class="focus-timer-session-tasks" id="focus-timer-session-tasks"></ul>
+                    </div>
                     <div class="focus-timer-actions">
                       <button type="button" class="presence-focus-btn focus-timer-toggle" id="focus-timer-toggle">
                         <span id="focus-timer-toggle-label">Start Focus</span>
@@ -1305,7 +1311,12 @@
           <button type="button" class="focus-timer-mini-reset" id="focus-timer-mini-reset">Reset</button>
         </div>
         <p class="focus-timer-complete-label focus-timer-mini-complete-label" id="focus-timer-mini-complete-label" aria-live="polite">Focus complete</p>
-        <ul class="focus-timer-mini-tasks hidden" id="focus-timer-mini-tasks"></ul>
+        <div class="focus-timer-mini-session hidden" id="focus-timer-mini-session">
+          <div class="focus-timer-mini-session-head">
+            <button type="button" class="focus-timer-mini-add" id="focus-timer-mini-add">Add task</button>
+          </div>
+          <ul class="focus-timer-mini-tasks" id="focus-timer-mini-tasks"></ul>
+        </div>
         <div class="focus-timer-mini-presets hidden" id="focus-timer-mini-presets" role="group" aria-label="New timer length">
           <button type="button" class="focus-timer-mini-preset" data-minutes="20">20 min</button>
           <button type="button" class="focus-timer-mini-preset" data-minutes="10">10 min</button>
@@ -1616,7 +1627,8 @@
           <button type="button" class="plan-135-picker-close" id="focus-timer-picker-close" aria-label="Close">×</button>
         </header>
         <ul class="plan-135-picker-list" id="focus-timer-picker-list"></ul>
-        <footer class="plan-135-picker-footer">
+        <footer class="plan-135-picker-footer focus-timer-picker-footer">
+          <button type="button" class="btn-ghost" id="focus-timer-picker-create">Create new</button>
           <button type="button" class="btn-primary" id="focus-timer-picker-done">OK</button>
         </footer>
       </div>
@@ -1802,6 +1814,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="app.js?v=384"></script>
+    <script src="app.js?v=387"></script>
   </body>
 </html>

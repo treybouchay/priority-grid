@@ -17,6 +17,8 @@ const FORGET_IT_PREFIX = "priority-grid-forget-it-";
 const REPEAT_RESET_KEY = "priority-grid-repeat-last-reset";
 const DONE_ROLLOVER_KEY = "priority-grid-done-rollover";
 const MORNING_REVIEW_KEY = "priority-grid-morning-review";
+const LAST_ACTIVE_DAY_KEY = "priority-grid-last-active-day";
+const DAILY_WINS_LOG_KEY = "priority-grid-daily-wins-log";
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
@@ -932,6 +934,7 @@ const FOCUS_TIMER_TASKS_KEY = "priority-grid-focus-timer-tasks";
 const FOCUS_SS_BG_KEY = "priority-grid-focus-ss-bg";
 const FOCUS_SS_BGS = ["solid", "hills", "falls", "parallax", "sunset", "sunrise"];
 let focusTimerAttached = [];
+let pendingFocusTimerAttach = false;
 let refreshFocusTimerUI = () => {};
 let renderFocusTimerChrome = () => {};
 let focusCardVisible = false;
@@ -1126,6 +1129,16 @@ function saveFocusTimerAttached() {
   }
 }
 
+function attachTaskToFocusTimer(id, context) {
+  if (!id || !context) return false;
+  if (focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS) return false;
+  const exists = focusTimerAttached.some((ref) => ref.id === id && ref.context === context);
+  if (exists) return false;
+  focusTimerAttached.push({ id, context });
+  saveFocusTimerAttached();
+  return true;
+}
+
 function resolveFocusTimerTasks() {
   return focusTimerAttached
     .map((ref) => {
@@ -1171,7 +1184,11 @@ function setupFocusTimer() {
   const attachWrap = document.getElementById("focus-timer-attach");
   const attachList = document.getElementById("focus-timer-attach-list");
   const attachAdd = document.getElementById("focus-timer-attach-add");
+  const sessionWrap = document.getElementById("focus-timer-session");
+  const sessionAdd = document.getElementById("focus-timer-session-add");
   const sessionTasks = document.getElementById("focus-timer-session-tasks");
+  const miniSession = document.getElementById("focus-timer-mini-session");
+  const miniAdd = document.getElementById("focus-timer-mini-add");
   const miniTasks = document.getElementById("focus-timer-mini-tasks");
   const miniPresets = document.getElementById("focus-timer-mini-presets");
   const miniCustomWrap = document.getElementById("focus-timer-mini-custom");
@@ -1180,6 +1197,7 @@ function setupFocusTimer() {
   const pickerDialog = document.getElementById("focus-timer-picker-dialog");
   const pickerList = document.getElementById("focus-timer-picker-list");
   const pickerSub = document.getElementById("focus-timer-picker-sub");
+  const pickerCreate = document.getElementById("focus-timer-picker-create");
   const screensaver = document.getElementById("focus-screensaver");
   const screensaverDisplay = document.getElementById("focus-screensaver-display");
   const screensaverToggle = document.getElementById("focus-screensaver-toggle");
@@ -1287,13 +1305,18 @@ function setupFocusTimer() {
         });
       });
     }
-    if (attachAdd) {
-      attachAdd.disabled = focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS;
-      attachAdd.textContent =
-        focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS
-          ? `Full (${FOCUS_TIMER_MAX_TASKS})`
-          : "Add task";
-    }
+    syncFocusTimerAddButtons();
+  }
+
+  function syncFocusTimerAddButtons() {
+    const full = focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS;
+    const label = full ? `Full (${FOCUS_TIMER_MAX_TASKS})` : "Add task";
+    [attachAdd, sessionAdd, miniAdd].forEach((btn) => {
+      if (!btn) return;
+      btn.disabled = full;
+      btn.textContent = label;
+    });
+    if (pickerCreate) pickerCreate.disabled = full;
   }
 
   function purgeDoneFocusTasks() {
@@ -1448,14 +1471,17 @@ function setupFocusTimer() {
     const timerDone = !running && remainingMs === 0;
     const tasks = getFocusTimerTasksForDisplay();
     const active = isActiveSession();
-    const showTasks = (active || timerDone) && tasks.length > 0;
+    const showSession = active || timerDone;
+
+    if (sessionWrap) sessionWrap.classList.toggle("hidden", !showSession);
+    if (miniSession) miniSession.classList.toggle("hidden", !showSession);
 
     if (sessionTasks) {
-      if (!showTasks) {
-        sessionTasks.classList.add("hidden");
+      if (!showSession) {
         sessionTasks.innerHTML = "";
+      } else if (tasks.length === 0) {
+        sessionTasks.innerHTML = `<li class="focus-timer-attach-empty">Add an open task or create a new one.</li>`;
       } else {
-        sessionTasks.classList.remove("hidden");
         sessionTasks.innerHTML = tasks
           .map((task) =>
             focusTimerTaskRowHtml(task, {
@@ -1472,11 +1498,11 @@ function setupFocusTimer() {
     }
 
     if (miniTasks) {
-      if (!showTasks) {
-        miniTasks.classList.add("hidden");
+      if (!showSession) {
+        miniTasks.innerHTML = "";
+      } else if (tasks.length === 0) {
         miniTasks.innerHTML = "";
       } else {
-        miniTasks.classList.remove("hidden");
         miniTasks.innerHTML = tasks
           .map((task) =>
             focusTimerTaskRowHtml(task, {
@@ -1491,6 +1517,8 @@ function setupFocusTimer() {
         });
       }
     }
+
+    syncFocusTimerAddButtons();
   }
 
   function renderAttachedSurfaces() {
@@ -1499,13 +1527,23 @@ function setupFocusTimer() {
     renderScreensaver();
   }
 
+  function openFocusTimerCreateTask() {
+    if (focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS) return;
+    pickerDialog?.close();
+    pendingFocusTimerAttach = true;
+    openTaskDialog(1);
+  }
+
   function openFocusTimerPicker() {
     if (!pickerDialog || !pickerList) return;
     const remaining = FOCUS_TIMER_MAX_TASKS - focusTimerAttached.length;
     if (remaining <= 0) return;
     const candidates = getFocusTimerCandidateTasks();
     if (pickerSub) {
-      pickerSub.textContent = `Pick up to ${remaining} more open task${remaining === 1 ? "" : "s"}.`;
+      pickerSub.textContent =
+        candidates.length === 0
+          ? "No open tasks left — create a new one for this session."
+          : `Pick up to ${remaining} more open task${remaining === 1 ? "" : "s"}, or create a new one.`;
     }
     if (candidates.length === 0) {
       pickerList.innerHTML = `<li class="plan-135-picker-empty">No open tasks left to attach.</li>`;
@@ -1514,12 +1552,7 @@ function setupFocusTimer() {
       pickerList.querySelectorAll(".plan-135-picker-item").forEach((btn) => {
         btn.addEventListener("click", () => {
           if (focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS) return;
-          const exists = focusTimerAttached.some(
-            (ref) => ref.id === btn.dataset.id && ref.context === btn.dataset.context
-          );
-          if (!exists) {
-            focusTimerAttached.push({ id: btn.dataset.id, context: btn.dataset.context });
-            saveFocusTimerAttached();
+          if (attachTaskToFocusTimer(btn.dataset.id, btn.dataset.context)) {
             renderAttachedSurfaces();
           }
           if (focusTimerAttached.length >= FOCUS_TIMER_MAX_TASKS) {
@@ -1530,6 +1563,7 @@ function setupFocusTimer() {
         });
       });
     }
+    syncFocusTimerAddButtons();
     pickerDialog.showModal();
   }
 
@@ -1613,10 +1647,12 @@ function setupFocusTimer() {
     if (miniCustomWrap) miniCustomWrap.classList.add("hidden");
 
     if (attachWrap) attachWrap.classList.toggle("hidden", active || done);
+    if (sessionWrap) sessionWrap.classList.toggle("hidden", !(active || done));
+    if (miniSession) miniSession.classList.toggle("hidden", !(active || done));
     renderAttachedSurfaces();
 
     const displayTasks = getFocusTimerTasksForDisplay();
-    const hasTaskRows = showMiniBar && displayTasks.length > 0;
+    const hasTaskRows = showMiniBar && (displayTasks.length > 0 || Boolean(miniAdd));
     document.body.classList.toggle("focus-timer-has-tasks", hasTaskRows);
     syncFocusTimerOffset();
     syncBottomChrome();
@@ -1835,6 +1871,9 @@ function setupFocusTimer() {
     render();
   });
   attachAdd?.addEventListener("click", openFocusTimerPicker);
+  sessionAdd?.addEventListener("click", openFocusTimerPicker);
+  miniAdd?.addEventListener("click", openFocusTimerPicker);
+  pickerCreate?.addEventListener("click", openFocusTimerCreateTask);
   document.getElementById("focus-timer-picker-close")?.addEventListener("click", () => {
     pickerDialog?.close();
   });
@@ -6790,6 +6829,8 @@ function carryOverIncompleteScheduledTasks() {
 
 function runDailyMaintenance({ render = false } = {}) {
   const beforeDay = localDayKey();
+  // Capture completed wins before repeat resets clear completedAt.
+  backfillDailyWinsLogFromTasks();
   clearExpiredDeferredTasks();
   const carried = carryOverIncompleteScheduledTasks();
   const resetDaily = resetRepeatDailyTasksIfNeeded();
@@ -9505,11 +9546,129 @@ const REFLECTION_FAVOURITE_KEY = "priority-grid-reflection-favourite";
 
 let morningReviewActive = false;
 let morningReviewOfferTimer = 0;
+let morningReviewDayKey = null;
 
 function getYesterdayDayKey() {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return archiveDayKey(yesterday.toISOString());
+  return relativeDayKey(-1);
+}
+
+function loadDailyWinsLog() {
+  try {
+    const raw = localStorage.getItem(DAILY_WINS_LOG_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDailyWinsLog(log) {
+  try {
+    localStorage.setItem(DAILY_WINS_LOG_KEY, JSON.stringify(log || {}));
+  } catch {
+    /* ignore */
+  }
+}
+
+function pruneDailyWinsLog(log, keepDays = 30) {
+  const cutoff = relativeDayKey(-(keepDays - 1));
+  Object.keys(log).forEach((dayKey) => {
+    if (dayKey < cutoff) delete log[dayKey];
+  });
+  return log;
+}
+
+function normalizeDailyWinEntry(entry, fallbackContext = "home") {
+  if (!entry || typeof entry !== "object") return null;
+  const id = typeof entry.id === "string" ? entry.id : "";
+  const text = typeof entry.text === "string" ? entry.text.trim() : "";
+  const completedAt = typeof entry.completedAt === "string" ? entry.completedAt : "";
+  if (!id || !text || !completedAt) return null;
+  const tier = Number(entry.tier);
+  return {
+    id,
+    text: text.slice(0, 180),
+    tier: [1, 2, 3, 4].includes(tier) ? tier : 3,
+    done: true,
+    completedAt,
+    context: typeof entry.context === "string" && entry.context ? entry.context : fallbackContext,
+    archived: Boolean(entry.archived),
+  };
+}
+
+function recordDailyWin(task, ctx) {
+  if (!task?.done || !task.completedAt || !task.id) return;
+  if (String(task.id).startsWith("demo-reflect-")) return;
+  const dayKey = archiveDayKey(task.completedAt);
+  if (!dayKey) return;
+  const entry = normalizeDailyWinEntry(
+    {
+      id: task.id,
+      text: task.text,
+      tier: task.tier,
+      completedAt: task.completedAt,
+      context: ctx || task.context,
+      archived: task.archived,
+    },
+    ctx || task.context || "home"
+  );
+  if (!entry) return;
+  const log = loadDailyWinsLog();
+  const list = Array.isArray(log[dayKey]) ? log[dayKey].slice() : [];
+  const index = list.findIndex((item) => item.id === entry.id && item.context === entry.context);
+  if (index >= 0) list[index] = entry;
+  else list.push(entry);
+  log[dayKey] = list;
+  saveDailyWinsLog(pruneDailyWinsLog(log));
+}
+
+function removeDailyWin(taskId, ctx, dayKey = null) {
+  if (!taskId) return;
+  const log = loadDailyWinsLog();
+  let changed = false;
+  const keys = dayKey ? [dayKey] : Object.keys(log);
+  keys.forEach((key) => {
+    const list = Array.isArray(log[key]) ? log[key] : [];
+    const next = list.filter((item) => !(item.id === taskId && (!ctx || item.context === ctx)));
+    if (next.length !== list.length) {
+      changed = true;
+      if (next.length) log[key] = next;
+      else delete log[key];
+    }
+  });
+  if (changed) saveDailyWinsLog(log);
+}
+
+function getLoggedWinsForDay(dayKey) {
+  const list = loadDailyWinsLog()[dayKey];
+  if (!Array.isArray(list)) return [];
+  return list.map((entry) => normalizeDailyWinEntry(entry)).filter(Boolean);
+}
+
+function backfillDailyWinsLogFromTasks() {
+  getContexts().forEach((ctx) => {
+    loadTasks(ctx).forEach((task) => {
+      if (task?.done && task.completedAt) recordDailyWin(task, ctx);
+    });
+  });
+}
+
+function getLastActiveDayKey() {
+  try {
+    const value = localStorage.getItem(LAST_ACTIVE_DAY_KEY);
+    return /^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : "";
+  } catch {
+    return "";
+  }
+}
+
+function touchLastActiveDay(dayKey = localDayKey()) {
+  try {
+    localStorage.setItem(LAST_ACTIVE_DAY_KEY, dayKey);
+  } catch {
+    /* ignore */
+  }
 }
 
 function hasSeenMorningReviewToday() {
@@ -9528,11 +9687,27 @@ function markMorningReviewSeen() {
   }
 }
 
+/** Most recent prior day with finished tasks (last session first, then walk back). */
+function getMorningReviewDayKey() {
+  const today = localDayKey();
+  const lastActive = getLastActiveDayKey();
+  const candidates = [];
+  if (lastActive && lastActive < today) candidates.push(lastActive);
+  for (let offset = 1; offset <= 14; offset += 1) {
+    const key = relativeDayKey(-offset);
+    if (!candidates.includes(key)) candidates.push(key);
+  }
+  for (const dayKey of candidates) {
+    if (getCompletedTasksForDay(dayKey).length > 0) return dayKey;
+  }
+  return null;
+}
+
 function shouldOfferMorningReview() {
   if (hasSeenMorningReviewToday()) return false;
   if (document.getElementById("reflection-dialog")?.open) return false;
   if (document.querySelector("dialog[open]:modal")) return false;
-  return getCompletedTasksForDay(getYesterdayDayKey()).length > 0;
+  return Boolean(getMorningReviewDayKey());
 }
 
 function syncMorningReviewChrome() {
@@ -9550,17 +9725,32 @@ function syncMorningReviewChrome() {
 function endMorningReview() {
   if (!morningReviewActive) return;
   morningReviewActive = false;
+  morningReviewDayKey = null;
   setReflectionSelectedDayKey(reflectionTodayKey());
   syncMorningReviewChrome();
 }
 
 function openMorningReview() {
-  if (!shouldOfferMorningReview()) return false;
-  markMorningReviewSeen();
+  const dayKey = getMorningReviewDayKey();
+  if (!dayKey || hasSeenMorningReviewToday()) return false;
+  if (document.getElementById("reflection-dialog")?.open) return false;
+  if (document.querySelector("dialog[open]:modal")) return false;
+
   morningReviewActive = true;
-  setReflectionSelectedDayKey(getYesterdayDayKey());
+  morningReviewDayKey = dayKey;
+  setReflectionSelectedDayKey(dayKey);
   if (page !== "home") setPage("home");
   openReflectionDialog("review");
+
+  const dialog = document.getElementById("reflection-dialog");
+  if (!dialog?.open) {
+    morningReviewActive = false;
+    morningReviewDayKey = null;
+    return false;
+  }
+
+  markMorningReviewSeen();
+  touchLastActiveDay();
   syncMorningReviewChrome();
   window.setTimeout(() => {
     if (!morningReviewActive) return;
@@ -9572,12 +9762,84 @@ function openMorningReview() {
 }
 
 function maybeOfferMorningReview({ delayMs = 280 } = {}) {
+  if (hasSeenMorningReviewToday()) {
+    touchLastActiveDay();
+    return false;
+  }
   if (!shouldOfferMorningReview()) return false;
   window.clearTimeout(morningReviewOfferTimer);
   morningReviewOfferTimer = window.setTimeout(() => {
     if (!shouldOfferMorningReview()) return;
     openMorningReview();
   }, delayMs);
+  return true;
+}
+
+function isLocalhostHost() {
+  try {
+    const host = window.location.hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "";
+  } catch {
+    return false;
+  }
+}
+
+/** Localhost-only: ?morning-review=1 seeds yesterday's wins and forces the first-login review. */
+function wantsMorningReviewTest() {
+  try {
+    if (!isLocalhostHost()) return false;
+    return new URLSearchParams(window.location.search).has("morning-review");
+  } catch {
+    return false;
+  }
+}
+
+function seedMorningReviewTestWins(dayKey = getYesterdayDayKey()) {
+  const at = (hour, minute) => {
+    const [y, m, d] = String(dayKey).split("-").map(Number);
+    const date = new Date(y, m - 1, d, hour, minute, 0, 0);
+    return date.toISOString();
+  };
+  const seeds = [
+    {
+      id: "morning-review-test-1",
+      text: "Ship morning standup notes",
+      tier: 2,
+      context: "work",
+      completedAt: at(9, 15),
+    },
+    {
+      id: "morning-review-test-2",
+      text: "Walk outside after lunch",
+      tier: 3,
+      context: "health",
+      completedAt: at(13, 40),
+    },
+    {
+      id: "morning-review-test-3",
+      text: "Clear the kitchen counters",
+      tier: 3,
+      context: "home",
+      completedAt: at(18, 20),
+    },
+  ];
+  seeds.forEach((seed) => recordDailyWin({ ...seed, done: true }, seed.context));
+  return seeds;
+}
+
+function setupMorningReviewTest() {
+  if (!wantsMorningReviewTest()) return false;
+  const yesterday = getYesterdayDayKey();
+  seedMorningReviewTestWins(yesterday);
+  try {
+    localStorage.removeItem(MORNING_REVIEW_KEY);
+    localStorage.setItem(LAST_ACTIVE_DAY_KEY, yesterday);
+  } catch {
+    /* ignore */
+  }
+  console.info(
+    `[Presence] Morning review test ready for ${yesterday}. Opening review…`
+  );
   return true;
 }
 
@@ -10021,6 +10283,15 @@ function getCompletedTasksForDay(dayKey, { includeArchived = true } = {}) {
       seen.add(key);
       tasks.push({ ...t, context: ctx });
     });
+  });
+
+  // Wins log survives daily/weekly repeat resets that clear completedAt.
+  getLoggedWinsForDay(target).forEach((win) => {
+    if (!includeArchived && win.archived) return;
+    const key = `${win.context}:${win.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    tasks.push(win);
   });
 
   const sorted = tasks.sort(
@@ -11467,6 +11738,7 @@ function setupReflection() {
 
 function markTaskDone(id, ctx, extras = {}) {
   let tier = null;
+  let completed = null;
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
@@ -11478,15 +11750,18 @@ function markTaskDone(id, ctx, extras = {}) {
       };
       if (extras.notes !== undefined) next.notes = extras.notes;
       if (extras.photos !== undefined) next.photos = extras.photos;
+      completed = next;
       return next;
     })
   );
+  if (completed) recordDailyWin(completed, ctx);
   if (tier != null) persistTierOrderAfterToggle(tier);
   renderAll();
 }
 
 function toggleTaskDone(id, ctx, markingDone) {
   let tier = null;
+  let completed = null;
   updateTaskInContext(ctx, (list) =>
     list.map((t) => {
       if (t.id !== id) return t;
@@ -11498,6 +11773,7 @@ function toggleTaskDone(id, ctx, markingDone) {
           next.completedBy = supabaseUserId;
           if (supabaseAuthEmail) next.completedByEmail = supabaseAuthEmail;
         }
+        completed = next;
       } else {
         delete next.completedAt;
         delete next.completedBy;
@@ -11506,6 +11782,8 @@ function toggleTaskDone(id, ctx, markingDone) {
       return next;
     })
   );
+  if (markingDone && completed) recordDailyWin(completed, ctx);
+  else if (!markingDone) removeDailyWin(id, ctx);
   if (isSharedContext(ctx)) {
     const shared = findSharedContext(ctx);
     if (shared) {
@@ -15969,6 +16247,11 @@ function saveTaskFromDialog() {
     )
   );
   saveTasks(newCtx, [...loadTasks(newCtx), ...created]);
+  if (pendingFocusTimerAttach) {
+    pendingFocusTimerAttach = false;
+    created.forEach((task) => attachTaskToFocusTimer(task.id, newCtx));
+    refreshFocusTimerUI();
+  }
   return true;
 }
 
@@ -16056,6 +16339,7 @@ function setupTaskDialog() {
   });
 
   dialog.addEventListener("close", () => {
+    pendingFocusTimerAttach = false;
     clearDialogBrainFields();
     resetDialogMediaFields();
     setDialogCaptureMode("task", { showSwitcher: false, updateTitle: false, syncPreview: false });
@@ -17021,4 +17305,5 @@ rebuildContextUi();
 snapWeeklyViewToToday({ skipRender: true });
 setPage(page, filter);
 syncBottomChrome();
-maybeOfferMorningReview({ delayMs: 480 });
+const morningReviewTest = setupMorningReviewTest();
+maybeOfferMorningReview({ delayMs: morningReviewTest ? 200 : 480 });

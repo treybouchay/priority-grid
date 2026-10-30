@@ -1165,7 +1165,8 @@ body[data-page="home"] .focus-timer-attach.hidden {
   display: none;
 }
 
-body[data-page="home"] .focus-timer-attach-head {
+body[data-page="home"] .focus-timer-attach-head,
+body[data-page="home"] .focus-timer-session-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1173,7 +1174,17 @@ body[data-page="home"] .focus-timer-attach-head {
   margin-bottom: 0.5rem;
 }
 
-body[data-page="home"] .focus-timer-attach-label {
+body[data-page="home"] .focus-timer-session {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+body[data-page="home"] .focus-timer-session.hidden {
+  display: none;
+}
+
+body[data-page="home"] .focus-timer-attach-label,
+body[data-page="home"] .focus-timer-session-label {
   margin: 0;
   font-family: var(--font-body);
   font-size: 0.75rem;
@@ -1357,8 +1368,49 @@ body[data-page="home"] .focus-timer-attach-remove {
 }
 
 body[data-page="home"] .focus-timer-session-tasks.hidden,
+.focus-timer-mini-session {
+  width: 100%;
+  margin-top: 0.55rem;
+}
+
+.focus-timer-mini-session.hidden,
 .focus-timer-mini-tasks.hidden {
   display: none;
+}
+
+.focus-timer-mini-session-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.35rem;
+}
+
+.focus-timer-mini-add {
+  border: 1px solid rgba(255, 219, 210, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: #ffdbd2;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 650;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+}
+
+.focus-timer-mini-add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.focus-timer-mini.is-done .focus-timer-mini-add {
+  border-color: rgba(14, 48, 48, 0.28);
+  color: #0e3030;
+}
+
+.focus-timer-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 /* Focus timer — shared tokens for a soothing complete-state colour pulse */
