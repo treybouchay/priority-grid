@@ -43,6 +43,19 @@
   z-index: 90;
 }
 
+/* Desktop sidebar sits above Reflection (z-index 220) — inset so day-pager arrows stay clear */
+@media (min-width: 769px) {
+  .reflection-dialog[open] {
+    left: var(--sidebar-rail-width, 13.5rem);
+    width: auto;
+    max-width: none;
+  }
+
+  body.focus-timer-session .reflection-dialog[open] {
+    left: 0;
+  }
+}
+
 .reflection-dialog::backdrop {
   background: rgba(14, 48, 48, 0.55);
 }
@@ -1446,6 +1459,17 @@ html.reflection-open.reflection-has-anxiety #focus-timer-mini-dock {
     rgba(253, 249, 244, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 6px 18px rgba(14, 48, 48, 0.06);
+}
+
+#reflection-dialog.is-morning-review .reflection-favourite {
+  border-color: rgba(14, 48, 48, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(14, 48, 48, 0.06),
+    0 10px 28px rgba(14, 48, 48, 0.1);
+}
+
+#reflection-dialog.is-morning-review .reflection-favourite-eyebrow {
+  color: #0e3030;
 }
 
 .reflection-favourite-heading {

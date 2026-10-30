@@ -16,6 +16,7 @@ const NEXT_WEEK_PREFIX = "priority-grid-next-week-";
 const FORGET_IT_PREFIX = "priority-grid-forget-it-";
 const REPEAT_RESET_KEY = "priority-grid-repeat-last-reset";
 const DONE_ROLLOVER_KEY = "priority-grid-done-rollover";
+const MORNING_REVIEW_KEY = "priority-grid-morning-review";
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SYNC_META_KEY = "priority-grid-sync-meta";
 const APP_STARTED_KEY = "priority-grid-app-started";
@@ -4383,11 +4384,13 @@ async function pullRemoteSync(options = {}) {
       runDailyMaintenance({ render: false });
       renderAll();
       updateSyncUi();
+      maybeOfferMorningReview({ delayMs: 420 });
     }
     if (syncBackend === "supabase" && supabaseUserId) {
       await Promise.all(loadSpacesMeta().map((space) => pullSpacePayload(space.id).catch(() => {})));
       rebuildContextUi();
       syncNotifyDots();
+      maybeOfferMorningReview({ delayMs: 420 });
     }
   } catch {
     if (syncBackend !== "supabase") syncAvailable = false;
@@ -6817,10 +6820,12 @@ function setupDailyMaintenance() {
     if (document.visibilityState === "visible") {
       runDailyMaintenance({ render: true });
       scheduleMidnightMaintenance();
+      maybeOfferMorningReview();
     }
   });
   window.addEventListener("focus", () => {
     runDailyMaintenance({ render: true });
+    maybeOfferMorningReview();
   });
 }
 
@@ -9498,6 +9503,84 @@ function getTasksCompletedYesterday() {
 const REFLECTION_JOURNAL_KEY = "priority-grid-reflection-journal";
 const REFLECTION_FAVOURITE_KEY = "priority-grid-reflection-favourite";
 
+let morningReviewActive = false;
+let morningReviewOfferTimer = 0;
+
+function getYesterdayDayKey() {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return archiveDayKey(yesterday.toISOString());
+}
+
+function hasSeenMorningReviewToday() {
+  try {
+    return localStorage.getItem(MORNING_REVIEW_KEY) === localDayKey();
+  } catch {
+    return true;
+  }
+}
+
+function markMorningReviewSeen() {
+  try {
+    localStorage.setItem(MORNING_REVIEW_KEY, localDayKey());
+  } catch {
+    /* ignore */
+  }
+}
+
+function shouldOfferMorningReview() {
+  if (hasSeenMorningReviewToday()) return false;
+  if (document.getElementById("reflection-dialog")?.open) return false;
+  if (document.querySelector("dialog[open]:modal")) return false;
+  return getCompletedTasksForDay(getYesterdayDayKey()).length > 0;
+}
+
+function syncMorningReviewChrome() {
+  const dialog = document.getElementById("reflection-dialog");
+  dialog?.classList.toggle("is-morning-review", morningReviewActive);
+  document.documentElement.classList.toggle("morning-review-open", morningReviewActive);
+
+  const reviewContinue = document.getElementById("reflection-review-continue");
+  const label = reviewContinue?.querySelector("span");
+  if (label) {
+    label.textContent = morningReviewActive ? "Start today" : "Continue to thoughts";
+  }
+}
+
+function endMorningReview() {
+  if (!morningReviewActive) return;
+  morningReviewActive = false;
+  setReflectionSelectedDayKey(reflectionTodayKey());
+  syncMorningReviewChrome();
+}
+
+function openMorningReview() {
+  if (!shouldOfferMorningReview()) return false;
+  markMorningReviewSeen();
+  morningReviewActive = true;
+  setReflectionSelectedDayKey(getYesterdayDayKey());
+  if (page !== "home") setPage("home");
+  openReflectionDialog("review");
+  syncMorningReviewChrome();
+  window.setTimeout(() => {
+    if (!morningReviewActive) return;
+    document
+      .getElementById("reflection-favourite-slot")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 360);
+  return true;
+}
+
+function maybeOfferMorningReview({ delayMs = 280 } = {}) {
+  if (!shouldOfferMorningReview()) return false;
+  window.clearTimeout(morningReviewOfferTimer);
+  morningReviewOfferTimer = window.setTimeout(() => {
+    if (!shouldOfferMorningReview()) return;
+    openMorningReview();
+  }, delayMs);
+  return true;
+}
+
 const REFLECTION_PROMPT_POOL = [
   { emoji: "🏆", text: "A small win I'm proud of" },
   { emoji: "😊", text: "A moment that made me smile" },
@@ -10845,15 +10928,23 @@ function reflectionFavouritePickerHtml(completed, favouriteId, dayKey = reflecti
          <span class="reflection-favourite-selected-mark" aria-hidden="true">★</span>
          <span>Favourite: <strong>${escapeHtml(selectedTask.text)}</strong></span>
        </p>`
-    : `<p class="reflection-favourite-hint">Tap one win to pin it as your favourite.</p>`;
+    : `<p class="reflection-favourite-hint">${
+        morningReviewActive && !isToday
+          ? "Pick the win you want to carry into today."
+          : "Tap one win to pin it as your favourite."
+      }</p>`;
 
   return `
     <section class="reflection-favourite" aria-label="Favourite task from ${escapeHtml(dayPhrase)}">
-      <p class="reflection-favourite-eyebrow">One small moment to keep</p>
+      <p class="reflection-favourite-eyebrow">${
+        morningReviewActive && !isToday ? "First stop this morning" : "One small moment to keep"
+      }</p>
       <h3 class="reflection-favourite-heading">${
         isToday
           ? "Which is your favourite task so far?"
-          : `Which was your favourite task ${escapeHtml(dayPhrase)}?`
+          : morningReviewActive
+            ? "Which finished task was your favourite?"
+            : `Which was your favourite task ${escapeHtml(dayPhrase)}?`
       }</h3>
       ${selectedBanner}
       <div class="reflection-favourite-options" role="group" aria-label="Choose a favourite win">
@@ -10935,6 +11026,22 @@ function renderReflectionReview() {
   const story = buildDayAccomplishStory(completed, dayKey);
   const favouriteId = getReflectionFavouriteId(dayKey);
   const favouriteTask = completed.find((t) => t.id === favouriteId) || null;
+
+  const hero = document.querySelector("#reflection-panel-review .reflection-hero--review");
+  const heroLabel = hero?.querySelector(".reflection-hero-label");
+  const heroTitle = hero?.querySelector(".reflection-hero-title");
+  if (heroLabel) {
+    heroLabel.textContent = morningReviewActive && !isToday ? "YESTERDAY" : "REFLECTION";
+  }
+  if (heroTitle) {
+    if (morningReviewActive && !isToday) {
+      heroTitle.innerHTML = "Look what you<br>pulled off.";
+    } else if (isToday) {
+      heroTitle.innerHTML = "Look what you’re<br>pulling off.";
+    } else {
+      heroTitle.innerHTML = "Look what you<br>pulled off.";
+    }
+  }
 
   syncReflectionDayPagerVisibility("review");
 
@@ -11255,6 +11362,7 @@ function getReflectionScrollRoot() {
 function closeReflectionDialog() {
   const dialog = document.getElementById("reflection-dialog");
   if (dialog?.open) dialog.close();
+  endMorningReview();
 }
 
 function openReflectionDialog(tab = "review") {
@@ -11269,6 +11377,7 @@ function openReflectionDialog(tab = "review") {
   setReflectionTab(nextTab);
   syncBottomChrome();
   setReflectionOpenState(true);
+  syncMorningReviewChrome();
   // Non-modal so the standard bottom nav stays above Reflection and stays tappable
   dialog.show();
   dialog.scrollTop = 0;
@@ -11279,6 +11388,7 @@ function openReflectionDialog(tab = "review") {
     renderFocusTimerChrome();
     syncBottomChrome();
     updateReflectionHeroOnCream();
+    syncMorningReviewChrome();
     if (nextTab === "thoughts") {
       document.getElementById("reflection-anxiety-input")?.blur();
     }
@@ -11308,6 +11418,7 @@ function setupReflection() {
   // Scroll lives on the dialog (not nested .reflection-screen) so touch pans work
   dialog?.addEventListener("scroll", onReflectionScreenScroll, { passive: true });
   dialog?.addEventListener("close", () => {
+    endMorningReview();
     setReflectionOpenState(false);
     requestAnimationFrame(() => syncBottomChrome());
   });
@@ -11337,6 +11448,10 @@ function setupReflection() {
   });
 
   reviewContinueBtn?.addEventListener("click", () => {
+    if (morningReviewActive) {
+      closeReflectionDialog();
+      return;
+    }
     setReflectionTab("thoughts");
     renderReflectionAnxietyBox();
     dialog.scrollTop = 0;
@@ -11344,7 +11459,7 @@ function setupReflection() {
   });
 
   continueBtn?.addEventListener("click", () => {
-    dialog?.close();
+    closeReflectionDialog();
   });
 
   setupPersonaMarkPreview();
@@ -16906,3 +17021,4 @@ rebuildContextUi();
 snapWeeklyViewToToday({ skipRender: true });
 setPage(page, filter);
 syncBottomChrome();
+maybeOfferMorningReview({ delayMs: 480 });
