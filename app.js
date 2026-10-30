@@ -5142,6 +5142,19 @@ function updateStandaloneChecklistTitle(id, title) {
   return true;
 }
 
+function addStandaloneChecklistItem(stickyId, text) {
+  const item = normalizeChecklistItem(text);
+  if (!stickyId || !item) return false;
+  const notes = loadStandaloneNotes();
+  const note = notes.find((n) => n.id === stickyId);
+  if (!isChecklistStandaloneNote(note)) return false;
+  if (note.items.length >= 40) return false;
+  note.items.push(item);
+  note.kind = "checklist";
+  saveStandaloneNotes(notes);
+  return true;
+}
+
 function removeStandaloneChecklistItem(stickyId, itemId) {
   const notes = loadStandaloneNotes();
   const index = notes.findIndex((n) => n.id === stickyId);
@@ -14139,7 +14152,17 @@ function stickyCheckItemHtml(stickyId, item) {
       <label class="plan-card-check sticky-check-box">
         <input type="checkbox" ${item.done ? "checked" : ""} aria-label="Mark item done" />
       </label>
-      <span class="sticky-check-text">${escapeHtml(item.text)}</span>
+      <div class="sticky-check-copy">
+        <button type="button" class="sticky-check-text" title="Edit item">${escapeHtml(item.text)}</button>
+        <input
+          type="text"
+          class="sticky-check-edit-input hidden"
+          maxlength="180"
+          value="${escapeHtml(item.text)}"
+          aria-label="Edit item"
+        />
+      </div>
+      <button type="button" class="sticky-check-remove" aria-label="Remove item" title="Remove">×</button>
       <button type="button" class="plan-card-drag task-drag-handle sticky-check-drag" tabindex="-1" aria-label="Drag to a priority list">
         <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
           <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
@@ -14209,8 +14232,18 @@ function homeChecklistStickyHtml(note) {
         class="home-checklist-sticky-body${expanded ? "" : " hidden"}"
         id="home-checklist-body-${escapeHtml(note.id)}"
       >
-        <p class="home-checklist-sticky-hint">Drag a row onto 1st–4th</p>
+        <p class="home-checklist-sticky-hint">Drag a row onto 1st–4th · tap a row to edit</p>
         <ul class="home-checklist-sticky-list">${itemsHtml}</ul>
+        <form class="home-checklist-sticky-add">
+          <input
+            type="text"
+            class="home-checklist-sticky-add-input"
+            maxlength="180"
+            placeholder="Add an item…"
+            aria-label="Add list item"
+          />
+          <button type="submit" class="home-checklist-sticky-add-btn">Add</button>
+        </form>
       </div>
     </article>`;
 }
@@ -14297,10 +14330,87 @@ function bindHomeChecklistStickies(root) {
       expandedHomeChecklistIds.delete(stickyId);
       renderAll();
     });
+
+    card.querySelector(".home-checklist-sticky-add")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = card.querySelector(".home-checklist-sticky-add-input");
+      const text = input?.value || "";
+      if (!addStandaloneChecklistItem(stickyId, text)) return;
+      expandedHomeChecklistIds.add(stickyId);
+      renderHomeChecklistStickies();
+      const nextCard = document.querySelector(
+        `.home-checklist-sticky[data-sticky-id="${CSS.escape(stickyId)}"]`
+      );
+      const nextInput = nextCard?.querySelector(".home-checklist-sticky-add-input");
+      nextInput?.focus();
+    });
+
     card.querySelectorAll(".sticky-check-item").forEach((row) => {
       const itemId = row.dataset.itemId;
+      const textBtn = row.querySelector(".sticky-check-text");
+      const editInput = row.querySelector(".sticky-check-edit-input");
+
+      const startEdit = () => {
+        if (!textBtn || !editInput) return;
+        row.classList.add("is-editing");
+        textBtn.classList.add("hidden");
+        editInput.classList.remove("hidden");
+        editInput.value = textBtn.textContent || "";
+        editInput.focus();
+        editInput.select();
+      };
+
+      const cancelEdit = () => {
+        if (!textBtn || !editInput) return;
+        row.classList.remove("is-editing");
+        editInput.classList.add("hidden");
+        textBtn.classList.remove("hidden");
+        editInput.value = textBtn.textContent || "";
+      };
+
+      const saveEdit = () => {
+        if (!editInput) return;
+        const next = editInput.value;
+        if (!String(next || "").trim()) {
+          cancelEdit();
+          return;
+        }
+        if (!updateStandaloneChecklistItem(stickyId, itemId, { text: next })) {
+          cancelEdit();
+          return;
+        }
+        expandedHomeChecklistIds.add(stickyId);
+        renderHomeChecklistStickies();
+      };
+
       row.querySelector('input[type="checkbox"]')?.addEventListener("change", (e) => {
         updateStandaloneChecklistItem(stickyId, itemId, { done: e.target.checked });
+        expandedHomeChecklistIds.add(stickyId);
+        renderAll();
+      });
+      textBtn?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startEdit();
+      });
+      editInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          saveEdit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancelEdit();
+        }
+      });
+      editInput?.addEventListener("blur", () => {
+        if (!row.classList.contains("is-editing")) return;
+        saveEdit();
+      });
+      row.querySelector(".sticky-check-remove")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!removeStandaloneChecklistItem(stickyId, itemId)) return;
+        expandedHomeChecklistIds.add(stickyId);
         renderAll();
       });
       bindStickyCheckItemDrag(row);

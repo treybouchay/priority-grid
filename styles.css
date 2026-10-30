@@ -5593,9 +5593,9 @@ dialog {
 
 .sticky-check-item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
   min-height: 2.35rem;
   padding: 0.25rem 0.35rem 0.25rem 0.2rem;
   border-radius: 0.65rem;
@@ -5611,16 +5611,104 @@ dialog {
   opacity: 0.35;
 }
 
+.sticky-check-item.is-editing {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.sticky-check-copy {
+  min-width: 0;
+}
+
 .sticky-check-text {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  background: transparent;
+  text-align: left;
   font-family: var(--font-body, "Manrope", system-ui, sans-serif);
   font-size: 0.875rem;
   font-weight: 550;
   color: #11302c;
   line-height: 1.3;
+  cursor: text;
+  overflow-wrap: anywhere;
+}
+
+.sticky-check-text.hidden,
+.sticky-check-edit-input.hidden {
+  display: none;
+}
+
+.sticky-check-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid rgba(14, 48, 48, 0.2);
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #11302c;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.875rem;
+}
+
+.sticky-check-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: rgba(17, 48, 44, 0.4);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sticky-check-remove:hover {
+  background: rgba(17, 48, 44, 0.08);
+  color: #11302c;
 }
 
 .sticky-check-drag {
   opacity: 0.55;
+}
+
+.home-checklist-sticky-add {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.55rem 0 0;
+}
+
+.home-checklist-sticky-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border: 1px dashed rgba(14, 48, 48, 0.22);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.75);
+  color: #11302c;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.8125rem;
+}
+
+.home-checklist-sticky-add-btn {
+  flex: 0 0 auto;
+  height: 2.15rem;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: 0.55rem;
+  background: #0e3030;
+  color: #ffdbd2;
+  font-family: var(--font-body, "Manrope", system-ui, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 @media (max-width: 480px) {
